@@ -11,7 +11,9 @@
   --bg-white: #ffffff;
   --bg-sidebar: #ffffff;
   --bg-content: #ffffff;
-  
+
+  /* 헤더 배경색 */
+  --header-bg: #F9FAFB;
   /* Border Colors */
   --border-light: #e2e8f0;
   --border-medium: #cbd5e1;
@@ -55,7 +57,7 @@
 
 /* ===== HEADER STYLES ===== */
 .header {
-  background: var(--bg-white);
+  background: var(--header-bg);
   border-bottom: 1px solid var(--border-light);
   padding: 1rem 2rem;
   display: flex;
