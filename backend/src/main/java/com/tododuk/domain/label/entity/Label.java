@@ -20,5 +20,4 @@ public class Label extends BaseEntity {
 
     @ManyToOne
     private User user;
-
 }
