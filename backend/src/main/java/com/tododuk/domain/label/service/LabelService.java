@@ -14,6 +14,7 @@ public class LabelService {
 
     private final LabelRepository labelRepository;
 
+    @Transactional(readOnly = true)
     public long countOrders(){
         return labelRepository.count();
     }
