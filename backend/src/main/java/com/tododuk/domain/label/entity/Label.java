@@ -5,8 +5,7 @@ import com.tododuk.domain.user.entity.User;
 import com.tododuk.global.entity.BaseEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Getter
@@ -18,6 +17,7 @@ public class Label extends BaseEntity {
 
     @ManyToOne
     private TodoLabel todoLabel;
+
     @ManyToOne
     private User user;
 
