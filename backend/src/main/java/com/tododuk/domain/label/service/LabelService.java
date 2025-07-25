@@ -21,5 +21,6 @@ public class LabelService {
 
     public Label createLabel(Label label) {
         labelRepository.save(label);
+        return label;
     }
 }
