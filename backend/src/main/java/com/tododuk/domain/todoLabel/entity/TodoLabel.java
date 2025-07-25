@@ -5,11 +5,8 @@ import com.tododuk.domain.todo.entity.Todo;
 import com.tododuk.global.entity.BaseEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
 
 
 @Getter
@@ -20,6 +17,6 @@ public class TodoLabel extends BaseEntity {
     @ManyToOne
     private Todo todo;
 
-    @OneToMany
-    private List<Label> label;
+    @ManyToOne
+    private Label label;
 }
