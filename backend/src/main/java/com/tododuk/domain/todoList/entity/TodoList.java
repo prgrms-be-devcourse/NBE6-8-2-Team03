@@ -19,13 +19,16 @@ import static jakarta.persistence.FetchType.LAZY;
 @Getter
 @NoArgsConstructor
 public class TodoList extends BaseEntity {
+
     private String name;
     private String description;
 
     @ManyToOne
     private User user;
+
     @ManyToOne
     private Team team;
+
     @OneToMany(fetch = LAZY, cascade = REMOVE)
     private List<Todo> todo;
 

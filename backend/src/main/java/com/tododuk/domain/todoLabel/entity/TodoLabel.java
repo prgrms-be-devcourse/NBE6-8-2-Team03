@@ -11,14 +11,15 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-@Entity
+
 @Getter
 @NoArgsConstructor
+@Entity
 public class TodoLabel extends BaseEntity {
+
     @ManyToOne
     private Todo todo;
+
     @OneToMany
     private List<Label> label;
-
-
 }
