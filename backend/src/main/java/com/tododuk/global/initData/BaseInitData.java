@@ -31,6 +31,7 @@ public class BaseInitData {
             //label 생성
             Label label1 = labelService.createLabel(Label.builder().name("공부").color("빨강").build());
             Label label2 = labelService.createLabel(Label.builder().name("운동").color("파랑").build());
+            Label label3 = labelService.createLabel(Label.builder().name("약먹기").color("주황").build());
 
             //todo 생성
             Todo todo1 = Todo.builder()
@@ -59,6 +60,8 @@ public class BaseInitData {
             todoRepository.save(todo1);
             todoRepository.save(todo2);
             labelService.createLabel(label1);
+            labelService.createLabel(label2);
+            labelService.createLabel(label3);
             todoLabelRepository.save(todoLabel1);
             todoLabelRepository.save(todoLabel2);
             todoLabelRepository.save(todoLabel3);

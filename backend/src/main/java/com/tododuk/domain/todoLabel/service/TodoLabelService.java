@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,30 +43,44 @@ public class TodoLabelService {
     }
 
     @Transactional
-    public void createTodoLabels(int todoId, List<Integer> labelIds) {
+    public List<TodoLabel> createTodoLabels(int todoId, List<Integer> labelIds) {
+        List<TodoLabel> result = new ArrayList<>();
+
         for (Integer labelId : labelIds) {
-            createTodoLabel(todoId, labelId);
+
+            boolean exists = todoLabelRepository.existsByTodoIdAndLabelId(todoId, labelId);
+
+            if (exists) {
+                continue;
+            }
+
+            TodoLabel todoLabel = createTodoLabel(todoId, labelId);
+            result.add(todoLabel);
         }
+
+        return result;
     }
 
-//    @Transactional
-//    public void removeTodoLabelFromTodo(int todoId, int labelId) {
-//        TodoLabel todoLabel = todoLabelRepository.findByTodoIdAndLabelId(todoId, labelId)
-//                .orElseThrow(() -> new IllegalArgumentException("todoLabel not found"));
-//
-//        todoLabelRepository.delete(todoLabel);
-//    }
-//
-//    @Transactional
-//    public void updateTodoLabel(int todoId, List<Integer> labelIds) {
-//        List<Integer> savedLabelIds = getTodoLabelIdsByTodoIds(todoId);
-//
-//        for (Integer labelId : savedLabelIds) {
-//            removeTodoLabelFromTodo(todoId, labelId);
-//        }
-//        for (Integer labelId : labelIds) {
-//            createTodoLabel(todoId, labelId);
-//        }
-//    }
+    @Transactional
+    public List<TodoLabel> updateTodoLabels(int todoId, List<Integer> labelIds) {
+        List<TodoLabel> result = new ArrayList<>();
+        List<Integer> savedLabelIds = getTodoLabelIdsByTodoIds(todoId);
+
+        for (Integer labelId : savedLabelIds) {
+            removeTodoLabelFromTodo(todoId, labelId);
+        }
+        List<TodoLabel> todoLabels = createTodoLabels(todoId, labelIds);
+        result.addAll(todoLabels);
+
+        return result;
+    }
+
+    @Transactional
+    public void removeTodoLabelFromTodo(int todoId, int labelId) {
+        TodoLabel todoLabel = todoLabelRepository.findByTodoIdAndLabelId(todoId, labelId)
+                .orElseThrow(() -> new IllegalArgumentException("todoLabel not found"));
+
+        todoLabelRepository.delete(todoLabel);
+    }
 }
 
