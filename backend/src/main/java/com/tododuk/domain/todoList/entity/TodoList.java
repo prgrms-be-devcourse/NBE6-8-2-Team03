@@ -31,5 +31,4 @@ public class TodoList extends BaseEntity {
 
     @OneToMany(fetch = LAZY, cascade = REMOVE)
     private List<Todo> todo;
-
 }

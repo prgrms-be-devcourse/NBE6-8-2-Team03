@@ -19,6 +19,7 @@ public class TodoLabelService {
         todoLabelRepository.save(todoLabel);
     }
 
+    @Transactional
     public void createTodoLabels(int todoId, List<Integer> labelIds){
         for(Integer labelId : labelIds){
             createTodoLabel(todoId, labelId);
@@ -35,9 +36,9 @@ public class TodoLabelService {
 
     @Transactional
     public void updateTodoLabel(int todoId, List<Integer> labelIds){
-        List<Integer> existLabelIds = getLabelIdsByTodoIds(todoId);
+        List<Integer> savedLabelIds = getLabelIdsByTodoIds(todoId);
 
-        for(Integer labelId : existLabelIds){
+        for(Integer labelId : savedLabelIds){
             removeTodoLabelFromTodo(todoId, labelId);
         }
         for(Integer labelId : labelIds){
@@ -45,6 +46,7 @@ public class TodoLabelService {
         }
     }
 
+    @Transactional
     public List<Integer> getLabelIdsByTodoIds(int todoId){
         return todoLabelRepository.findByTodoId(todoId).stream()
                 .map(todoLabel-> todoLabel.getLabel().getId())
