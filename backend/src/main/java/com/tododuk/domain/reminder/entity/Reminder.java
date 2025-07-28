@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 public class Reminder extends BaseEntity {
     @ManyToOne
     private Todo todo;
+
     private LocalDateTime remindAt;
     private String method; //알림 내용? 알림 방법?
 
