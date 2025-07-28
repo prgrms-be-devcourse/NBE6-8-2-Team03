@@ -1,6 +1,8 @@
 package com.tododuk.domain.teamMember.entity;
 
+import com.tododuk.domain.team.entity.Team;
 import com.tododuk.domain.todoList.entity.TodoList;
+import com.tododuk.domain.user.entity.User;
 import com.tododuk.global.entity.BaseEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
