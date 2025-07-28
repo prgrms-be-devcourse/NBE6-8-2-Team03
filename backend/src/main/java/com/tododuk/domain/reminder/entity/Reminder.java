@@ -4,10 +4,14 @@ import com.tododuk.domain.todo.entity.Todo;
 import com.tododuk.global.entity.BaseEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Getter
+@NoArgsConstructor
 public class Reminder extends BaseEntity {
     @ManyToOne
     private Todo todo;
