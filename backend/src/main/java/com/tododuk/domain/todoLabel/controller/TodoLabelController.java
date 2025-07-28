@@ -1,7 +1,9 @@
 package com.tododuk.domain.todoLabel.controller;
 
-import com.tododuk.domain.todoLabel.dto.TodoLabelRequestDto;
+import com.tododuk.domain.todoLabel.dto.CreateTodoLabelRequestDto;
+import com.tododuk.domain.todoLabel.dto.CreateTodoLabelResponseDto;
 import com.tododuk.domain.todoLabel.dto.TodoLabelResponseDto;
+import com.tododuk.domain.todoLabel.entity.TodoLabel;
 import com.tododuk.domain.todoLabel.service.TodoLabelService;
 import com.tododuk.global.rsData.RsData;
 import lombok.RequiredArgsConstructor;
@@ -26,14 +28,28 @@ public class TodoLabelController {
     }
 
 
-    @PostMapping("/todos/{todoId}/labels")
-    public RsData<TodoLabelResponseDto> createTodoLabels(@RequestBody TodoLabelRequestDto requestDto){
-        todoLabelService.updateTodoLabel(requestDto.todoId(), requestDto.labelIds());
+    @PostMapping
+    public RsData<CreateTodoLabelResponseDto> createTodoLabel(@RequestBody CreateTodoLabelRequestDto request ) {
 
-        TodoLabelResponseDto responseDto = new TodoLabelResponseDto(
-                requestDto.todoId(),
-                requestDto.labelIds()
+        TodoLabel saved = todoLabelService.createTodoLabel(request.todoId(), request.labelId());
+
+        CreateTodoLabelResponseDto responseDto = new CreateTodoLabelResponseDto(
+                saved.getTodo().getId(),
+                saved.getLabel().getId()
         );
-        return new RsData<>("200-1", "라벨이 성공적으로 수정되었습니다.", responseDto);
+
+        return new RsData<>("200-1", "Todo에 라벨을 성공적으로 연결했습니다.", responseDto);
     }
+
+
+//    @PostMapping
+//    public RsData<TodoLabelResponseDto> createTodoLabels(@RequestBody TodoLabelRequestDto requestDto){
+//        todoLabelService.createTodoLabels(requestDto.todoId(), requestDto.labelIds());
+//
+//        TodoLabelResponseDto responseDto = new TodoLabelResponseDto(
+//                requestDto.todoId(),
+//                requestDto.labelIds()
+//        );
+//        return new RsData<>("200-1", "라벨들이 성공적으로 연결되었습니다.", responseDto);
+//    }
 }
