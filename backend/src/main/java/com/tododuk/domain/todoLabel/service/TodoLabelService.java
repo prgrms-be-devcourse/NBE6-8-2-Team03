@@ -2,11 +2,15 @@ package com.tododuk.domain.todoLabel.service;
 
 import com.tododuk.domain.todoLabel.entity.TodoLabel;
 import com.tododuk.domain.todoLabel.repository.TodoLabelRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
+@Service
 public class TodoLabelService {
 
     TodoLabelRepository todoLabelRepository;
