@@ -1,4 +1,3 @@
-// project-root/backend/src/main/java/com/tododuk/domain/team/entity/TeamMember.java
 package com.tododuk.domain.team.entity;
 
 import com.tododuk.global.entity.BaseEntity;
