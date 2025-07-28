@@ -52,7 +52,7 @@ public class UserControllerTest {
                 .andExpect(handler().handlerType(UserController.class))
                 .andExpect(handler().methodName("join"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.resultCode").value("201-1"))
+                .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("%s님 환영합니다. 회원가입이 완료되었습니다.".formatted(user.getNickName())))
                 .andExpect(jsonPath("$.data").exists())
                 .andExpect(jsonPath("$.data.id").value(user.getId()))

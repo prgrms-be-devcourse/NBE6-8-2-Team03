@@ -8,10 +8,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -91,5 +88,22 @@ public class UserController {
                 )
         );
     }
+
+
+    @GetMapping("/me")
+    public RsData<UserDto> getMyInfo(
+            @RequestHeader("Authorization") String authorization
+    ){
+        String apiKey = authorization.replace("Bearer ", "");
+        User user = userService.findByApiKey(apiKey)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 apiKey 입니다."));
+
+        return new RsData<>(
+                "200-1",
+                "내 정보 조회 성공",
+                new UserDto(user)
+        );
+    }
+
 
 }
