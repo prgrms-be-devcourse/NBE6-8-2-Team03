@@ -1,6 +1,8 @@
 package com.tododuk.domain.notification.repository;
 
-public class NotificationRepository extends JpaRepository<Notification, Integer> {
+import com.tododuk.domain.notification.entity.Notification;
+import org.springframework.data.jpa.repository.JpaRepository;
 
+public interface NotificationRepository extends JpaRepository<Notification, Integer> {
 
 }
