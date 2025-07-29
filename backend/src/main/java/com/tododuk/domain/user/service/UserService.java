@@ -1,7 +1,9 @@
 package com.tododuk.domain.user.service;
 
+import com.tododuk.domain.user.dto.UserDto;
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.repository.UserRepository;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
@@ -26,5 +28,12 @@ public class UserService {
 
     public Optional<User> findByApiKey(String apiKey) {
         return userRepository.findByApiKey(apiKey);
+    }
+
+    public void updateUserInfo(User user, UserDto reqBody) {
+        user.updateUserInfo(
+                reqBody.nickname(),
+                reqBody.profileImageUrl()
+        );
     }
 }

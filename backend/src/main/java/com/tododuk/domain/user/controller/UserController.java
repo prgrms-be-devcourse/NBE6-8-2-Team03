@@ -89,7 +89,7 @@ public class UserController {
         );
     }
 
-
+    // 내 정보 조회 : 고유번호, 이메일, 닉네임, 프로필 사진
     @GetMapping("/me")
     public RsData<UserDto> getMyInfo(
             @RequestHeader("Authorization") String authorization
@@ -104,7 +104,23 @@ public class UserController {
                 new UserDto(user)
         );
     }
-    // 내 정보 수정 구현 예정
+    // 내 정보 수정 : 닉네임, 프로필 사진 변경 가능
+    @PostMapping("/me")
+    public RsData<UserDto> updateMyInfo(
+            @RequestHeader("Authorization") String authorization,
+            @Valid @RequestBody UserDto reqBody
+    ){
+        String apiKey = authorization.replace("Bearer ", "");
+        User user = userService.findByApiKey(apiKey)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 apiKey 입니다."));
 
+        userService.updateUserInfo(user, reqBody);
+
+        return new RsData<>(
+                "200-1",
+                "내 정보 수정 성공",
+                new UserDto(user)
+        );
+    }
 
 }
