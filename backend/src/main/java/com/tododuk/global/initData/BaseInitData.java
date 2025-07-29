@@ -22,6 +22,7 @@ public class BaseInitData {
     private final LabelService labelService;
     private final TodoLabelService todoLabelService;
     private final TodoLabelRepository todoLabelRepository;
+    private final TodoRepository todoRepository;
 
     @PostConstruct
     public void init(){
@@ -69,6 +70,4 @@ public class BaseInitData {
             System.out.println("초기 데이터가 이미 존재합니다.");
         }
     }
-
-    private final TodoRepository todoRepository;
 }
