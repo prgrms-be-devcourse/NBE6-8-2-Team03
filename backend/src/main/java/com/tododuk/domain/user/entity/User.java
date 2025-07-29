@@ -1,6 +1,7 @@
 package com.tododuk.domain.user.entity;
 
 import com.tododuk.domain.label.entity.Label;
+import com.tododuk.domain.notification.entity.Notification;
 import com.tododuk.domain.team.entity.TeamMember;
 import com.tododuk.domain.todoList.entity.TodoList;
 import com.tododuk.global.entity.BaseEntity;
