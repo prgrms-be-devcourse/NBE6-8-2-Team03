@@ -101,9 +101,7 @@ public class UserController {
 
     // 내 정보 조회 : 고유번호, 이메일, 닉네임, 프로필 사진
     @GetMapping("/me")
-    public RsData<UserDto> getMyInfo(
-            @RequestHeader("Authorization") String authorization
-    ){
+    public RsData<UserDto> getMyInfo(){
         User user = rq.getActor();
 //        String apiKey = authorization.replace("Bearer ", "");
 //        User user = userService.findByApiKey(apiKey)

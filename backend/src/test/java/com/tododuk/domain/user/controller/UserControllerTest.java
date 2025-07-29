@@ -41,15 +41,15 @@ public class UserControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
                                         {
-                                            "email": "usernew@gmail.com",
+                                            "email": "usernew2@gmail.com",
                                             "password": "1234",
-                                            "nickname": "무명"
+                                            "nickname": "무명2"
                                         }
                                         """.stripIndent())
                 )
                 .andDo(print());
 
-        User user = userService.findByUserEmail("usernew@gmail.com").get();
+        User user = userService.findByUserEmail("usernew2@gmail.com").get();
 
         resultActions
                 .andExpect(handler().handlerType(UserController.class))
@@ -114,10 +114,10 @@ public class UserControllerTest {
 
         resultActions
                 .andExpect(handler().handlerType(UserController.class))
-                .andExpect(handler().methodName("me"))
+                .andExpect(handler().methodName("getMyInfo"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
-                .andExpect(jsonPath("$.msg").value("%s님의 정보입니다.".formatted(user.getNickName())))
+                .andExpect(jsonPath("$.msg").value("내 정보 조회 성공"))
                 .andExpect(jsonPath("$.data").exists())
                 .andExpect(jsonPath("$.data.id").value(user.getId()))
                 .andExpect(jsonPath("$.data.email").value(user.getUserEmail()))
