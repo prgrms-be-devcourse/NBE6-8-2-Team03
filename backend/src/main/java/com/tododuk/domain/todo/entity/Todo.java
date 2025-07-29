@@ -23,6 +23,7 @@ public class Todo extends BaseEntity {
     private LocalDateTime startDate;
     private LocalDateTime dueDate;
 
+    //initData test를 위해 일시적으로 주석처리
 //    @ManyToOne
 //    private TodoList todoList;
 
