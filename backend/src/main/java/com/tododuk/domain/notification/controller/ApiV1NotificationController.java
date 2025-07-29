@@ -2,7 +2,6 @@ package com.tododuk.domain.notification.controller;
 
 import com.tododuk.domain.notification.dto.NotificationDto;
 import com.tododuk.domain.notification.entity.Notification;
-import com.tododuk.domain.notification.repository.NotificationRepository;
 import com.tododuk.domain.notification.service.NotificationService;
 import com.tododuk.domain.user.service.UserService;
 import com.tododuk.global.rsData.RsData;
@@ -22,7 +21,6 @@ public class ApiV1NotificationController {
 
     private final NotificationService notificationService;
     private final UserService userService;
-    private final NotificationRepository notificationRepository;
 
     record CreateNotificationReqBody(
             String userEmail,
@@ -93,7 +91,7 @@ public class ApiV1NotificationController {
     @Transactional
     @Operation(summary = "알림 상태 변경")
     public RsData<NotificationDto> updateNotificationStatus(@PathVariable int id) {
-        Notification notification = notificationService.updateNotificationStatus(notificationRepository.findById(id));
+        Notification notification = notificationService.updateNotificationStatus(Optional.ofNullable(notificationService.findById(id)));
         if (notification == null) {
             return new RsData("400-1", "알림 상태 변경 실패");
         }

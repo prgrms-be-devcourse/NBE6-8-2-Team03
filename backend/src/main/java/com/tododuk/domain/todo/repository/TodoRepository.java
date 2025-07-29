@@ -3,6 +3,5 @@ package com.tododuk.domain.todo.repository;
 import com.tododuk.domain.todo.entity.Todo;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface TodoRepository extends JpaRepository<Todo, Integer> {
-
+public interface TodoRepository extends JpaRepository <Todo, Integer> {
 }
