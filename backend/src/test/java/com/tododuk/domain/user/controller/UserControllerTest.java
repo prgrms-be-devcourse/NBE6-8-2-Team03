@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -94,5 +95,32 @@ public class UserControllerTest {
                     assertThat(apiKeyCookie.getValue()).isNotBlank();
                 }
         );
+    }
+
+    @Test
+    @DisplayName("내 정보 api쿠키 ver")
+    void t3() throws Exception {
+        User actor = userService.findByUserEmail("usernew@gmail.com").get();
+        String actorApiKey = actor.getApiKey();
+
+        ResultActions resultActions = mvc
+                .perform(
+                        get("/api/v1/user/me")
+                                .cookie(new Cookie("apiKey", actorApiKey))
+                )
+                .andDo(print());
+
+        User user = userService.findByUserEmail("usernew@gmail.com").get();
+
+        resultActions
+                .andExpect(handler().handlerType(UserController.class))
+                .andExpect(handler().methodName("me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200-1"))
+                .andExpect(jsonPath("$.msg").value("%s님의 정보입니다.".formatted(user.getNickName())))
+                .andExpect(jsonPath("$.data").exists())
+                .andExpect(jsonPath("$.data.id").value(user.getId()))
+                .andExpect(jsonPath("$.data.email").value(user.getUserEmail()))
+                .andExpect(jsonPath("$.data.nickname").value(user.getNickName()));
     }
 }

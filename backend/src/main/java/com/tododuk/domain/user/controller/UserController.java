@@ -2,9 +2,9 @@ package com.tododuk.domain.user.controller;
 
 import com.tododuk.domain.user.dto.UserDto;
 import com.tododuk.domain.user.entity.User;
+import com.tododuk.global.rq.Rq;
 import com.tododuk.domain.user.service.UserService;
 import com.tododuk.global.rsData.RsData;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/user")
 public class UserController {
     private final UserService userService;
+    private final Rq rq;
 
     record UserJoinReqDto(
             @NotBlank
@@ -81,10 +82,11 @@ public class UserController {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
         // 로그인 성공 시 apiKey를 클라이언트 쿠키에 저장
-        Cookie apiKeyCookie = new Cookie("apiKey", user.getApiKey());
-        apiKeyCookie.setPath("/");
-        apiKeyCookie.setHttpOnly(true);
-        response.addCookie(apiKeyCookie);
+        rq.setCookie("apiKey", user.getApiKey());
+//        Cookie apiKeyCookie = new Cookie("apiKey", user.getApiKey());
+//        apiKeyCookie.setPath("/");
+//        apiKeyCookie.setHttpOnly(true);
+//        response.addCookie(apiKeyCookie);
 
         //dto 안에 기본 정보만 포함되어있음
         return new RsData<>(
@@ -102,9 +104,10 @@ public class UserController {
     public RsData<UserDto> getMyInfo(
             @RequestHeader("Authorization") String authorization
     ){
-        String apiKey = authorization.replace("Bearer ", "");
-        User user = userService.findByApiKey(apiKey)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 apiKey 입니다."));
+        User user = rq.getActor();
+//        String apiKey = authorization.replace("Bearer ", "");
+//        User user = userService.findByApiKey(apiKey)
+//                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 apiKey 입니다."));
 
         return new RsData<>(
                 "200-1",

@@ -1,4 +1,4 @@
-package com.tododuk.domain.user.rq;
+package com.tododuk.global.rq;
 
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.service.UserService;
@@ -44,7 +44,7 @@ public class Rq {
 
         User user = userService
                 .findByApiKey(apiKey)
-                .orElseThrow(() -> new IllegalArgumentException("API 키가 유효하지 않습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 Api키 입니다."));
 
         return user;
     }
