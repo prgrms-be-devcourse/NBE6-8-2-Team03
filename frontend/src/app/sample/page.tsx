@@ -1,5 +1,5 @@
 // src/app/sample/page.tsx
-import TodoListTemplate from "../components/TodoList/TodoListTemplate";
+import TodoListTemplate from "../_components/TodoList/TodoListTemplate";
 
 export default function SamplePage() {
   return (

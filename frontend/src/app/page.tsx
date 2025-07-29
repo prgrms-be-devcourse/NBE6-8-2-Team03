@@ -1,6 +1,6 @@
 
-import TodoList from './components/TodoList/TodoListTemplate';
-import './components/TodoList/TodoListTemplate.css';
+import TodoList from './_components/TodoList/TodoListTemplate';
+import './_components/TodoList/TodoListTemplate.css';
 
 export default function Home() {
   return <TodoList/>;
