@@ -11,6 +11,7 @@ import com.tododuk.global.rsData.RsData;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -40,17 +41,15 @@ public class NotificationService {
         notificationRepository.delete(noti);
     }
 
-    public Optional<NotificationDto> getNotifications() {
+    public List<Notification> getNotifications() {
 
-        return notificationRepository.findAll().stream()
-                .map(NotificationDto::new)
-                .findFirst();
+        return notificationRepository.findAll();
     }
 
     public NotificationDto CreateNotificationByReminder(int reminderId)
     {
         RsData<ReminderDto> reminder = reminderService.getReminderById(reminderId);
-        User user= userService.findById(1);
+        User user= userService.findByUserEmail("awdawdawd@gamil.com").orElseThrow(() -> new IllegalArgumentException("User not found with email"));
         String title  = reminder.data().todo().getTitle();
         String description = "Reminder for: " + reminder.data().todo().getDescription();
         String url = "api/v1//todo/" + reminder.data().todo().getId();
@@ -58,6 +57,12 @@ public class NotificationService {
     }
 
 
+    public Notification updateNotificationStatus(Optional<Notification> notificationDto) {
+        Notification notification = findById(notificationDto.get().getId());
+        notification.setIsRead(notificationDto.get().isRead());
+        notificationRepository.save(notification);
+        return notification;
 
+    }
 
 }
