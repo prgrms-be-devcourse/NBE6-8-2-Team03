@@ -1,7 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+<<<<<<< HEAD
 import Labels from './Labels';
+=======
+import LabelList from './LabelList';
+>>>>>>> 763de44 (feat : getLabels)
 
 interface Label {
   id: number;
@@ -13,6 +17,7 @@ const LabelSelectorModal = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLabels, setSelectedLabels] = useState<number[]>([]);
 
+<<<<<<< HEAD
   // 예시 라벨->API 호출로 변경예정.
   const availableLabels: Label[] = [
     { id: 1, name: '긴급', color: '#ef4444' },
@@ -24,6 +29,28 @@ const LabelSelectorModal = () => {
     { id: 7, name: '쇼핑', color: '#ec4899' },
     { id: 8, name: '건강', color: '#84cc16' }
   ];
+=======
+  // 예시 라벨 데이터
+  // const availableLabels: Label[] = [
+  //   { id: 1, name: '긴급', color: '#ef4444' },
+  //   { id: 2, name: '중요', color: '#f59e0b' },
+  //   { id: 3, name: '업무', color: '#3b82f6' },
+  //   { id: 4, name: '개인', color: '#10b981' },
+  //   { id: 5, name: '프로젝트', color: '#8b5cf6' },
+  //   { id: 6, name: '학습', color: '#06b6d4' },
+  //   { id: 7, name: '쇼핑', color: '#ec4899' },
+  //   { id: 8, name: '건강', color: '#84cc16' }
+  // ];
+  const [availableLabels, setAvailableLabels] = useState<Label[]>([]);
+
+  // API 호출을 useEffect에 넣기
+  useEffect(() => {
+    fetch('/api/labels')
+      .then(res => res.json())
+      .then(data => setAvailableLabels(data))
+      .catch(err => console.error('라벨 불러오기 실패:', err));
+  }, []);
+>>>>>>> 763de44 (feat : getLabels)
 
   const handleLabelToggle = (labelId: number) => {
     setSelectedLabels(prev => 
