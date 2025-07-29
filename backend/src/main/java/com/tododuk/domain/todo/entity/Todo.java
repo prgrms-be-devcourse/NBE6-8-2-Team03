@@ -28,4 +28,15 @@ public class Todo extends BaseEntity {
 //    private TodoList todoList;
 
     //업데이트 날짜는 제외 (erd 수정 필요)
+
+    public Todo(String title, String description, boolean completed) {
+
+        this.title = title;
+        this.description = description;
+        this.isCompleted = completed;
+        this.priority = 2; // 기본값은 Medium으로 설정
+        this.startDate = LocalDateTime.now(); // 생성 시 현재 시간으로 설정
+        this.dueDate = null; // 기본값은 null로 설정
+    }
+
 }
