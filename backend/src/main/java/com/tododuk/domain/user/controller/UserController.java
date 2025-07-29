@@ -4,6 +4,8 @@ import com.tododuk.domain.user.dto.UserDto;
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.service.UserService;
 import com.tododuk.global.rsData.RsData;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -45,7 +47,7 @@ public class UserController {
         );
 
         return new RsData<>(
-                "201-1",
+                "200-1",
                 "%s님 환영합니다. 회원가입이 완료되었습니다.".formatted(user.getNickName()),
                 new UserDto(user)
         );
@@ -69,7 +71,8 @@ public class UserController {
     }
     @PostMapping("/login")
     public RsData<UserLoginResDto> login(
-            @Valid @RequestBody UserLoginReqDto reqBody
+            @Valid @RequestBody UserLoginReqDto reqBody,
+            HttpServletResponse response
     ) {
         User user = userService.findByUserEmail(reqBody.email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
@@ -77,10 +80,12 @@ public class UserController {
         if (!user.getPassword().equals(reqBody.password)) {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
+        // 로그인 성공 시 apiKey를 클라이언트 쿠키에 저장
+        response.addCookie(new Cookie("apiKey", user.getApiKey()));
 
         //dto 안에 기본 정보만 포함되어있음
         return new RsData<>(
-                "201-1",
+                "200-1",
                 "%s님 환영합니다.".formatted(user.getNickName()),
                 new UserLoginResDto(
                         new UserDto(user),
