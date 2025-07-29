@@ -53,7 +53,6 @@ public class BaseInitData {
                     .dueDate(LocalDateTime.of(2025, 7, 29, 8, 0))
                     .build();
 
-            //todoLabel 생성
             TodoLabel todoLabel1 = TodoLabel.builder().todo(todo1).label(label1).build();
             TodoLabel todoLabel2 = TodoLabel.builder().todo(todo1).label(label2).build();
             TodoLabel todoLabel3 = TodoLabel.builder().todo(todo2).label(label1).build();
