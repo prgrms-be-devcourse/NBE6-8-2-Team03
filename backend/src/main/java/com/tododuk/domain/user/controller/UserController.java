@@ -47,7 +47,7 @@ public class UserController {
         );
 
         return new RsData<>(
-                "200-1",
+                "200-1",// 생성은 201이지만 기본값이 200이라 추후 수정 필
                 "%s님 환영합니다. 회원가입이 완료되었습니다.".formatted(user.getNickName()),
                 new UserDto(user)
         );
@@ -81,7 +81,10 @@ public class UserController {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
         // 로그인 성공 시 apiKey를 클라이언트 쿠키에 저장
-        response.addCookie(new Cookie("apiKey", user.getApiKey()));
+        Cookie apiKeyCookie = new Cookie("apiKey", user.getApiKey());
+        apiKeyCookie.setPath("/");
+        apiKeyCookie.setHttpOnly(true);
+        response.addCookie(apiKeyCookie);
 
         //dto 안에 기본 정보만 포함되어있음
         return new RsData<>(
