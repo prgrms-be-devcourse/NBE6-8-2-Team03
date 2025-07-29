@@ -57,4 +57,15 @@ public class Rq {
 
         resp.addCookie(cookie);
     }
+
+    //apiKey 삭제된 쿠키 생성
+    public void deleteCookie(String name) {
+        Cookie cookie = new Cookie(name, "");
+        cookie.setPath("/");
+        cookie.setHttpOnly(true);
+        cookie.setMaxAge(0); // 만료 시간을 0으로 설정
+
+        resp.addCookie(cookie);
+
+    }
 }
