@@ -26,7 +26,7 @@ public class Rq {
         String apiKey;
         String accessToken;
 
-        //Authentication 헤더가 존재하는 경우
+        //Authentication 헤더에서 조회 시도
         //인증,인가 52강 통해 리펙토링 필요
         if (headerAuthorization != null && !headerAuthorization.isBlank()) {
             if (!headerAuthorization.startsWith("Bearer "))
@@ -35,6 +35,7 @@ public class Rq {
             String[] headerParts = headerAuthorization.split(" ",3);
             apiKey = headerParts[1];
             accessToken = headerParts.length == 3 ? headerParts[2] : "";
+        //Authentication 헤더가 없는 경우 쿠키에서 조회
         } else {
             apiKey = getCookieValue("apiKey", "");
             accessToken = getCookieValue("accessToken", "");
@@ -45,20 +46,21 @@ public class Rq {
         }
         User user = null;
 
-        //accessToken으로 조회 시도
+        //accessToken으로 데이터 조회 시도
         if (!accessToken.isBlank()) {
             Map<String,Object> payload = userService.payload(accessToken);
 
             if (payload != null) {
+                //accessToken의 payload에서 사용자 정보 추출
+                //로그인 유저는 반드시 accessToken을 가지고 있으므로
+                //쿼리검색 안하고 payload에서 바로 사용자 정보 추출
                 int id = (int) payload.get("id");
-                user = userService
-                        .findById(id)
-                        .orElseThrow(() -> new IllegalArgumentException("accessToken의 id에 해당하는 회원이 존재하지 않습니다."));
+                String userEmail = (String) payload.get("userEmail");
+                user = new User(id, userEmail);
             }
         }
-
+        //accessToken이 없거나 유효하지 않은 경우 apiKey로 사용자 조회
         if (user == null) {
-            //accessToken이 없거나 유효하지 않은 경우 apiKey로 사용자 조회
             user = userService
                     .findByApiKey(apiKey)
                     .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 Api키 입니다."));

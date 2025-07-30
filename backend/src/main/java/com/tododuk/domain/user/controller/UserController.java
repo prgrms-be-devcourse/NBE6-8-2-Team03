@@ -108,10 +108,10 @@ public class UserController {
     // 내 정보 조회 : 고유번호, 이메일, 닉네임, 프로필 사진
     @GetMapping("/me")
     public RsData<UserDto> getMyInfo(){
-        User user = rq.getActor();
-//        String apiKey = authorization.replace("Bearer ", "");
-//        User user = userService.findByApiKey(apiKey)
-//                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 apiKey 입니다."));
+        // 현재 로그인한 사용자의 정보를 가져오기
+        User user = userService
+                .findById(rq.getActor().getId())
+                .get();
 
         return new RsData<>(
                 "200-1",
