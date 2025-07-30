@@ -38,7 +38,7 @@ const LabelSelectorModal = ({ todoId }: LabelSelectorModalProps) => {
         setIsLoading(true);
         setError(null);
 
-        // 1. 모든 라벨 목록 불러오기
+        // 1. 모든 라벨 목록 
         const allLabelsResponse = await fetch('http://localhost:8080/api/labels');
         if (!allLabelsResponse.ok) {
           throw new Error(`모든 라벨 목록 불러오기 실패: ${allLabelsResponse.statusText}`);
@@ -151,7 +151,7 @@ const LabelSelectorModal = ({ todoId }: LabelSelectorModalProps) => {
     );
   };
 
-  // 🌟🌟🌟 handleSave 함수 수정: PUT 요청 추가 🌟🌟🌟
+  //handleSave 함수 수정: PUT 요청 추가
   const handleSave = async () => {
     console.log(`Todo ${todoId}에 선택된 라벨 IDs:`, selectedLabels);
 
