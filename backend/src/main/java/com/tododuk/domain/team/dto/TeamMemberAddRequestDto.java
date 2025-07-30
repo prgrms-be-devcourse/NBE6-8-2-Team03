@@ -1,5 +1,6 @@
 package com.tododuk.domain.team.dto;
 
+import com.tododuk.domain.team.constant.TeamRoleType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -16,5 +17,5 @@ public class TeamMemberAddRequestDto {
     private int userId; // int 타입으로 변경
 
     @NotBlank(message = "역할은 필수입니다.")
-    private String role; // ex) leader, member
+    private TeamRoleType role; // ex) leader, member
 }
