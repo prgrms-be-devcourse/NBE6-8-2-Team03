@@ -30,7 +30,6 @@ public class TodoLabelController {
     }
 
     @PostMapping("/{todoId}/label")
-
     public RsData<CreateTodoLabelResponseDto> createTodoLabel(@RequestBody CreateTodoLabelRequestDto request ) {
 
         TodoLabel savedTodoLabel = todoLabelService.createTodoLabel(request.todoId(), request.labelId());
