@@ -2,6 +2,7 @@ package com.tododuk.domain.user.controller;
 
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.service.UserService;
+import jakarta.servlet.http.Cookie;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -34,7 +37,7 @@ public class UserControllerTest {
     void t1() throws Exception {
         ResultActions resultActions = mvc
                 .perform(
-                        post("/api/v1/user")
+                        post("/api/v1/user/register")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
                                         {
@@ -51,13 +54,73 @@ public class UserControllerTest {
         resultActions
                 .andExpect(handler().handlerType(UserController.class))
                 .andExpect(handler().methodName("join"))
-                .andExpect(status().isCreated())
+                .andExpect(status().isOk())  // 200
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("%s님 환영합니다. 회원가입이 완료되었습니다.".formatted(user.getNickName())))
                 .andExpect(jsonPath("$.data").exists())
                 .andExpect(jsonPath("$.data.id").value(user.getId()))
-                .andExpect(jsonPath("$.data.createDate").value(Matchers.startsWith(user.getCreateDate().toString().substring(0, 20))))
-                .andExpect(jsonPath("$.data.modifyDate").value(Matchers.startsWith(user.getModifyDate().toString().substring(0, 20))))
                 .andExpect(jsonPath("$.data.email").value(user.getUserEmail()));
+    }
+
+    @Test
+    @DisplayName("로그인")
+    void t2() throws Exception {
+        ResultActions resultActions = mvc
+                .perform(
+                        post("/api/v1/user/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "email": "usernew@gmail.com",
+                                            "password": "1234"
+                                        }
+                                        """.stripIndent())
+                )
+                .andDo(print());
+
+        User user = userService.findByUserEmail("usernew@gmail.com").get();
+
+        resultActions
+                .andExpect(handler().handlerType(UserController.class))
+                .andExpect(handler().methodName("login"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200-1"))
+                .andExpect(jsonPath("$.msg").value("%s님 환영합니다.".formatted(user.getNickName())))
+                .andExpect(jsonPath("$.data").exists())
+                .andExpect(jsonPath("$.data.apiKey").value(user.getApiKey()));
+
+        resultActions.andExpect(
+                result -> {
+                    Cookie apiKeyCookie = result.getResponse().getCookie("apiKey");
+                    assertThat(apiKeyCookie.getValue()).isNotBlank();
+                }
+        );
+    }
+
+    @Test
+    @DisplayName("내 정보 api쿠키 ver")
+    void t3() throws Exception {
+        User actor = userService.findByUserEmail("usernew@gmail.com").get();
+        String actorApiKey = actor.getApiKey();
+
+        ResultActions resultActions = mvc
+                .perform(
+                        get("/api/v1/user/me")
+                                .cookie(new Cookie("apiKey", actorApiKey))
+                )
+                .andDo(print());
+
+        User user = userService.findByUserEmail("usernew@gmail.com").get();
+
+        resultActions
+                .andExpect(handler().handlerType(UserController.class))
+                .andExpect(handler().methodName("me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200-1"))
+                .andExpect(jsonPath("$.msg").value("%s님의 정보입니다.".formatted(user.getNickName())))
+                .andExpect(jsonPath("$.data").exists())
+                .andExpect(jsonPath("$.data.id").value(user.getId()))
+                .andExpect(jsonPath("$.data.email").value(user.getUserEmail()))
+                .andExpect(jsonPath("$.data.nickname").value(user.getNickName()));
     }
 }

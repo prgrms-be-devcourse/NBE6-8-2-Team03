@@ -2,8 +2,10 @@ package com.tododuk.domain.user.controller;
 
 import com.tododuk.domain.user.dto.UserDto;
 import com.tododuk.domain.user.entity.User;
+import com.tododuk.global.rq.Rq;
 import com.tododuk.domain.user.service.UserService;
 import com.tododuk.global.rsData.RsData;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/user")
 public class UserController {
     private final UserService userService;
+    private final Rq rq;
 
     record UserJoinReqDto(
             @NotBlank
@@ -45,7 +48,7 @@ public class UserController {
         );
 
         return new RsData<>(
-                "201-1",
+                "200-1",// 생성은 201이지만 기본값이 200이라 추후 수정 필
                 "%s님 환영합니다. 회원가입이 완료되었습니다.".formatted(user.getNickName()),
                 new UserDto(user)
         );
@@ -69,7 +72,8 @@ public class UserController {
     }
     @PostMapping("/login")
     public RsData<UserLoginResDto> login(
-            @Valid @RequestBody UserLoginReqDto reqBody
+            @Valid @RequestBody UserLoginReqDto reqBody,
+            HttpServletResponse response
     ) {
         User user = userService.findByUserEmail(reqBody.email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
@@ -77,10 +81,16 @@ public class UserController {
         if (!user.getPassword().equals(reqBody.password)) {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
+        // 로그인 성공 시 apiKey를 클라이언트 쿠키에 저장
+        rq.setCookie("apiKey", user.getApiKey());
+//        Cookie apiKeyCookie = new Cookie("apiKey", user.getApiKey());
+//        apiKeyCookie.setPath("/");
+//        apiKeyCookie.setHttpOnly(true);
+//        response.addCookie(apiKeyCookie);
 
         //dto 안에 기본 정보만 포함되어있음
         return new RsData<>(
-                "201-1",
+                "200-1",
                 "%s님 환영합니다.".formatted(user.getNickName()),
                 new UserLoginResDto(
                         new UserDto(user),
@@ -89,14 +99,15 @@ public class UserController {
         );
     }
 
-
+    // 내 정보 조회 : 고유번호, 이메일, 닉네임, 프로필 사진
     @GetMapping("/me")
     public RsData<UserDto> getMyInfo(
             @RequestHeader("Authorization") String authorization
     ){
-        String apiKey = authorization.replace("Bearer ", "");
-        User user = userService.findByApiKey(apiKey)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 apiKey 입니다."));
+        User user = rq.getActor();
+//        String apiKey = authorization.replace("Bearer ", "");
+//        User user = userService.findByApiKey(apiKey)
+//                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 apiKey 입니다."));
 
         return new RsData<>(
                 "200-1",
@@ -104,7 +115,23 @@ public class UserController {
                 new UserDto(user)
         );
     }
-    // 내 정보 수정 구현 예정
+    // 내 정보 수정 : 닉네임, 프로필 사진 변경 가능
+    @PostMapping("/me")
+    public RsData<UserDto> updateMyInfo(
+            @RequestHeader("Authorization") String authorization,
+            @Valid @RequestBody UserDto reqBody
+    ){
+        String apiKey = authorization.replace("Bearer ", "");
+        User user = userService.findByApiKey(apiKey)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 apiKey 입니다."));
 
+        userService.updateUserInfo(user, reqBody);
+
+        return new RsData<>(
+                "200-1",
+                "내 정보 수정 성공",
+                new UserDto(user)
+        );
+    }
 
 }
