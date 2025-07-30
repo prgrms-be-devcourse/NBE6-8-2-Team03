@@ -67,7 +67,8 @@ public class UserController {
     record UserLoginResDto(
 
             UserDto userDto,
-            String apiKey
+            String apiKey,
+            String accessToken
     ) {
     }
     @PostMapping("/login")
@@ -87,6 +88,9 @@ public class UserController {
 //        apiKeyCookie.setPath("/");
 //        apiKeyCookie.setHttpOnly(true);
 //        response.addCookie(apiKeyCookie);
+        // accessToken을 생성하고 쿠키에 저장
+        String accessToken = userService.genAccessToken(user);
+        rq.setCookie("accessToken", accessToken);
 
         //dto 안에 기본 정보만 포함되어있음
         return new RsData<>(
@@ -94,20 +98,20 @@ public class UserController {
                 "%s님 환영합니다.".formatted(user.getNickName()),
                 new UserLoginResDto(
                         new UserDto(user),
-                        user.getApiKey()
+                        user.getApiKey(),
+                        accessToken
+
                 )
         );
     }
 
     // 내 정보 조회 : 고유번호, 이메일, 닉네임, 프로필 사진
     @GetMapping("/me")
-    public RsData<UserDto> getMyInfo(
-            @RequestHeader("Authorization") String authorization
-    ){
-        User user = rq.getActor();
-//        String apiKey = authorization.replace("Bearer ", "");
-//        User user = userService.findByApiKey(apiKey)
-//                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 apiKey 입니다."));
+    public RsData<UserDto> getMyInfo(){
+        // 현재 로그인한 사용자의 정보를 가져오기
+        User user = userService
+                .findById(rq.getActor().getId())
+                .get();
 
         return new RsData<>(
                 "200-1",
@@ -132,6 +136,17 @@ public class UserController {
                 "내 정보 수정 성공",
                 new UserDto(user)
         );
+    }
+
+    //로그 아웃
+    @DeleteMapping("/logout")
+    public RsData<Void> logout() {
+        rq.deleteCookie("apiKey");
+        return new RsData<>(
+                "200-1",
+                "로그아웃 성공"
+        );
+
     }
 
 }

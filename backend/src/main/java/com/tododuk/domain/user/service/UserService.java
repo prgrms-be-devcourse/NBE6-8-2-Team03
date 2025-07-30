@@ -10,12 +10,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 
+import java.util.Map;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
+    private final AuthTokenService authTokenService;
+
+    public Optional<User> findById(int id) {
+        return userRepository.findById(id);
+    }
 
     public Optional<User> findByUserEmail(String email) {
         return userRepository.findByUserEmail(email);
@@ -36,4 +42,13 @@ public class UserService {
                 reqBody.profileImageUrl()
         );
     }
+
+    public String genAccessToken(User user) {
+        return authTokenService.genAccessToken(user);
+    }
+
+    public Map<String, Object> payload(String accessToken) {
+        return  authTokenService.payload(accessToken);
+    }
+
 }
