@@ -1,5 +1,6 @@
 package com.tododuk.domain.user.service;
 
+import com.tododuk.domain.user.entity.User;
 import com.tododuk.standard.util.Ut;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -21,6 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("test")
 @Transactional
 public class AutoTokenServiceTest {
+    @Autowired
+    private UserService userService;
     @Autowired
     private AuthTokenService authTokenService;
     private int expireSeconds = 60 * 60 * 24 * 365;
@@ -69,5 +72,16 @@ public class AutoTokenServiceTest {
         assertThat(jwt).isNotBlank();
 
         System.out.println("jwt = " + jwt);
+    }
+
+    @Test
+    @DisplayName("유저 액세스 토큰 생성")
+    void t4() {
+        User user = userService.findByUserEmail("usernew@gmail.com").get();
+        String accessToken = authTokenService.genAccessToken(user);
+        assertThat(accessToken).isNotBlank();
+
+        System.out.println("accessToken = " + accessToken);
+
     }
 }
