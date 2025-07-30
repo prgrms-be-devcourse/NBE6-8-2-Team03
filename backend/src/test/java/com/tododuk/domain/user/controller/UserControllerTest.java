@@ -132,4 +132,37 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$.data.email").value(user.getUserEmail()))
                 .andExpect(jsonPath("$.data.nickname").value(user.getNickName()));
     }
+
+    @Test
+    @DisplayName("엑세스 토큰 만료/유효하지 않은 경우 apiKey를 통해 재발급")
+    void t4() throws Exception {
+        User actor = userService.findByUserEmail("usernew@gmail.com").get();
+        String actorApiKey = actor.getApiKey();
+
+        ResultActions resultActions = mvc
+                .perform(
+                        get("/api/v1/user/me")
+                                .header("Authorization", "Bearer " + actorApiKey + " wrong-accessToken")
+                )
+                .andDo(print());
+
+        resultActions
+                .andExpect(handler().handlerType(UserController.class))
+                .andExpect(handler().methodName("getMyInfo"))
+                .andExpect(status().isOk());
+
+        resultActions.andExpect(
+                result -> {
+                    //엑세스 토큰 확인
+                    Cookie accessTokenCookie = result.getResponse().getCookie("accessToken");
+                    assertThat(accessTokenCookie.getValue()).isNotBlank();
+                    assertThat(accessTokenCookie.getPath()).isEqualTo("/");
+                    assertThat(accessTokenCookie.getAttribute("HttpOnly")).isEqualTo("true");
+                    // 엑세스 토큰이 Authorization 헤더에 포함되어 있는지 확인
+                    String headerAuthorization = result.getResponse().getHeader("Authorization");
+                    assertThat(headerAuthorization).isNotBlank();
+                    assertThat(headerAuthorization).isEqualTo(accessTokenCookie.getValue());
+                }
+        );
+    }
 }

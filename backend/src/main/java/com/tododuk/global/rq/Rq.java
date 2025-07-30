@@ -45,9 +45,11 @@ public class Rq {
             throw new IllegalArgumentException("로그인 후 이용해주세요.");
         }
         User user = null;
+        boolean isAccessTokenExists = !accessToken.isBlank();
+        boolean isAccessTokenValid = false;
 
         //accessToken으로 데이터 조회 시도
-        if (!accessToken.isBlank()) {
+        if (isAccessTokenExists) {
             Map<String,Object> payload = userService.payload(accessToken);
 
             if (payload != null) {
@@ -57,13 +59,24 @@ public class Rq {
                 int id = (int) payload.get("id");
                 String userEmail = (String) payload.get("userEmail");
                 user = new User(id, userEmail);
+                //payload에 id가 존재하면 accessToken이 유효하다고 판단
+                isAccessTokenValid = true;
             }
         }
+
         //accessToken이 없거나 유효하지 않은 경우 apiKey로 사용자 조회
         if (user == null) {
             user = userService
                     .findByApiKey(apiKey)
                     .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 Api키 입니다."));
+        }
+
+        //accessToken이 존재하지만 유효하지 않은 경우 재발급
+        if (isAccessTokenExists && !isAccessTokenValid) {
+
+            String actorAccessToken = userService.genAccessToken(user);
+            setCookie("accessToken", actorAccessToken);
+            setHeader("Authorization", actorAccessToken);
         }
 
         return user;
@@ -74,6 +87,16 @@ public class Rq {
                 .ofNullable(req.getHeader(name))
                 .filter(headerValue -> !headerValue.isBlank())
                 .orElse(defaultValue);
+    }
+
+    private void setHeader(String name, String value) {
+        if (value == null) value = "";
+        if (value.isBlank()) {
+            req.getHeader(name);
+        }
+        else {
+            resp.setHeader(name, value);
+        }
     }
 
     private String getCookieValue(String name, String defaultValue) {
