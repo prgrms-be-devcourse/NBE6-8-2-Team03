@@ -41,15 +41,15 @@ public class UserControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
                                         {
-                                            "email": "usernew@gmail.com",
+                                            "email": "usernew2@gmail.com",
                                             "password": "1234",
-                                            "nickname": "무명"
+                                            "nickname": "무명2"
                                         }
                                         """.stripIndent())
                 )
                 .andDo(print());
 
-        User user = userService.findByUserEmail("usernew@gmail.com").get();
+        User user = userService.findByUserEmail("usernew2@gmail.com").get();
 
         resultActions
                 .andExpect(handler().handlerType(UserController.class))
@@ -87,12 +87,21 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("%s님 환영합니다.".formatted(user.getNickName())))
                 .andExpect(jsonPath("$.data").exists())
-                .andExpect(jsonPath("$.data.apiKey").value(user.getApiKey()));
+                .andExpect(jsonPath("$.data.apiKey").value(user.getApiKey()))
+                .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
 
         resultActions.andExpect(
                 result -> {
                     Cookie apiKeyCookie = result.getResponse().getCookie("apiKey");
-                    assertThat(apiKeyCookie.getValue()).isNotBlank();
+                    assertThat(apiKeyCookie.getValue()).isEqualTo(user.getApiKey());
+                    assertThat(apiKeyCookie.getPath()).isEqualTo("/");
+                    assertThat(apiKeyCookie.getAttribute("HttpOnly")).isEqualTo("true");
+
+                    //엑세스 토큰도 확인
+                    Cookie accessTokenCookie = result.getResponse().getCookie("accessToken");
+                    assertThat(accessTokenCookie.getValue()).isNotBlank();
+                    assertThat(accessTokenCookie.getPath()).isEqualTo("/");
+                    assertThat(accessTokenCookie.getAttribute("HttpOnly")).isEqualTo("true");
                 }
         );
     }
@@ -114,13 +123,46 @@ public class UserControllerTest {
 
         resultActions
                 .andExpect(handler().handlerType(UserController.class))
-                .andExpect(handler().methodName("me"))
+                .andExpect(handler().methodName("getMyInfo"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
-                .andExpect(jsonPath("$.msg").value("%s님의 정보입니다.".formatted(user.getNickName())))
+                .andExpect(jsonPath("$.msg").value("내 정보 조회 성공"))
                 .andExpect(jsonPath("$.data").exists())
                 .andExpect(jsonPath("$.data.id").value(user.getId()))
                 .andExpect(jsonPath("$.data.email").value(user.getUserEmail()))
                 .andExpect(jsonPath("$.data.nickname").value(user.getNickName()));
+    }
+
+    @Test
+    @DisplayName("엑세스 토큰 만료/유효하지 않은 경우 apiKey를 통해 재발급")
+    void t4() throws Exception {
+        User actor = userService.findByUserEmail("usernew@gmail.com").get();
+        String actorApiKey = actor.getApiKey();
+
+        ResultActions resultActions = mvc
+                .perform(
+                        get("/api/v1/user/me")
+                                .header("Authorization", "Bearer " + actorApiKey + " wrong-accessToken")
+                )
+                .andDo(print());
+
+        resultActions
+                .andExpect(handler().handlerType(UserController.class))
+                .andExpect(handler().methodName("getMyInfo"))
+                .andExpect(status().isOk());
+
+        resultActions.andExpect(
+                result -> {
+                    //엑세스 토큰 확인
+                    Cookie accessTokenCookie = result.getResponse().getCookie("accessToken");
+                    assertThat(accessTokenCookie.getValue()).isNotBlank();
+                    assertThat(accessTokenCookie.getPath()).isEqualTo("/");
+                    assertThat(accessTokenCookie.getAttribute("HttpOnly")).isEqualTo("true");
+                    // 엑세스 토큰이 Authorization 헤더에 포함되어 있는지 확인
+                    String headerAuthorization = result.getResponse().getHeader("Authorization");
+                    assertThat(headerAuthorization).isNotBlank();
+                    assertThat(headerAuthorization).isEqualTo(accessTokenCookie.getValue());
+                }
+        );
     }
 }
