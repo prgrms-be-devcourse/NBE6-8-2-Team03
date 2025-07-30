@@ -79,9 +79,8 @@ public class UserController {
         User user = userService.findByUserEmail(reqBody.email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
 
-        if (!user.getPassword().equals(reqBody.password)) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
-        }
+        // 비밀번호 체크
+        userService.checkPassword(user, reqBody.password);
         // 로그인 성공 시 apiKey를 클라이언트 쿠키에 저장
         rq.setCookie("apiKey", user.getApiKey());
 //        Cookie apiKeyCookie = new Cookie("apiKey", user.getApiKey());
