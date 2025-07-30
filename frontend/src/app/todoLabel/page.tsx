@@ -13,7 +13,7 @@ const LabelSelectorModal = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLabels, setSelectedLabels] = useState<number[]>([]);
 
-  // 예시 라벨 데이터
+  // 예시 라벨->API 호출로 변경예정.
   const availableLabels: Label[] = [
     { id: 1, name: '긴급', color: '#ef4444' },
     { id: 2, name: '중요', color: '#f59e0b' },
