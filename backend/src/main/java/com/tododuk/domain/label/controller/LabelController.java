@@ -12,19 +12,18 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/labels")
+@RequestMapping("/api/label")
 public class LabelController {
 
     private final LabelService LabelService;
 
     record LabelResDto(
-
             List<Label> labels
     ) {
     }
 
-    @GetMapping
-    public RsData<LabelResDto> getTodoLabels() {
+    @GetMapping("/get-labels")
+    public RsData<LabelResDto> getLabels() {
         List<Label> labels = LabelService.getLabels();
 
         LabelResDto responseDto = new LabelResDto(labels);

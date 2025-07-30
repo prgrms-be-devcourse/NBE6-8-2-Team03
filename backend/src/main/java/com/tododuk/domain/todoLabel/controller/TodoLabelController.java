@@ -15,12 +15,12 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/todo-labels")
+@RequestMapping("/api/todoLabel")
 public class TodoLabelController {
 
     private final TodoLabelService todoLabelService;
 
-    @GetMapping("/todos/{todoId}/labels")
+    @GetMapping("/{todoId}/labels")
     public RsData<TodoLabelResponseDto> getTodoLabels(@PathVariable int todoId) {
         List<Integer> labelIds = todoLabelService.getTodoLabelIdsByTodoIds(todoId);
 
@@ -29,7 +29,7 @@ public class TodoLabelController {
         return new RsData<>("200-1", "Todo 라벨 목록을 성공적으로 조회했습니다.", responseDto);
     }
 
-    @PostMapping
+    @PostMapping("/create")
     public RsData<CreateTodoLabelResponseDto> createTodoLabel(@RequestBody CreateTodoLabelRequestDto request ) {
 
         TodoLabel savedTodoLabel = todoLabelService.createTodoLabel(request.todoId(), request.labelId());
@@ -42,7 +42,7 @@ public class TodoLabelController {
         return new RsData<>("200-1", "Todo에 라벨을 성공적으로 연결했습니다.", responseDto);
     }
 
-    @PostMapping("/bulk")
+    @PostMapping("/create-bulk")
     public RsData<TodoLabelResponseDto> createTodoLabels(@RequestBody TodoLabelRequestDto request){
         List<TodoLabel> savedTodoLabels = todoLabelService.createTodoLabels(request.todoId(), request.labelIds());
 
