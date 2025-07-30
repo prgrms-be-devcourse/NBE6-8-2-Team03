@@ -12,9 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
-
 import org.springframework.web.bind.annotation.*;
-
 
 import java.util.List;
 
@@ -30,7 +28,6 @@ public class TodoController {
     @GetMapping // 메인에서 todo버튼 클릭시 이동하는 처음 화면
     @Transactional
     @Operation(summary = "전체 todo 조회")
-
     public ResponseEntity<RsData<List<TodoResponseDto>>> getAllTodos() {
         List<TodoResponseDto> todos = todoService.getAllTodos();
         return ResponseEntity.ok(RsData.success("전체 todo 조회 성공", todos));
