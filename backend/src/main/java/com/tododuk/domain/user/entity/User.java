@@ -54,4 +54,14 @@ public class User extends BaseEntity {
         this.nickName = nickName;
         this.apiKey = UUID.randomUUID().toString();
     }
+
+    public User(int id, String userEmail) {
+        this.id = id;
+        this.userEmail = userEmail;
+    }
+
+    public void updateUserInfo(String nickName, String profileImgUrl) {
+        this.nickName = nickName;
+        this.profileImgUrl = profileImgUrl;
+    }
 }

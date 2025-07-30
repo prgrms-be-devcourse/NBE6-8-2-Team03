@@ -1,7 +1,8 @@
 package com.tododuk.domain.team.entity;
 
-import com.tododuk.global.entity.BaseEntity;
+import com.tododuk.domain.team.constant.TeamRoleType;
 import com.tododuk.domain.user.entity.User;
+import com.tododuk.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,8 +26,9 @@ public class TeamMember extends BaseEntity {
     @JoinColumn(name = "team_id", nullable = false)
     private Team team;
 
+    @Enumerated(EnumType.STRING) // Enum 타입을 DB에 String으로 저장
     @Column(name = "role", nullable = false, length = 50)
-    private String role;
+    private TeamRoleType role; // 타입 변경
 
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
@@ -39,9 +41,10 @@ public class TeamMember extends BaseEntity {
         this.team = team;
     }
 
-    public void updateRole(String role) {
+    public void updateRole(TeamRoleType role) {
         this.role = role;
     }
+
 
     @PrePersist
     protected void onCreate() {
