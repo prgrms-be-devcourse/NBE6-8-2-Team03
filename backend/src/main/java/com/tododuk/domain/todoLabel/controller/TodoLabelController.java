@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/todoLabel")
+@RequestMapping("/api/todos")
 public class TodoLabelController {
 
     private final TodoLabelService todoLabelService;
@@ -29,7 +29,7 @@ public class TodoLabelController {
         return new RsData<>("200-1", "Todo 라벨 목록을 성공적으로 조회했습니다.", responseDto);
     }
 
-    @PostMapping("/create")
+    @PostMapping("/{todoId}/label")
     public RsData<CreateTodoLabelResponseDto> createTodoLabel(@RequestBody CreateTodoLabelRequestDto request ) {
 
         TodoLabel savedTodoLabel = todoLabelService.createTodoLabel(request.todoId(), request.labelId());
@@ -42,7 +42,7 @@ public class TodoLabelController {
         return new RsData<>("200-1", "Todo에 라벨을 성공적으로 연결했습니다.", responseDto);
     }
 
-    @PostMapping("/create-bulk")
+    @PostMapping("/{todoId}/labels")
     public RsData<TodoLabelResponseDto> createTodoLabels(@RequestBody TodoLabelRequestDto request){
         List<TodoLabel> savedTodoLabels = todoLabelService.createTodoLabels(request.todoId(), request.labelIds());
 
@@ -55,7 +55,7 @@ public class TodoLabelController {
         return new RsData<>("200-1", "라벨들이 성공적으로 연결되었습니다.", responseDto);
     }
 
-    @PostMapping("/update-bulk")
+    @PutMapping("/{todoId}/labels")
     public RsData<TodoLabelResponseDto> updateTodoLabels(@RequestBody TodoLabelRequestDto request){
         List<TodoLabel> savedTodoLabels = todoLabelService.updateTodoLabels(request.todoId(), request.labelIds());
 

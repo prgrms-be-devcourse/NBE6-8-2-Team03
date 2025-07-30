@@ -12,7 +12,7 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/label")
+@RequestMapping("/api/labels")
 public class LabelController {
 
     private final LabelService LabelService;
@@ -22,7 +22,7 @@ public class LabelController {
     ) {
     }
 
-    @GetMapping("/get-labels")
+    @GetMapping
     public RsData<LabelResDto> getLabels() {
         List<Label> labels = LabelService.getLabels();
 
