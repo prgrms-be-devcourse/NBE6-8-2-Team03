@@ -8,10 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -27,8 +24,16 @@ public class TodoController {
     @GetMapping // 메인에서 todo버튼 클릭시 이동하는 처음 화면
     @Transactional
     @Operation(summary = "전체 todo 조회")
-    public ResponseEntity<RsData<List<TodoResponseDto>>>getAllTodos() {
+    public ResponseEntity<RsData<List<TodoResponseDto>>> getAllTodos() {
         List<TodoResponseDto> todos = todoService.getAllTodos();
-        return ResponseEntity.ok(RsData.success("전체 todo 조회", todos));
+        return ResponseEntity.ok(RsData.success("전체 todo 조회 성공", todos));
+    }
+
+    @GetMapping("/{todo_id}")
+    @Transactional
+    @Operation(summary = "개별 todo 조회")
+    public ResponseEntity<RsData<TodoResponseDto>> getTodoById(@PathVariable Integer todo_id) {
+        TodoResponseDto todo = todoService.getTodo(todo_id);
+        return ResponseEntity.ok(RsData.success("todo 조회 성공", todo));
     }
 }

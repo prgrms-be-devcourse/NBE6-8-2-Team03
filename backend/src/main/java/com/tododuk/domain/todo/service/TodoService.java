@@ -31,4 +31,10 @@ public class TodoService {
                 .map(TodoResponseDto::from)
                 .toList();
     }
+
+    public TodoResponseDto getTodo(int id){
+        Todo todo = todoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 todo는 존재하지 않습니다."));
+        return TodoResponseDto.from(todo);
+    }
 }
