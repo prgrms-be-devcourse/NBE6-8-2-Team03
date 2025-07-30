@@ -30,10 +30,10 @@ const LabelSelectorModal = () => {
   useEffect(() => {
     const fetchLabels = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/labels'); // ← 실제 백엔드 API 주소로 수정
+        const response = await fetch('http://localhost:8080/api/labels'); //백엔드 API 주소
         if (!response.ok) throw new Error('네트워크 오류');
         const data = await response.json();
-        setAvailableLabels(data.data.labels); // 서버에서 받아온 라벨 저장
+        setAvailableLabels(data.data.labels); // 서버에서 온 라벨 저장
       } catch (error) {
         console.error('라벨 목록 불러오기 실패:', error);
       } finally {
