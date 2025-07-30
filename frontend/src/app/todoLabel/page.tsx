@@ -1,23 +1,6 @@
 'use client'; // 클라이언트 컴포넌트임을 명시
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-import { useState } from 'react';
-<<<<<<< HEAD
-<<<<<<< HEAD
-import Labels from './Labels';
-=======
-import LabelList from './LabelList';
->>>>>>> 763de44 (feat : getLabels)
-=======
-import Labels from './Labels';
->>>>>>> 61898e4 (fix : end point)
-=======
-import { useEffect, useState } from 'react';
->>>>>>> 084a466 (fe feat:API connetion)
-=======
 import { useEffect, useState } from 'react'; // React 훅 임포트
->>>>>>> a739d9b (fix : bug)
 
 // --- 인터페이스 정의 ---
 // 라벨(Label) 객체의 타입을 정의합니다.
@@ -32,7 +15,7 @@ interface LabelSelectorModalProps {
   todoId: number; // 현재 라벨을 선택할 Todo의 ID
 }
 
-// --- LabelSelectorModal 컴포넌트 ---
+// LabelSelectorModal 컴포넌트
 // 특정 Todo의 라벨을 선택하고 관리하는 모달 컴포넌트입니다.
 const LabelSelectorModal = ({ todoId }: LabelSelectorModalProps) => {
   // 모달의 열림/닫힘 상태를 관리합니다.
@@ -102,69 +85,10 @@ const LabelSelectorModal = ({ todoId }: LabelSelectorModalProps) => {
     return <p className="text-center py-8">라벨 목록을 불러오는 중입니다...</p>;
   }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> c3bc2a6 (fe feat : page)
-  // 예시 라벨->API 호출로 변경예정.
-  const availableLabels: Label[] = [
-    { id: 1, name: '긴급', color: '#ef4444' },
-    { id: 2, name: '중요', color: '#f59e0b' },
-    { id: 3, name: '업무', color: '#3b82f6' },
-    { id: 4, name: '개인', color: '#10b981' },
-    { id: 5, name: '프로젝트', color: '#8b5cf6' },
-    { id: 6, name: '학습', color: '#06b6d4' },
-    { id: 7, name: '쇼핑', color: '#ec4899' },
-    { id: 8, name: '건강', color: '#84cc16' }
-  ];
-=======
-  // 예시 라벨 데이터
-<<<<<<< HEAD
-  // const availableLabels: Label[] = [
-  //   { id: 1, name: '긴급', color: '#ef4444' },
-  //   { id: 2, name: '중요', color: '#f59e0b' },
-  //   { id: 3, name: '업무', color: '#3b82f6' },
-  //   { id: 4, name: '개인', color: '#10b981' },
-  //   { id: 5, name: '프로젝트', color: '#8b5cf6' },
-  //   { id: 6, name: '학습', color: '#06b6d4' },
-  //   { id: 7, name: '쇼핑', color: '#ec4899' },
-  //   { id: 8, name: '건강', color: '#84cc16' }
-  // ];
-  const [availableLabels, setAvailableLabels] = useState<Label[]>([]);
-
-  // API 호출을 useEffect에 넣기
-  useEffect(() => {
-    fetch('/api/labels')
-      .then(res => res.json())
-      .then(data => setAvailableLabels(data))
-      .catch(err => console.error('라벨 불러오기 실패:', err));
-  }, []);
->>>>>>> 763de44 (feat : getLabels)
-=======
-  const availableLabels: Label[] = [
-    { id: 1, name: '긴급', color: '#ef4444' },
-    { id: 2, name: '중요', color: '#f59e0b' },
-    { id: 3, name: '업무', color: '#3b82f6' },
-    { id: 4, name: '개인', color: '#10b981' },
-    { id: 5, name: '프로젝트', color: '#8b5cf6' },
-    { id: 6, name: '학습', color: '#06b6d4' },
-    { id: 7, name: '쇼핑', color: '#ec4899' },
-    { id: 8, name: '건강', color: '#84cc16' }
-  ];
->>>>>>> 61898e4 (fix : end point)
-=======
->>>>>>> 084a466 (fe feat:API connetion)
-=======
-=======
   // 오류 발생 시 표시할 UI
->>>>>>> a739d9b (fix : bug)
   if (error) {
     return <p className="text-center py-8 text-red-600">오류 발생: {error}</p>;
   }
->>>>>>> 61d01b5 (FE feat : Api connection)
 
   // 라벨 선택/해제 토글 핸들러
   const handleLabelToggle = (labelId: number) => {
@@ -175,7 +99,7 @@ const LabelSelectorModal = ({ todoId }: LabelSelectorModalProps) => {
     );
   };
 
-  // 🌟🌟🌟 handleSave 함수: 선택된 라벨들을 서버에 업데이트하는 PUT 요청 🌟🌟🌟
+  // handleSave 함수: 선택된 라벨들을 서버에 업데이트하는 PUT 요청
   const handleSave = async () => {
     console.log(`Todo ${todoId}에 선택된 라벨 IDs:`, selectedLabels); // 콘솔에 선택된 라벨 ID 출력
 
