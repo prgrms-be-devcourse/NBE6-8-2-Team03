@@ -20,7 +20,9 @@ public class TodoResponseDto {
     private int priority;
     private LocalDateTime startDate;
     private LocalDateTime dueDate;
+
 //    private int todoListId;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
