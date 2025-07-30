@@ -1,5 +1,6 @@
 package com.tododuk.domain.team.dto;
 
+import com.tododuk.domain.team.constant.TeamRoleType;
 import com.tododuk.domain.team.entity.TeamMember;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +18,7 @@ public class TeamMemberResponseDto {
     private int userId; // int 타입으로 변경
     private String userNickname; // 사용자 정보 포함 (User 엔티티에서 가져옴)
     private int teamId; // int 타입으로 변경
-    private String role;
+    private TeamRoleType role;
     private LocalDateTime joinedAt;
     private LocalDateTime createDate; // 필드명 변경
     private LocalDateTime modifyDate; // 필드명 변경
