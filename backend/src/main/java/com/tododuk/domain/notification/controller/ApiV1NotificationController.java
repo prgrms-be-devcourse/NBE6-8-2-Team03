@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
-
 @RestController
 @RequestMapping("api/v1/notifications")
 @RequiredArgsConstructor
@@ -87,7 +86,7 @@ public class ApiV1NotificationController {
             return new RsData<>("400-1", "알림이 존재하지 않습니다.");
         }
     }
-    @PostMapping("/setStatus/{id}")
+    @PutMapping("/setStatus/{id}")
     @Transactional
     @Operation(summary = "알림 상태 변경")
     public RsData<NotificationDto> updateNotificationStatus(@PathVariable int id) {

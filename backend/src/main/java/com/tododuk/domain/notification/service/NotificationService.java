@@ -24,10 +24,9 @@ public class NotificationService {
     private final UserService userService;
 
     public NotificationDto CreateNotification(User user, String title, String description, String url) {
-
-       Notification notification = new Notification();
+        Notification notification = new Notification(user, title, description, url);
         notificationRepository.save(notification);
-        return new NotificationDto(notification);
+        return new NotificationDto(notification.getId(),user, title, description, url, false);
     }
 
     public Notification findById(int id) {
