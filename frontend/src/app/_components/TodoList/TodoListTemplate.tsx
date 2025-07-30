@@ -1,42 +1,32 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './TodoListTemplate.css';
-import { Props } from 'next/script';
-
-interface NotificationItem {
-  title: string;
-  text: string;
-  time: string;
-}
+import { PropsWithChildren } from 'react';
+import NotificationDropdown, { NotificationButton } from './NotificationDropdown';
+import UserProfileDropdown, { UserProfileButton } from './UserProfileDropdown';
 
 interface ContentItem {
   title: string;
   description: string;
 }
 
-const TodoListTemplate: React.FC = ({children}: Props) => {
+const TodoListTemplate: React.FC<PropsWithChildren> = ({children}) => {
   const [activeNavItem, setActiveNavItem] = useState<string>('project-a');
   const [activeProject, setActiveProject] = useState<string>('');
   const [showNotificationDropdown, setShowNotificationDropdown] = useState<boolean>(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
+  
+  // 읽지 않은 알림 개수 (NotificationButton용)
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(0);
 
-  const notifications: NotificationItem[] = [
-    {
-      title: '새로운 업무 할당',
-      text: '프로젝트 A에 새로운 업무가 할당되었습니다.',
-      time: '2분 전'
-    },
-    {
-      title: '마감일 알림',
-      text: '개발팀 Sprint 24의 마감일이 내일입니다.',
-      time: '1시간 전'
-    },
-    {
-      title: '팀 멤버 초대',
-      text: '마케팅 Q2 프로젝트에 새로운 멤버가 참여했습니다.',
-      time: '3시간 전'
-    }
-  ];
+  // 사용자 정보
+  const userInfo = {
+    name: "개발자님",
+    email: "developer@example.com", 
+    joinDate: "2024.01.15",
+    role: "Frontend Developer",
+    department: "개발팀"
+  };
 
   const contentMap: Record<string, ContentItem> = {
     'inbox': {
@@ -61,10 +51,35 @@ const TodoListTemplate: React.FC = ({children}: Props) => {
     }
   };
 
+  // 읽지 않은 알림 개수 업데이트 (초기 로드용)
+  const updateUnreadCount = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/v1/notifications');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.resultCode === '200-1') {
+          const unreadCount = result.data.filter((n: any) => !n.isRead).length;
+          setUnreadNotificationCount(unreadCount);
+        }
+      }
+    } catch (error) {
+      console.error('알림 개수 가져오기 실패:', error);
+    }
+  };
+
+  // 컴포넌트 마운트 시 읽지 않은 알림 개수 가져오기
+  useEffect(() => {
+    updateUnreadCount();
+  }, []);
+
   const toggleDropdown = (dropdownType: 'notification' | 'profile') => {
     if (dropdownType === 'notification') {
       setShowNotificationDropdown(!showNotificationDropdown);
       setShowProfileDropdown(false);
+      // 알림 드롭다운을 열 때 개수 업데이트
+      if (!showNotificationDropdown) {
+        updateUnreadCount();
+      }
     } else {
       setShowProfileDropdown(!showProfileDropdown);
       setShowNotificationDropdown(false);
@@ -79,23 +94,6 @@ const TodoListTemplate: React.FC = ({children}: Props) => {
   const selectProject = (projectId: string) => {
     setActiveProject(projectId);
     setActiveNavItem('');
-  };
-
-  const showProfileSummary = () => {
-    alert('프로필 요약: 개발자님\n이메일: developer@example.com\n가입일: 2024.01.15');
-    setShowProfileDropdown(false);
-  };
-
-  const goToProfileEdit = () => {
-    alert('프로필 수정 페이지로 이동합니다.');
-    setShowProfileDropdown(false);
-  };
-
-  const logout = () => {
-    if (window.confirm('로그아웃 하시겠습니까?')) {
-      alert('로그아웃 되었습니다.');
-    }
-    setShowProfileDropdown(false);
   };
 
   const getCurrentContent = (): ContentItem => {
@@ -135,55 +133,32 @@ const TodoListTemplate: React.FC = ({children}: Props) => {
         <div className="header-actions">
           {/* 알림 드롭다운 */}
           <div className="dropdown">
-            <button 
-              className="header-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleDropdown('notification');
-              }}
-              title="알림"
-            >
-              🔔
-            </button>
-            {showNotificationDropdown && (
-              <div className="dropdown-content show">
-                <div className="dropdown-header">알림</div>
-                {notifications.map((notification, index) => (
-                  <div key={index} className="notification-item">
-                    <div className="notification-title">{notification.title}</div>
-                    <div className="notification-text">{notification.text}</div>
-                    <div className="notification-time">{notification.time}</div>
-                  </div>
-                ))}
-              </div>
+            {showNotificationDropdown ? (
+              <NotificationDropdown 
+                isOpen={showNotificationDropdown}
+                onClose={() => setShowNotificationDropdown(false)}
+              />
+            ) : (
+              <NotificationButton 
+                unreadCount={unreadNotificationCount}
+                onClick={() => toggleDropdown('notification')}
+              />
             )}
           </div>
 
           {/* 유저 프로필 드롭다운 */}
           <div className="dropdown">
-            <button 
-              className="header-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleDropdown('profile');
-              }}
-              title="프로필"
-            >
-              👤
-            </button>
-            {showProfileDropdown && (
-              <div className="dropdown-content show">
-                <div className="dropdown-header">개발자님</div>
-                <button className="dropdown-item" onClick={showProfileSummary}>
-                  프로필 요약
-                </button>
-                <button className="dropdown-item" onClick={goToProfileEdit}>
-                  프로필 수정
-                </button>
-                <button className="dropdown-item logout" onClick={logout}>
-                  로그아웃
-                </button>
-              </div>
+            {showProfileDropdown ? (
+              <UserProfileDropdown 
+                isOpen={showProfileDropdown}
+                onClose={() => setShowProfileDropdown(false)}
+                userName={userInfo.name}
+                userInfo={userInfo}
+              />
+            ) : (
+              <UserProfileButton 
+                onClick={() => toggleDropdown('profile')}
+              />
             )}
           </div>
         </div>
@@ -213,7 +188,6 @@ const TodoListTemplate: React.FC = ({children}: Props) => {
               >
                 <div className="item-left">
                   <span>📋</span>
-                  
                   <span>프로젝트 A</span>
                 </div>
                 <span className="item-count">8</span>
