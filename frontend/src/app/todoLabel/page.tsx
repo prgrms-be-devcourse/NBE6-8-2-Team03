@@ -22,6 +22,9 @@ const LabelSelectorModal = () => {
   const [selectedLabels, setSelectedLabels] = useState<number[]>([]);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c3bc2a6 (fe feat : page)
   // 예시 라벨->API 호출로 변경예정.
   const availableLabels: Label[] = [
     { id: 1, name: '긴급', color: '#ef4444' },
