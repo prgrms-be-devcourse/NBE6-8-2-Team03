@@ -134,7 +134,7 @@ public class UserController {
 
     //로그 아웃
     @DeleteMapping("/logout")
-    public RsData<void> logout() {
+    public RsData<Void> logout() {
         rq.deleteCookie("apiKey");
         return new RsData<>(
                 "200-1",

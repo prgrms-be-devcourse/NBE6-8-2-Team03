@@ -23,6 +23,7 @@ public class Rq {
 
         String apiKey;
 
+        //인증,인가 52강 통해 리펙토링 필요
         if (headerAuthorization != null && !headerAuthorization.isBlank()) {
             if (!headerAuthorization.startsWith("Bearer "))
                 throw new IllegalArgumentException("Authorization 헤더가 올바르지 않습니다.");
@@ -58,7 +59,7 @@ public class Rq {
         resp.addCookie(cookie);
     }
 
-    //apiKey 삭제된 쿠키 생성
+    //apiKey가 삭제되는 쿠키 생성
     public void deleteCookie(String name) {
         Cookie cookie = new Cookie(name, "");
         cookie.setPath("/");
