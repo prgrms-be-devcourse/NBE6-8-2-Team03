@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import TodoListTemplate from '../_components/TodoList/TodoListTemplate';
 
 interface Todo {
   id: number;
@@ -156,19 +157,6 @@ export default function TodoPage() {
     }
   };
 
-  const getPriorityBorder = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'border-l-4 border-red-500';
-      case 'medium':
-        return 'border-l-4 border-yellow-500';
-      case 'low':
-        return 'border-l-4 border-blue-500';
-      default:
-        return 'border-l-4 border-gray-300';
-    }
-  };
-
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
       case 'high':
@@ -183,201 +171,568 @@ export default function TodoPage() {
   };
 
   return (
-    <div className="bg-white text-black min-h-screen flex">
-      {/* 고정 헤더 */}
-      <div className="fixed top-0 right-0 p-5 flex gap-3 z-10">
-        <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center cursor-pointer hover:bg-gray-200">
-          🔔
-        </div>
-        <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center cursor-pointer hover:bg-gray-200">
-          👤
-        </div>
-      </div>
+    <TodoListTemplate>
+      <div style={{ 
+        display: 'flex', 
+        width: '100%', 
+        height: 'calc(100vh - 120px)', // 높이를 더 크게 조정
+        gap: '2rem',
+        paddingTop: '0', // 상단 패딩 제거
+        margin: '0', // 마진 제거
+        overflow: 'hidden' // 전체 컨테이너 오버플로우 숨김
+      }}>
+        {/* 왼쪽: 투두리스트 + 투두목록 - 정확히 50% */}
+        <div style={{ 
+          width: '50%',
+          minWidth: '50%', // 최소 너비 고정
+          maxWidth: '50%', // 최대 너비 고정
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem',
+          height: '100%'
+        }}>
+          {/* TodoList 정보 블록 */}
+          <div style={{
+            background: 'var(--bg-white)',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            boxShadow: '0 4px 12px var(--shadow-md)',
+            border: '1px solid var(--border-light)',
+            flexShrink: 0, // 이 블록 크기 고정
+            width: '100%'
+          }}>
+            <h1 style={{ 
+              fontSize: '1.75rem', 
+              fontWeight: '700', 
+              color: 'var(--text-primary)', 
+              marginBottom: '0.5rem' 
+            }}>
+              📋 {selectedCategory}
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>
+              {selectedCategory} 관련 할 일들을 관리합니다.
+            </p>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '1rem', 
+              marginTop: '1rem' 
+            }}>
+              <span style={{
+                background: 'var(--primary-light)',
+                color: 'var(--primary-color)',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '20px',
+                fontSize: '0.875rem',
+                fontWeight: '600'
+              }}>
+                총 {todos.length}개
+              </span>
+              <span style={{
+                background: '#f0fdf4',
+                color: '#16a34a',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '20px',
+                fontSize: '0.875rem',
+                fontWeight: '600'
+              }}>
+                완료 {todos.filter(t => t.is_completed).length}개
+              </span>
+              <span style={{
+                background: '#fefce8',
+                color: '#eab308',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '20px',
+                fontSize: '0.875rem',
+                fontWeight: '600'
+              }}>
+                진행중 {todos.filter(t => !t.is_completed).length}개
+              </span>
+            </div>
+          </div>
 
-      {/* 고정 사이드바 */}
-      <aside className="w-72 bg-white border-r border-gray-200 py-6 shadow fixed h-full overflow-y-auto">
-        <div className="px-6 pb-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-900">ToDo</h1>
-        </div>
-        <section className="py-6">
-          <div className="text-xs font-bold text-gray-500 uppercase px-6 mb-3">개인 리스트</div>
-          <div className="flex flex-col gap-1">
-            <div 
-              className={`flex items-center justify-between px-6 py-3 cursor-pointer rounded ${selectedCategory === '개인업무' ? 'bg-blue-50 border-r-4 border-blue-500' : 'hover:bg-gray-100'}`}
-              onClick={() => handleCategoryClick('개인업무')}
-            >
-              <span className="font-medium">개인 업무</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${selectedCategory === '개인업무' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}>3</span>
-            </div>
-            <div 
-              className={`flex items-center justify-between px-6 py-3 cursor-pointer rounded ${selectedCategory === '프로젝트 A' ? 'bg-blue-50 border-r-4 border-blue-500' : 'hover:bg-gray-100'}`}
-              onClick={() => handleCategoryClick('프로젝트 A')}
-            >
-              <span className="font-medium">프로젝트 A</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${selectedCategory === '프로젝트 A' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}>3</span>
-            </div>
-            <div 
-              className={`flex items-center justify-between px-6 py-3 cursor-pointer rounded ${selectedCategory === '취미활동' ? 'bg-blue-50 border-r-4 border-blue-500' : 'hover:bg-gray-100'}`}
-              onClick={() => handleCategoryClick('취미활동')}
-            >
-              <span className="font-medium">취미 활동</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${selectedCategory === '취미활동' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}>2</span>
-            </div>
-          </div>
-        </section>
-        <section className="py-6">
-          <div className="text-xs font-bold text-gray-500 uppercase px-6 mb-3">팀 리스트</div>
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between px-6 py-3 cursor-pointer hover:bg-gray-100 rounded">
-              <span className="font-medium">🚀 개발팀 - Sprint 24</span>
-              <span className="bg-gray-200 text-gray-500 px-2 py-1 rounded-full text-xs font-semibold">12</span>
-            </div>
-            <div className="flex items-center justify-between px-6 py-3 cursor-pointer hover:bg-gray-100 rounded">
-              <span className="font-medium">📊 마케팅팀 - Q2</span>
-              <span className="bg-gray-200 text-gray-500 px-2 py-1 rounded-full text-xs font-semibold">7</span>
-            </div>
-          </div>
-        </section>
-      </aside>
-
-      {/* 메인 콘텐츠 */}
-      <main className="flex-1 ml-72 pt-16 flex">
-        {/* 왼쪽: 투두 리스트 */}
-        <div className="w-1/2 p-6 border-r border-gray-200">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{selectedCategory}</h1>
-            <p className="text-gray-500">{selectedCategory} 관련 할 일들을 관리합니다.</p>
-          </div>
-          
-          <div className="space-y-3">
-            {todos.map((todo) => (
-              <div
-                key={todo.id}
-                className={`bg-white rounded-lg p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${getPriorityBorder(todo.priority)} ${selectedTodo?.id === todo.id ? 'ring-2 ring-blue-500' : ''}`}
-                onClick={() => handleTodoClick(todo)}
-              >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={todo.is_completed}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleCheckboxChange(todo.id);
-                    }}
-                    className="w-5 h-5 mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <div className="flex-1">
-                    <h3 className={`font-semibold ${todo.is_completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                      {todo.title}
-                    </h3>
-                    <p className="text-gray-500 text-sm mt-1 line-clamp-2">
-                      {todo.description}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${getPriorityLabel(todo.priority).color}`}>
-                        {getPriorityLabel(todo.priority).label}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {todo.due_date}
-                      </span>
+          {/* Todos 목록 블록 */}
+          <div style={{
+            background: 'var(--bg-white)',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            boxShadow: '0 4px 12px var(--shadow-md)',
+            border: '1px solid var(--border-light)',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            width: '100%',
+            minHeight: 0 // flex item이 축소될 수 있도록
+          }}>
+            <h2 style={{
+              fontSize: '1.25rem',
+              fontWeight: '600',
+              color: 'var(--text-primary)',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              📝 할 일 목록
+            </h2>
+            
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '0.75rem',
+              flex: 1,
+              overflowY: 'auto',
+              paddingRight: '0.5rem',
+              paddingTop: '0.5rem', // 약간의 상단 패딩 추가
+              maxHeight: '100%' // 최대 높이 설정
+            }}>
+              {todos.map((todo) => (
+                <div
+                  key={todo.id}
+                  style={{
+                    background: selectedTodo?.id === todo.id ? 'var(--primary-light)' : 'var(--bg-main)',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    borderLeft: `4px solid ${
+                      todo.priority === 'high' ? '#dc2626' : 
+                      todo.priority === 'medium' ? '#eab308' : 
+                      '#2563eb'
+                    }`,
+                    border: selectedTodo?.id === todo.id 
+                      ? '2px solid var(--primary-color)' 
+                      : '1px solid var(--border-light)',
+                    minHeight: '120px', // 최소 높이 고정
+                    maxHeight: '120px', // 최대 높이 고정
+                    overflow: 'hidden', // 넘치는 내용 숨김
+                    width: '100%' // 너비 100% 고정
+                  }}
+                  onClick={() => handleTodoClick(todo)}
+                  onMouseEnter={(e) => {
+                    if (selectedTodo?.id !== todo.id) {
+                      e.currentTarget.style.transform = 'translateX(4px)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px var(--shadow-md)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedTodo?.id !== todo.id) {
+                      e.currentTarget.style.transform = 'translateX(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={todo.is_completed}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleCheckboxChange(todo.id);
+                      }}
+                      style={{ 
+                        width: '20px', 
+                        height: '20px', 
+                        marginTop: '0.125rem',
+                        accentColor: 'var(--primary-color)'
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{
+                        fontWeight: '600',
+                        fontSize: '1rem',
+                        color: todo.is_completed ? 'var(--text-light)' : 'var(--text-primary)',
+                        textDecoration: todo.is_completed ? 'line-through' : 'none',
+                        marginBottom: '0.5rem',
+                        lineHeight: '1.4',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap', // 제목은 한 줄로 제한
+                        maxWidth: '100%'
+                      }}>
+                        {todo.title}
+                      </h3>
+                      <p style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.875rem',
+                        marginBottom: '0.75rem',
+                        lineHeight: '1.4',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis', // 말줄임표 추가
+                        height: '2.4em', // 2줄 높이로 고정
+                        maxHeight: '2.4em' // 최대 높이 제한
+                      }}>
+                        {todo.description}
+                      </p>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        gap: '0.5rem'
+                      }}>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '12px',
+                          fontWeight: '600',
+                          background: todo.priority === 'high' ? '#fef2f2' : 
+                                    todo.priority === 'medium' ? '#fefce8' : '#eff6ff',
+                          color: todo.priority === 'high' ? '#dc2626' : 
+                                 todo.priority === 'medium' ? '#eab308' : '#2563eb'
+                        }}>
+                          {getPriorityLabel(todo.priority).label}
+                        </span>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-light)',
+                          fontWeight: '500'
+                        }}>
+                          📅 {todo.due_date}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* 오른쪽: 상세/편집 */}
-        <div className="w-1/2 p-6">
+        {/* 오른쪽: 선택된 Todo 상세 정보 - 정확히 50% */}
+        <div style={{ 
+          width: '50%',
+          minWidth: '50%', // 최소 너비 고정
+          maxWidth: '50%', // 최대 너비 고정
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%'
+        }}>
           {selectedTodo ? (
-            <div className="bg-white rounded-lg p-6 shadow-sm h-fit">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-start gap-3 flex-1">
+            <div style={{
+              background: 'var(--bg-white)',
+              borderRadius: '12px',
+              padding: '2rem',
+              boxShadow: '0 4px 12px var(--shadow-md)',
+              border: '1px solid var(--border-light)',
+              height: '100%',
+              width: '100%', // 너비 고정
+              minWidth: '0', // flex 축소 허용
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}>
+              {/* 헤더 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                marginBottom: '2rem',
+                paddingBottom: '1rem',
+                borderBottom: '2px solid var(--border-light)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', flex: 1 }}>
                   <input
                     type="checkbox"
                     checked={selectedTodo.is_completed}
                     onChange={() => handleCheckboxChange(selectedTodo.id)}
-                    className="w-6 h-6 mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    style={{ 
+                      width: '28px', 
+                      height: '28px', 
+                      marginTop: '0.25rem',
+                      accentColor: 'var(--primary-color)',
+                      transform: 'scale(1.3)'
+                    }}
                   />
-                  <div className="flex-1">
-                    <h2 className={`text-xl font-bold ${selectedTodo.is_completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                  <div style={{ flex: 1 }}>
+                    <h2 style={{
+                      fontSize: '1.5rem',
+                      fontWeight: '700',
+                      color: selectedTodo.is_completed ? 'var(--text-light)' : 'var(--text-primary)',
+                      textDecoration: selectedTodo.is_completed ? 'line-through' : 'none',
+                      lineHeight: '1.3',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      wordBreak: 'break-word', // 긴 단어 줄바꿈
+                      hyphens: 'auto' // 하이픈 처리
+                    }}>
                       {selectedTodo.title}
                     </h2>
                   </div>
                 </div>
-                <div className="flex gap-2 ml-4">
+                <div style={{ display: 'flex', gap: '0.75rem', marginLeft: '1rem' }}>
                   <button
                     onClick={handleEdit}
-                    className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition"
+                    style={{
+                      padding: '0.75rem 1.25rem',
+                      background: 'var(--primary-color)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#3730a3';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'var(--primary-color)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
                   >
-                    수정
+                    ✏️ 수정
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition"
+                    style={{
+                      padding: '0.75rem 1.25rem',
+                      background: '#dc2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#b91c1c';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#dc2626';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
                   >
-                    삭제
+                    🗑️ 삭제
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-4">
+              {/* 상세 내용 */}
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '1.5rem',
+                flex: 1,
+                overflowY: 'auto'
+              }}>
+                {/* 설명 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">설명</label>
-                  <p className="text-gray-600 leading-relaxed">
+                  <label style={{
+                    display: 'block',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.75rem'
+                  }}>
+                    📝 설명
+                  </label>
+                  <p style={{
+                    color: 'var(--text-primary)',
+                    lineHeight: '1.6',
+                    fontSize: '1rem',
+                    background: 'var(--bg-main)',
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-light)',
+                    wordBreak: 'break-word', // 긴 단어 줄바꿈
+                    overflowWrap: 'break-word' // 단어 끊어서 줄바꿈
+                  }}>
                     {selectedTodo.description}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* 우선순위 & 상태 */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr 1fr', 
+                  gap: '1.5rem' 
+                }}>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">우선순위</label>
-                    <span className={`inline-block text-sm px-3 py-1 rounded-full font-medium ${getPriorityLabel(selectedTodo.priority).color}`}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      🎯 우선순위
+                    </label>
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: '1rem',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '20px',
+                      fontWeight: '600',
+                      background: selectedTodo.priority === 'high' ? '#fef2f2' : 
+                                selectedTodo.priority === 'medium' ? '#fefce8' : '#eff6ff',
+                      color: selectedTodo.priority === 'high' ? '#dc2626' : 
+                             selectedTodo.priority === 'medium' ? '#eab308' : '#2563eb'
+                    }}>
                       {getPriorityLabel(selectedTodo.priority).label}
                     </span>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">상태</label>
-                    <span className={`inline-block text-sm px-3 py-1 rounded-full font-medium ${selectedTodo.is_completed ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
-                      {selectedTodo.is_completed ? '완료' : '진행중'}
+                    <label style={{
+                      display: 'block',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      📊 상태
+                    </label>
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: '1rem',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '20px',
+                      fontWeight: '600',
+                      background: selectedTodo.is_completed ? '#f0fdf4' : '#fefce8',
+                      color: selectedTodo.is_completed ? '#16a34a' : '#eab308'
+                    }}>
+                      {selectedTodo.is_completed ? '✅ 완료' : '⏳ 진행중'}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* 시작일 & 마감일 */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr 1fr', 
+                  gap: '1.5rem' 
+                }}>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">시작일</label>
-                    <p className="text-gray-600">{selectedTodo.start_date}</p>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      🚀 시작일
+                    </label>
+                    <p style={{ 
+                      color: 'var(--text-primary)', 
+                      fontSize: '1rem',
+                      background: 'var(--bg-main)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)'
+                    }}>
+                      {selectedTodo.start_date}
+                    </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">마감일</label>
-                    <p className="text-gray-600">{selectedTodo.due_date}</p>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      📅 마감일
+                    </label>
+                    <p style={{ 
+                      color: 'var(--text-primary)', 
+                      fontSize: '1rem',
+                      background: 'var(--bg-main)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)'
+                    }}>
+                      {selectedTodo.due_date}
+                    </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* 생성일 & 수정일 */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr 1fr', 
+                  gap: '1.5rem' 
+                }}>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">생성일</label>
-                    <p className="text-gray-600 text-sm">{selectedTodo.created_at}</p>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      📝 생성일
+                    </label>
+                    <p style={{ 
+                      color: 'var(--text-primary)', 
+                      fontSize: '0.9rem',
+                      background: 'var(--bg-main)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)'
+                    }}>
+                      {selectedTodo.created_at}
+                    </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">수정일</label>
-                    <p className="text-gray-600 text-sm">{selectedTodo.updated_at}</p>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      🔄 수정일
+                    </label>
+                    <p style={{ 
+                      color: 'var(--text-primary)', 
+                      fontSize: '0.9rem',
+                      background: 'var(--bg-main)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)'
+                    }}>
+                      {selectedTodo.updated_at}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg p-6 shadow-sm h-96 flex items-center justify-center">
-              <div className="text-center text-gray-400">
-                <div className="text-4xl mb-4">📝</div>
-                <p>할 일을 선택하면 상세 정보가 표시됩니다.</p>
-              </div>
+            <div style={{
+              background: 'var(--bg-white)',
+              borderRadius: '12px',
+              padding: '3rem',
+              boxShadow: '0 4px 12px var(--shadow-md)',
+              height: '100%', // 전체 높이 사용
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '2px dashed var(--border-medium)'
+            }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-light)' }}>
+                <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>📝</div>
+                <h3 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '600', 
+                  marginBottom: '0.5rem',
+                  color: 'var(--text-secondary)'
+                }}>
+                  할 일을 선택해주세요
+                </h3>
+                <p style={{ fontSize: '1rem' }}>
+                  왼쪽에서 할 일을 클릭하면 상세 정보가 표시됩니다.
+                </p>
+              </div>  
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </TodoListTemplate>
   );
 }

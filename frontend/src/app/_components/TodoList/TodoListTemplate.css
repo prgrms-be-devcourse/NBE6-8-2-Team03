@@ -675,6 +675,8 @@
   align-items: flex-start;
   justify-content: flex-start;
   text-align: left;
+}
+
 .content.calendar-content {
   padding: 1rem !important;
   max-width: none !important;
