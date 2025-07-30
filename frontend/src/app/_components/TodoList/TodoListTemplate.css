@@ -677,11 +677,6 @@
   text-align: left;
 }
 
-.content.calendar-content {
-  padding: 1rem !important;
-  max-width: none !important;
-}
-
 .welcome-message {
   color: var(--text-primary);
 }
@@ -741,9 +736,5 @@
 
   .content {
     padding: 2rem 1rem;
-  }
-  
-  .content.calendar-content {
-    padding: 0.5rem !important;
   }
 }

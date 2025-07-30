@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import './TodoListTemplate.css';
+import { PropsWithChildren } from 'react';
 import NotificationDropdown, { NotificationButton } from './NotificationDropdown';
 import UserProfileDropdown, { UserProfileButton } from './UserProfileDropdown';
 
@@ -9,24 +10,7 @@ interface ContentItem {
   description: string;
 }
 
-interface PropsWithChildren {
-  children: React.ReactNode;
-  contentClassName?: string; 
-}
-interface PropsWithChildren {
-  children: React.ReactNode;
-  contentClassName?: string; // 추가된 prop
-}
-
-const TodoListTemplate: React.FC<PropsWithChildren> = ({ 
-  children, 
-  contentClassName = '' 
-}) => {
-
-const TodoListTemplate: React.FC<PropsWithChildren> = ({ 
-  children, 
-  contentClassName = '' 
-}) => {
+const TodoListTemplate: React.FC<PropsWithChildren> = ({children}) => {
   const [activeNavItem, setActiveNavItem] = useState<string>('project-a');
   const [activeProject, setActiveProject] = useState<string>('');
   const [showNotificationDropdown, setShowNotificationDropdown] = useState<boolean>(false);
@@ -249,10 +233,10 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
           </div>
         </aside>
 
-        {/* 메인 콘텐츠 - contentClassName prop 적용 */}
-        <main className={`content ${contentClassName}`}>
+        {/* 메인 콘텐츠 */}
+        <main className="content">
           <div className="welcome-message">
-            {children}
+          {children}
           </div>
         </main>
       </div>
