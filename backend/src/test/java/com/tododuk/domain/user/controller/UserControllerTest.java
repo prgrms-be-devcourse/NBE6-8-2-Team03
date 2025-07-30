@@ -87,12 +87,21 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("%s님 환영합니다.".formatted(user.getNickName())))
                 .andExpect(jsonPath("$.data").exists())
-                .andExpect(jsonPath("$.data.apiKey").value(user.getApiKey()));
+                .andExpect(jsonPath("$.data.apiKey").value(user.getApiKey()))
+                .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
 
         resultActions.andExpect(
                 result -> {
                     Cookie apiKeyCookie = result.getResponse().getCookie("apiKey");
-                    assertThat(apiKeyCookie.getValue()).isNotBlank();
+                    assertThat(apiKeyCookie.getValue()).isEqualTo(user.getApiKey());
+                    assertThat(apiKeyCookie.getPath()).isEqualTo("/");
+                    assertThat(apiKeyCookie.getAttribute("HttpOnly")).isEqualTo("true");
+
+                    //엑세스 토큰도 확인
+                    Cookie accessTokenCookie = result.getResponse().getCookie("accessToken");
+                    assertThat(accessTokenCookie.getValue()).isNotBlank();
+                    assertThat(accessTokenCookie.getPath()).isEqualTo("/");
+                    assertThat(accessTokenCookie.getAttribute("HttpOnly")).isEqualTo("true");
                 }
         );
     }

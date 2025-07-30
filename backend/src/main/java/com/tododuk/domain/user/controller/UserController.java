@@ -67,7 +67,8 @@ public class UserController {
     record UserLoginResDto(
 
             UserDto userDto,
-            String apiKey
+            String apiKey,
+            String accessToken
     ) {
     }
     @PostMapping("/login")
@@ -87,6 +88,9 @@ public class UserController {
 //        apiKeyCookie.setPath("/");
 //        apiKeyCookie.setHttpOnly(true);
 //        response.addCookie(apiKeyCookie);
+        // accessToken을 생성하고 쿠키에 저장
+        String accessToken = userService.genAccessToken(user);
+        rq.setCookie("accessToken", accessToken);
 
         //dto 안에 기본 정보만 포함되어있음
         return new RsData<>(
@@ -94,7 +98,9 @@ public class UserController {
                 "%s님 환영합니다.".formatted(user.getNickName()),
                 new UserLoginResDto(
                         new UserDto(user),
-                        user.getApiKey()
+                        user.getApiKey(),
+                        accessToken
+
                 )
         );
     }
