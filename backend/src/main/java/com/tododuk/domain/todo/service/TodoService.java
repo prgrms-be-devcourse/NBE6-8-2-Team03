@@ -1,6 +1,6 @@
 package com.tododuk.domain.todo.service;
-import com.tododuk.domain.todo.dto.TodoResponseDto;
 
+import com.tododuk.domain.todo.dto.TodoResponseDto;
 import com.tododuk.domain.todo.entity.Todo;
 import com.tododuk.domain.todo.repository.TodoRepository;
 import lombok.RequiredArgsConstructor;
