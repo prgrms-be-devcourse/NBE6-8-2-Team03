@@ -24,4 +24,13 @@ public class Notification extends BaseEntity {
         this.isRead =true;
     }
 
+    public Notification(User user, String title, String description, String url) {
+        this.user = user;
+        this.title = title;
+        this.description = description;
+        this.url = url;
+        this.isRead = false; // 기본값은 읽지 않음
+
+    }
+
 }
