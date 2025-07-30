@@ -1,5 +1,6 @@
 'use client';
 
+<<<<<<< HEAD
 import { useState } from 'react';
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -10,6 +11,9 @@ import LabelList from './LabelList';
 =======
 import Labels from './Labels';
 >>>>>>> 61898e4 (fix : end point)
+=======
+import { useEffect, useState } from 'react';
+>>>>>>> 084a466 (fe feat:API connetion)
 
 interface Label {
   id: number;
@@ -20,7 +24,31 @@ interface Label {
 const LabelSelectorModal = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLabels, setSelectedLabels] = useState<number[]>([]);
+  const [availableLabels, setAvailableLabels] = useState<Label[]>([]);
+  const [isLoading, setIsLoading] = useState(true); // 로딩 상태 추가
 
+  useEffect(() => {
+    const fetchLabels = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/labels'); // ← 실제 백엔드 API 주소로 수정
+        if (!response.ok) throw new Error('네트워크 오류');
+        const data = await response.json();
+        setAvailableLabels(data.data.labels); // 서버에서 받아온 라벨 저장
+      } catch (error) {
+        console.error('라벨 목록 불러오기 실패:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+  
+    fetchLabels();
+  }, []);
+
+  if (isLoading) {
+    return <p className="text-center py-8">라벨 목록을 불러오는 중입니다...</p>;
+  }
+
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
@@ -71,6 +99,8 @@ const LabelSelectorModal = () => {
     { id: 8, name: '건강', color: '#84cc16' }
   ];
 >>>>>>> 61898e4 (fix : end point)
+=======
+>>>>>>> 084a466 (fe feat:API connetion)
 
   const handleLabelToggle = (labelId: number) => {
     setSelectedLabels(prev => 
