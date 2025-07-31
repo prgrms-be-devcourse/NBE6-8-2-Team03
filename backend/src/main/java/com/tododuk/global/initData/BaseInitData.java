@@ -30,9 +30,9 @@ public class BaseInitData {
 
         if(labelService.countLabels() ==0){
             //label 생성
-            Label label1 = labelService.createLabel(Label.builder().name("공부").color("빨강").build());
-            Label label2 = labelService.createLabel(Label.builder().name("운동").color("파랑").build());
-            Label label3 = labelService.createLabel(Label.builder().name("약먹기").color("주황").build());
+            Label label1 = labelService.createLabelIfNotExists("공부", "#FF4D4F"); // 빨강
+            Label label2 = labelService.createLabelIfNotExists("운동", "#1890FF"); // 파랑
+            Label label3 = labelService.createLabelIfNotExists("휴식", "#52C41A"); // 초록
 
             //todo 생성
             Todo todo1 = Todo.builder()

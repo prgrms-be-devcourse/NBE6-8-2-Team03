@@ -13,15 +13,6 @@ interface PropsWithChildren {
   children: React.ReactNode;
   contentClassName?: string; 
 }
-interface PropsWithChildren {
-  children: React.ReactNode;
-  contentClassName?: string; // 추가된 prop
-}
-
-const TodoListTemplate: React.FC<PropsWithChildren> = ({ 
-  children, 
-  contentClassName = '' 
-}) => {
 
 const TodoListTemplate: React.FC<PropsWithChildren> = ({ 
   children, 

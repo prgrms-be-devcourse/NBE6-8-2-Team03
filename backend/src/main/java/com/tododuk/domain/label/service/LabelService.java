@@ -29,4 +29,18 @@ public class LabelService {
         labelRepository.save(label);
         return label;
     }
+
+    @Transactional
+    public Label createLabelIfNotExists(String name, String color) {
+        Label label;
+        if (!labelRepository.existsByName(name)) {
+            label = createLabel(Label.builder()
+                    .name(name)
+                    .color(color)
+                    .build());
+        } else {
+            label = labelRepository.findByName(name);
+        }
+        return label;
+    }
 }
