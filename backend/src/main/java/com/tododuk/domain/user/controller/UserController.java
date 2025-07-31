@@ -79,9 +79,8 @@ public class UserController {
         User user = userService.findByUserEmail(reqBody.email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
 
-        if (!user.getPassword().equals(reqBody.password)) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
-        }
+        // 비밀번호 체크
+        userService.checkPassword(user, reqBody.password);
         // 로그인 성공 시 apiKey를 클라이언트 쿠키에 저장
         rq.setCookie("apiKey", user.getApiKey());
 //        Cookie apiKeyCookie = new Cookie("apiKey", user.getApiKey());
@@ -109,9 +108,7 @@ public class UserController {
     @GetMapping("/me")
     public RsData<UserDto> getMyInfo(){
         // 현재 로그인한 사용자의 정보를 가져오기
-        User user = userService
-                .findById(rq.getActor().getId())
-                .get();
+        User user = rq.getActor();
 
         return new RsData<>(
                 "200-1",
@@ -139,7 +136,7 @@ public class UserController {
     }
 
     //로그 아웃
-    @DeleteMapping("/logout")
+    @PostMapping("/logout")
     public RsData<Void> logout() {
         rq.deleteCookie("apiKey");
         return new RsData<>(
