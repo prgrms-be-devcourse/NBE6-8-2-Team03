@@ -17,6 +17,10 @@ public record RsData<T>(
         this(resultCode, Integer.parseInt(resultCode.split("-", 2)[0]), msg, data);
     }
 
+    public static <T> RsData<T> success(String msg) {
+        return new RsData<>("200-OK", msg);
+    }
+
     public static <T> RsData<T> success(String msg, T data) {
         return new RsData<>("200-OK", msg, data);
     }
