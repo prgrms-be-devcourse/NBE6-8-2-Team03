@@ -19,6 +19,7 @@ interface PersonalTodo {
   dueDate: string;
 }
 
+//main page
 export default function MainPage() {
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(today);
