@@ -1,5 +1,6 @@
 package com.tododuk.domain.todo.entity;
 
+import com.tododuk.domain.todo.dto.TodoReqDto;
 import com.tododuk.global.entity.BaseEntity;
 import jakarta.persistence.Entity;
 import lombok.AllArgsConstructor;
@@ -38,6 +39,25 @@ public class Todo extends BaseEntity {
         this.priority = 2; // 기본값은 Medium으로 설정
         this.startDate = LocalDateTime.now(); // 생성 시 현재 시간으로 설정
         this.dueDate = null; // 기본값은 null로 설정
+    }
+
+    public Todo(String title, String description, int priority){
+        this.title = title;
+        this.description = description;
+        this.isCompleted = false;
+        this.priority = priority;
+        this.startDate = LocalDateTime.now();
+        this.dueDate = null;
+    }
+
+    public void update(TodoReqDto dto){
+        this.title = dto.getTitle();
+        this.description = dto.getDescription();
+        this.priority = dto.getPriority();
+    }
+
+    public void delete(TodoReqDto dto){
+
     }
 
 }
