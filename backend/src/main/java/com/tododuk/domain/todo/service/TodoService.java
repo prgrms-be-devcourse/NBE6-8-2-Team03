@@ -1,10 +1,12 @@
 package com.tododuk.domain.todo.service;
 
+import com.tododuk.domain.todo.dto.TodoReqDto;
 import com.tododuk.domain.todo.dto.TodoResponseDto;
 import com.tododuk.domain.todo.entity.Todo;
 import com.tododuk.domain.todo.repository.TodoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -36,5 +38,26 @@ public class TodoService {
         Todo todo = todoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("해당 todo는 존재하지 않습니다."));
         return TodoResponseDto.from(todo);
+    }
+
+    @Transactional
+    public Todo addTodo(TodoReqDto reqDto){
+        Todo todo = reqDto.toEntity();
+        return todoRepository.save(todo);
+    }
+
+    @Transactional
+    public Todo updateTodo(int id, TodoReqDto reqDto){
+        Todo todo = todoRepository.findById(id)
+                .orElseThrow(()-> new IllegalArgumentException("해당 todo는 존재하지 않습니다."));
+        todo.update(reqDto);
+        return todo;
+    }
+
+    @Transactional
+    public void deleteTodo(int id){
+        Todo todo = todoRepository.findById(id)
+                .orElseThrow(()-> new IllegalArgumentException("해당 todo는 존재하지 않습니다."));
+        todoRepository.delete(todo);
     }
 }
