@@ -2,6 +2,7 @@ package com.tododuk.global.security;
 
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.service.UserService;
+import com.tododuk.global.rsData.RsData;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,6 +10,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.hibernate.service.spi.ServiceException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -30,6 +35,17 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
         // 로그레벨 디버그인 경우에만 로그 남김
         logger.debug("CustomAuthenticationFilter: processing request for: " + request.getRequestURI());
 
+        try {
+            work(request, response, filterChain);
+        } catch (IllegalArgumentException e) {
+            sendErrorJson(response, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+        } catch (Exception e) {
+            sendErrorJson(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");
+        }
+
+    }
+
+    private void work(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException{
         //api요청이 아니면 패스
         if (!request.getRequestURI().startsWith("/api/")){
             filterChain.doFilter(request, response);
@@ -106,7 +122,39 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
             rq.setHeader("Authorization", actorAccessToken);
         }
 
+        // 스프링 시큐리티에 사용자 정보를 담아 인증 객체 생성
+        UserDetails springUser = new SecurityUser(
+                user.getId(),
+                "",//이미 인증된 사용자므로 비밀번호는 빈 문자열로
+                user.getUserEmail(),
+                List.of()
+        );
+
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                springUser,
+                springUser.getPassword(),
+                springUser.getAuthorities()
+        );
+
+        // 이 시점 이후부터는 시큐리티가 이 요청을 인증된 사용자의 요청으로 인식합니다.
+        SecurityContextHolder
+                .getContext()
+                .setAuthentication(authentication);
+
         // 다음 필터로 요청을 전달
         filterChain.doFilter(request, response);
     }
+
+    private void sendErrorJson(HttpServletResponse response, int status, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json; charset=UTF-8");
+        String body = """
+        {
+            "resultCode": "%d",
+            "msg": "%s"
+        }
+        """.formatted(status, message);
+        response.getWriter().write(body);
+    }
+
 }
