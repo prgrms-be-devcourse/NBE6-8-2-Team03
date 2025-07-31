@@ -12,12 +12,15 @@ import lombok.extern.java.Log;
 import org.hibernate.service.spi.ServiceException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -121,13 +124,16 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
             rq.setCookie("accessToken", actorAccessToken);
             rq.setHeader("Authorization", actorAccessToken);
         }
+        // isAdmin 이면 관리자 권한 부여
+        Collection<? extends GrantedAuthority> authorities = user.isAdmin() ?
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN")) : List.of();
 
         // 스프링 시큐리티에 사용자 정보를 담아 인증 객체 생성
         UserDetails springUser = new SecurityUser(
                 user.getId(),
                 user.getUserEmail(),
                 "",//이미 인증된 사용자므로 비밀번호는 빈 문자열로
-                List.of()
+                authorities
         );
 
         Authentication authentication = new UsernamePasswordAuthenticationToken(

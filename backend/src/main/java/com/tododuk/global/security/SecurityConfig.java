@@ -41,6 +41,8 @@ public class SecurityConfig {
                 ).csrf(
                         AbstractHttpConfigurer::disable
                 )
+
+                //Spring Security에서 인증/인가 실패 시 커스텀 JSON 응답 로직
                 .addFilterBefore(customAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                         .exceptionHandling(
                                 exceptionHandling -> exceptionHandling
