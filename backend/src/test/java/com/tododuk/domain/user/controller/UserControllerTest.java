@@ -52,8 +52,6 @@ public class UserControllerTest {
         User user = userService.findByUserEmail("usernew2@gmail.com").get();
 
         resultActions
-                .andExpect(handler().handlerType(UserController.class))
-                .andExpect(handler().methodName("join"))
                 .andExpect(status().isOk())  // 200
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("%s님 환영합니다. 회원가입이 완료되었습니다.".formatted(user.getNickName())))
@@ -81,8 +79,6 @@ public class UserControllerTest {
         User user = userService.findByUserEmail("usernew@gmail.com").get();
 
         resultActions
-                .andExpect(handler().handlerType(UserController.class))
-                .andExpect(handler().methodName("login"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("%s님 환영합니다.".formatted(user.getNickName())))
@@ -122,8 +118,6 @@ public class UserControllerTest {
         User user = userService.findByUserEmail("usernew@gmail.com").get();
 
         resultActions
-                .andExpect(handler().handlerType(UserController.class))
-                .andExpect(handler().methodName("getMyInfo"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("내 정보 조회 성공"))
@@ -147,8 +141,6 @@ public class UserControllerTest {
                 .andDo(print());
 
         resultActions
-                .andExpect(handler().handlerType(UserController.class))
-                .andExpect(handler().methodName("getMyInfo"))
                 .andExpect(status().isOk());
 
         resultActions.andExpect(

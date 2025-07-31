@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 
@@ -18,6 +19,7 @@ import java.util.Optional;
 public class UserService {
     private final UserRepository userRepository;
     private final AuthTokenService authTokenService;
+    private final PasswordEncoder passwordEncoder;
 
     public Optional<User> findById(int id) {
         return userRepository.findById(id);
@@ -28,6 +30,13 @@ public class UserService {
     }
 
     public User join(String email,String password, String nickname) {
+        userRepository
+                .findByUserEmail(email)
+                .ifPresent(_user -> {
+                    throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
+                });
+
+        password = passwordEncoder.encode(password);
         User user = new User(email, password, nickname);
         return userRepository.save(user);
     }
@@ -51,4 +60,9 @@ public class UserService {
         return  authTokenService.payload(accessToken);
     }
 
+    public void checkPassword(User user,String password) {
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+        }
+    }
 }
