@@ -82,14 +82,14 @@ public class Rq {
         return user;
     }
 
-    private String getHeader(String name, String defaultValue) {
+    public String getHeader(String name, String defaultValue) {
         return Optional
                 .ofNullable(req.getHeader(name))
                 .filter(headerValue -> !headerValue.isBlank())
                 .orElse(defaultValue);
     }
 
-    private void setHeader(String name, String value) {
+    public void setHeader(String name, String value) {
         if (value == null) value = "";
         if (value.isBlank()) {
             req.getHeader(name);
@@ -99,7 +99,7 @@ public class Rq {
         }
     }
 
-    private String getCookieValue(String name, String defaultValue) {
+    public String getCookieValue(String name, String defaultValue) {
         return Optional
                 .ofNullable(req.getCookies())
                 .flatMap(
