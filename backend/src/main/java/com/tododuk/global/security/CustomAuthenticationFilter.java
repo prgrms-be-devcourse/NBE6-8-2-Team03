@@ -125,8 +125,8 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
         // 스프링 시큐리티에 사용자 정보를 담아 인증 객체 생성
         UserDetails springUser = new SecurityUser(
                 user.getId(),
-                "",//이미 인증된 사용자므로 비밀번호는 빈 문자열로
                 user.getUserEmail(),
+                "",//이미 인증된 사용자므로 비밀번호는 빈 문자열로
                 List.of()
         );
 

@@ -14,8 +14,8 @@ public class SecurityUser extends User {
     //username 대신 email 사용
     public SecurityUser(
             int id,
-            String password,
             String email,
+            String password,
             Collection<? extends GrantedAuthority> authorities
     ) {
         super(email, password, authorities);

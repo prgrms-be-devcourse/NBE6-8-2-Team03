@@ -24,8 +24,11 @@ public class SecurityConfig {
                                 .requestMatchers("/favicon.ico").permitAll()
                                 // H2 콘솔 접근 허용
                                 .requestMatchers("/h2-console/**").permitAll()
-                                // 접근 허용
-                                .requestMatchers("/**").permitAll()
+                                // 로그인, 로그아웃, 회원가입은 모두 접근 허용
+                                .requestMatchers("/api/*/user/login", "/api/*/user/logout").permitAll()
+                                .requestMatchers("/api/*/user/register").permitAll()
+                                // 위 요청 제외 나머지는 로그인 요구
+                                .requestMatchers("/api/*/**").authenticated()
                                 .anyRequest().authenticated()
                 )
                 .headers(
