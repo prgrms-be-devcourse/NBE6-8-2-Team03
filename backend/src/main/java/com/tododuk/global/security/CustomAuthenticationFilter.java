@@ -1,7 +1,9 @@
 package com.tododuk.global.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.service.UserService;
+import com.tododuk.global.exception.ServiceException;
 import com.tododuk.global.rsData.RsData;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -9,7 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
-import org.hibernate.service.spi.ServiceException;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -32,6 +34,8 @@ import com.tododuk.global.rq.Rq;
 public class CustomAuthenticationFilter extends OncePerRequestFilter {
     private final Rq rq;
     private  final UserService userService;
+    private final ObjectMapper objectMapper;
+
     //커스텀 인증 필터 (액션 메서드 실행 전 작동)
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -40,10 +44,16 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             work(request, response, filterChain);
-        } catch (IllegalArgumentException e) {
-            sendErrorJson(response, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+        } catch (ServiceException e) {
+            RsData<Void> rsData = e.getRsData();
+            response.setContentType("application/json");
+            response.setStatus(rsData.statusCode());
+
+            response.getWriter().write(
+                    objectMapper.writeValueAsString(rsData)
+            );
         } catch (Exception e) {
-            sendErrorJson(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");
+            throw e;
         }
 
     }
