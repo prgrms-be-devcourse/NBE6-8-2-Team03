@@ -1,5 +1,6 @@
 package com.tododuk.domain.team.dto;
 
+import com.tododuk.domain.team.constant.TeamRoleType;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,5 +13,5 @@ import lombok.Setter;
 @AllArgsConstructor
 public class TeamMemberUpdateRequestDto {
     @NotBlank(message = "역할은 필수입니다.")
-    private String role; // ex) leader, member
+    private TeamRoleType role; // ex) leader, member
 }
