@@ -11,10 +11,6 @@ interface ContentItem {
 
 interface PropsWithChildren {
   children: React.ReactNode;
-  contentClassName?: string; 
-}
-interface PropsWithChildren {
-  children: React.ReactNode;
   contentClassName?: string; // 추가된 prop
 }
 
@@ -23,10 +19,16 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
   contentClassName = '' 
 }) => {
 
-const TodoListTemplate: React.FC<PropsWithChildren> = ({ 
-  children, 
-  contentClassName = '' 
-}) => {
+
+  React.useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      // 토큰이 없으면 로그인 페이지로 리다이렉트
+      window.location.href = 'http://localhost:3000/login'; // 또는 로그인 페이지 경로
+    }
+  }, []);
+
+  
   const [activeNavItem, setActiveNavItem] = useState<string>('project-a');
   const [activeProject, setActiveProject] = useState<string>('');
   const [showNotificationDropdown, setShowNotificationDropdown] = useState<boolean>(false);

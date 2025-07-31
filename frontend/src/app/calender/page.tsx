@@ -19,8 +19,15 @@ interface TodoList {
 }
 
 const CalendarPage: React.FC = () => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  // 오늘 날짜를 정확하게 설정하는 함수
+  const getTodayDate = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // 시간을 00:00:00.000으로 설정
+    return today;
+  };
+
+  const [currentDate, setCurrentDate] = useState(() => getTodayDate());
+  const [selectedDate, setSelectedDate] = useState(() => getTodayDate());
   const [todoLists, setTodoLists] = useState<TodoList[]>([]);
 
   // 샘플 데이터
@@ -65,8 +72,12 @@ const CalendarPage: React.FC = () => {
     return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
   };
 
+  // 날짜를 문자열로 변환 (시간대 문제 해결)
   const formatDate = (date: Date) => {
-    return date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const isSameDay = (date1: Date, date2: Date) => {
@@ -74,7 +85,8 @@ const CalendarPage: React.FC = () => {
   };
 
   const isToday = (date: Date) => {
-    return isSameDay(date, new Date());
+    const today = getTodayDate();
+    return isSameDay(date, today);
   };
 
   // 특정 날짜의 할일 가져오기 (실제 날짜별 데이터로 수정 예정)
@@ -99,9 +111,10 @@ const CalendarPage: React.FC = () => {
     }));
   };
 
-  // 날짜 클릭 핸들러
+  // 날짜 클릭 핸들러 (시간 초기화 추가)
   const handleDateClick = (day: number) => {
     const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    newDate.setHours(0, 0, 0, 0); // 시간을 00:00:00.000으로 설정
     setSelectedDate(newDate);
   };
 
@@ -113,6 +126,7 @@ const CalendarPage: React.FC = () => {
     } else {
       newDate.setMonth(currentDate.getMonth() + 1);
     }
+    newDate.setHours(0, 0, 0, 0); // 시간 초기화
     setCurrentDate(newDate);
   };
 
@@ -142,6 +156,8 @@ const CalendarPage: React.FC = () => {
     // 실제 날짜들
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+      date.setHours(0, 0, 0, 0); // 시간 초기화
+      
       const todoColors = getTodoColorsForDate(date);
       const totalTodos = todoColors.reduce((sum, item) => sum + item.count, 0);
       const isSelected = isSameDay(date, selectedDate);
@@ -194,140 +210,150 @@ const CalendarPage: React.FC = () => {
 
   return (
     <TodoListTemplate contentClassName="calendar-content">
-      <div className="calendar-page">
-        {/* 캘린더 섹션 */}
-        <div className="calendar-section">
-          <div className="calendar-header">
-            <button 
-              className="nav-button" 
-              onClick={() => navigateMonth('prev')}
-            >
-              ←
-            </button>
-            <h2 className="calendar-title">
-              {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
-            </h2>
-            <button 
-              className="nav-button" 
-              onClick={() => navigateMonth('next')}
-            >
-              →
-            </button>
-          </div>
-          
-          <div className="calendar-grid">
-            <div className="weekdays">
-              {['일', '월', '화', '수', '목', '금', '토'].map(day => (
-                <div key={day} className="weekday">{day}</div>
-              ))}
+      <div className="calendar-wrapper">
+        <div className="calendar-container">
+          {/* 캘린더 섹션 */}
+          <div className="calendar-section">
+            <div className="calendar-header">
+              <button 
+                className="nav-button" 
+                onClick={() => navigateMonth('prev')}
+              >
+                ←
+              </button>
+              <h2 className="calendar-title">
+                {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
+              </h2>
+              <button 
+                className="nav-button" 
+                onClick={() => navigateMonth('next')}
+              >
+                →
+              </button>
             </div>
-            <div className="calendar-days">
-              {renderCalendar()}
-            </div>
-          </div>
-        </div>
-
-        {/* 할일 목록 섹션 */}
-        <div className="todos-section">
-          <div className="todos-header">
-            <h3 className="todos-title">
-              {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일의 할일
-            </h3>
-            <div className="todos-date">
-              {selectedDate.toLocaleDateString('ko-KR', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                weekday: 'long'
-              })}
-            </div>
-          </div>
-
-          <div className="todo-lists">
-            {selectedDateTodos.length === 0 ? (
-              <div className="no-todos">
-                선택한 날짜에 할일이 없습니다.
+            
+            <div className="calendar-grid">
+              <div className="weekdays">
+                {['일', '월', '화', '수', '목', '금', '토'].map(day => (
+                  <div key={day} className="weekday">{day}</div>
+                ))}
               </div>
-            ) : (
-              selectedDateTodos.map(todoList => (
-                <div key={todoList.id} className="todo-list-group">
-                  <div className="todo-list-header">
-                    <div 
-                      className="todo-list-color" 
-                      style={{ backgroundColor: todoList.color }}
-                    ></div>
-                    <h4 className="todo-list-name">{todoList.name}</h4>
-                    <span className="todo-count">
-                      {todoList.todos.filter(t => !t.completed).length} / {todoList.todos.length}
-                    </span>
-                  </div>
-                  
-                  <div className="todos">
-                    {todoList.todos.map(todo => (
-                      <div key={todo.id} className={`todo-item ${todo.completed ? 'completed' : ''}`}>
-                        <label className="todo-checkbox">
-                          <input
-                            type="checkbox"
-                            checked={todo.completed}
-                            onChange={() => toggleTodoComplete(todo.id)}
-                          />
-                          <span className="checkmark"></span>
-                        </label>
-                        <div className="todo-content">
-                          <div className="todo-title">{todo.title}</div>
-                          <div className={`todo-priority priority-${todo.priority}`}>
-                            {todo.priority === 'high' ? '높음' : 
-                             todo.priority === 'medium' ? '보통' : '낮음'}
+              <div className="calendar-days">
+                {renderCalendar()}
+              </div>
+            </div>
+          </div>
+
+          {/* 할일 목록 섹션 */}
+          <div className="todos-section">
+            <div className="todos-header">
+              <h3 className="todos-title">
+                {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일의 할일
+              </h3>
+              <div className="todos-date">
+                {selectedDate.toLocaleDateString('ko-KR', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  weekday: 'long'
+                })}
+              </div>
+            </div>
+
+            <div className="todo-lists">
+              {selectedDateTodos.length === 0 ? (
+                <div className="no-todos">
+                  선택한 날짜에 할일이 없습니다.
+                </div>
+              ) : (
+                selectedDateTodos.map(todoList => (
+                  <div key={todoList.id} className="todo-list-group">
+                    <div className="todo-list-header">
+                      <div 
+                        className="todo-list-color" 
+                        style={{ backgroundColor: todoList.color }}
+                      ></div>
+                      <h4 className="todo-list-name">{todoList.name}</h4>
+                      <span className="todo-count">
+                        {todoList.todos.filter(t => !t.completed).length} / {todoList.todos.length}
+                      </span>
+                    </div>
+                    
+                    <div className="todos">
+                      {todoList.todos.map(todo => (
+                        <div key={todo.id} className={`todo-item ${todo.completed ? 'completed' : ''}`}>
+                          <label className="todo-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={todo.completed}
+                              onChange={() => toggleTodoComplete(todo.id)}
+                            />
+                            <span className="checkmark"></span>
+                          </label>
+                          <div className="todo-content">
+                            <div className="todo-title">{todo.title}</div>
+                            <div className={`todo-priority priority-${todo.priority}`}>
+                              {todo.priority === 'high' ? '높음' : 
+                               todo.priority === 'medium' ? '보통' : '낮음'}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       <style jsx global>{`
-        /* 템플릿 강제 오버라이드 */
-        .content {
-          padding: 0.5rem !important;
-          max-width: none !important;
+        /* 전체 레이아웃 리셋 및 기본 설정 */
+        .calendar-content {
+          padding: 0 !important;
+          height: 100% !important;
+          overflow: hidden !important;
           width: 100% !important;
         }
         
-        .welcome-message {
-          width: 100% !important;
-          max-width: none !important;
-        }
-        
-        .calendar-page {
-          display: flex;
-          gap: 1.5rem;
-          height: calc(100vh - 120px);
+        .calendar-wrapper {
           width: 100%;
-          max-width: none;
-          padding: 0;
-          margin: 0;
+          height: 100%;
+          padding: 1rem;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+        
+        .calendar-container {
+          display: grid;
+          grid-template-columns: 1fr 320px;
+          gap: 1.5rem;
+          height: 100%;
+          width: 100%;
+          max-width: 100%;
+          margin: 0 auto;
         }
 
+        /* 캘린더 섹션 */
         .calendar-section {
-          flex: 3;
           background: white;
           border-radius: 16px;
-          padding: 2rem;
+          padding: 1.5rem;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
           border: 1px solid #f1f5f9;
+          display: flex;
+          flex-direction: column;
           height: 100%;
+          overflow-x: auto;
+          overflow-y: hidden;
         }
 
         .calendar-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 2.5rem;
+          margin-bottom: 1.5rem;
           padding-bottom: 1rem;
           border-bottom: 2px solid #f8fafc;
         }
@@ -358,7 +384,7 @@ const CalendarPage: React.FC = () => {
         }
 
         .calendar-title {
-          font-size: 2rem;
+          font-size: 1.8rem;
           font-weight: 700;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           -webkit-background-clip: text;
@@ -368,20 +394,24 @@ const CalendarPage: React.FC = () => {
         }
 
         .calendar-grid {
-          width: 100%;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          min-width: 720px;
         }
 
         .weekdays {
           display: grid;
-          grid-template-columns: repeat(7, 1fr);
-          gap: 2px;
-          margin-bottom: 1.5rem;
-          padding: 0 4px;
+          grid-template-columns: repeat(7, minmax(100px, 1fr));
+          gap: 8px;
+          margin-bottom: 1rem;
+          overflow-x: auto;
         }
 
         .weekday {
           text-align: center;
-          padding: 1rem 0;
+          padding: 0.75rem 0;
           font-weight: 700;
           color: #475569;
           font-size: 0.95rem;
@@ -393,23 +423,50 @@ const CalendarPage: React.FC = () => {
 
         .calendar-days {
           display: grid;
-          grid-template-columns: repeat(7, 1fr);
+          grid-template-columns: repeat(7, minmax(100px, 1fr));
+          grid-auto-rows: minmax(110px, 1fr);
           gap: 8px;
-          padding: 4px;
+          flex: 1;
+          overflow-y: auto;
+          overflow-x: auto;
+          padding-right: 4px;
+        }
+
+        /* 스크롤바 스타일링 */
+        .calendar-days::-webkit-scrollbar,
+        .todo-lists::-webkit-scrollbar {
+          width: 8px;
+        }
+
+        .calendar-days::-webkit-scrollbar-track,
+        .todo-lists::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 4px;
+        }
+
+        .calendar-days::-webkit-scrollbar-thumb,
+        .todo-lists::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+
+        .calendar-days::-webkit-scrollbar-thumb:hover,
+        .todo-lists::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
         }
 
         .calendar-day {
           background: white;
-          min-height: 120px;
           padding: 0.75rem;
           cursor: pointer;
           transition: all 0.3s ease;
           position: relative;
           display: flex;
           flex-direction: column;
-          border-radius: 12px;
+          border-radius: 10px;
           border: 2px solid transparent;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+          min-height: 120px;
         }
 
         .calendar-day:hover {
@@ -468,11 +525,10 @@ const CalendarPage: React.FC = () => {
           border-radius: 2px;
           opacity: 0.8;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-          /* 색상은 인라인 스타일로 동적 적용 */
         }
 
         .calendar-day.selected .todo-indicator {
-          background: rgba(255, 255, 255, 0.9);
+          opacity: 0.9;
           box-shadow: 0 1px 3px rgba(255, 255, 255, 0.3);
         }
 
@@ -492,20 +548,22 @@ const CalendarPage: React.FC = () => {
           background: rgba(255, 255, 255, 0.2);
         }
 
+        /* 할일 섹션 */
         .todos-section {
-          flex: 2;
           background: white;
           border-radius: 16px;
-          padding: 2rem;
+          padding: 1.5rem;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
           border: 1px solid #f1f5f9;
-          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
           height: 100%;
+          overflow: hidden;
         }
 
         .todos-header {
-          margin-bottom: 2.5rem;
-          padding-bottom: 1.5rem;
+          margin-bottom: 1.5rem;
+          padding-bottom: 1rem;
           border-bottom: 2px solid #f8fafc;
         }
 
@@ -516,7 +574,7 @@ const CalendarPage: React.FC = () => {
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
-          margin-bottom: 0.75rem;
+          margin-bottom: 0.5rem;
         }
 
         .todos-date {
@@ -525,9 +583,9 @@ const CalendarPage: React.FC = () => {
         }
 
         .todo-lists {
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
+          flex: 1;
+          overflow-y: auto;
+          padding-right: 4px;
         }
 
         .no-todos {
@@ -539,10 +597,15 @@ const CalendarPage: React.FC = () => {
 
         .todo-list-group {
           border: 1px solid #e2e8f0;
-          border-radius: 12px;
+          border-radius: 10px;
           overflow: hidden;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
           transition: all 0.3s ease;
+          margin-bottom: 1rem;
+        }
+
+        .todo-list-group:last-child {
+          margin-bottom: 0;
         }
 
         .todo-list-group:hover {
@@ -563,6 +626,7 @@ const CalendarPage: React.FC = () => {
           width: 16px;
           height: 16px;
           border-radius: 50%;
+          flex-shrink: 0;
         }
 
         .todo-list-name {
@@ -570,6 +634,7 @@ const CalendarPage: React.FC = () => {
           font-weight: 600;
           color: #1e293b;
           flex: 1;
+          margin: 0;
         }
 
         .todo-count {
@@ -611,6 +676,7 @@ const CalendarPage: React.FC = () => {
           cursor: pointer;
           display: flex;
           align-items: center;
+          flex-shrink: 0;
         }
 
         .todo-checkbox input {
@@ -662,12 +728,15 @@ const CalendarPage: React.FC = () => {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 0.5rem;
         }
 
         .todo-title {
           font-size: 0.9rem;
           color: #1e293b;
           font-weight: 500;
+          word-break: break-word;
+          flex: 1;
         }
 
         .todo-priority {
@@ -675,6 +744,8 @@ const CalendarPage: React.FC = () => {
           padding: 0.2rem 0.5rem;
           border-radius: 12px;
           font-weight: 500;
+          flex-shrink: 0;
+          white-space: nowrap;
         }
 
         .priority-high {
@@ -692,21 +763,34 @@ const CalendarPage: React.FC = () => {
           color: #16a34a;
         }
 
+        /* 반응형 디자인 */
+        @media (max-width: 1400px) {
+          .calendar-container {
+            grid-template-columns: 1fr 300px;
+          }
+        }
+        
+        @media (max-width: 1200px) {
+          .calendar-container {
+            grid-template-columns: 1fr 280px;
+          }
+        }
+
         @media (max-width: 1024px) {
-          .calendar-page {
-            flex-direction: column;
-            height: auto;
+          .calendar-container {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr auto;
+            gap: 1rem;
           }
           
-          .calendar-section,
           .todos-section {
-            flex: none;
+            max-height: 400px;
           }
         }
 
         @media (max-width: 768px) {
-          .calendar-page {
-            gap: 1rem;
+          .calendar-wrapper {
+            padding: 0.5rem;
           }
           
           .calendar-section,
@@ -715,8 +799,22 @@ const CalendarPage: React.FC = () => {
           }
           
           .calendar-day {
-            min-height: 60px;
+            min-height: 80px;
+            font-size: 0.85rem;
+          }
+          
+          .day-number {
             font-size: 0.9rem;
+          }
+          
+          .nav-button {
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+          }
+          
+          .calendar-title {
+            font-size: 1.5rem;
           }
         }
       `}</style>
