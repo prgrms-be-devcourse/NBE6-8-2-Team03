@@ -1,11 +1,164 @@
 package com.tododuk.domain.user.controller;
 
+import com.tododuk.domain.user.dto.UserDto;
+import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.service.UserService;
+import com.tododuk.global.rq.Rq;
+import com.tododuk.global.rsData.RsData;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/v1/user")
 public class UserController {
     private final UserService userService;
+    private final Rq rq;
+
+    record UserJoinReqDto(
+            @NotBlank
+            @Size(min = 2, max = 30)
+            String email,
+            @NotBlank
+            @Size(min = 2, max = 30)
+            String password,
+            @NotBlank
+            @Size(min = 2, max = 30)
+            String nickname
+    ) {
+    }
+
+    @PostMapping("/register")
+    public RsData<UserDto> join(
+            @Valid @RequestBody UserJoinReqDto reqBody
+    ){
+        userService.findByUserEmail(reqBody.email)
+                .ifPresent(_user -> {
+                    throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
+                });
+
+        User user = userService.join(
+                reqBody.email(),
+                reqBody.password(),
+                reqBody.nickname()
+        );
+
+        return new RsData<>(
+                "200-1",// 생성은 201이지만 기본값이 200이라 추후 수정 필
+                "%s님 환영합니다. 회원가입이 완료되었습니다.".formatted(user.getNickName()),
+                new UserDto(user)
+        );
+    }
+
+    record UserLoginReqDto(
+            @NotBlank
+            @Size(min = 2, max = 30)
+            String email,
+            @NotBlank
+            @Size(min = 2, max = 30)
+            String password
+    ) {
+    }
+
+    record UserLoginResDto(
+
+            UserDto userDto,
+            String apiKey,
+            String accessToken
+    ) {
+    }
+    @PostMapping("/login")
+    public RsData<UserLoginResDto> login(
+            @Valid @RequestBody UserLoginReqDto reqBody,
+            HttpServletResponse response
+    ) {
+
+        System.out.println("로그인 요청: " + reqBody.email + ", " + reqBody.password);
+        User user = userService.findByUserEmail(reqBody.email)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
+
+        // 비밀번호 체크
+        userService.checkPassword(user, reqBody.password);
+        // 로그인 성공 시 apiKey를 클라이언트 쿠키에 저장
+        rq.setCookie("apiKey", user.getApiKey());
+//        Cookie apiKeyCookie = new Cookie("apiKey", user.getApiKey());
+//        apiKeyCookie.setPath("/");
+//        apiKeyCookie.setHttpOnly(true);
+//        response.addCookie(apiKeyCookie);
+        // accessToken을 생성하고 쿠키에 저장
+        String accessToken = userService.genAccessToken(user);
+        rq.setCookie("accessToken", accessToken);
+
+        //dto 안에 기본 정보만 포함되어있음
+        return new RsData<>(
+                "200-1",
+                "%s님 환영합니다.".formatted(user.getNickName()),
+                new UserLoginResDto(
+                        new UserDto(user),
+                        user.getApiKey(),
+                        accessToken
+
+                )
+        );
+    }
+
+    // 내 정보 조회 : 고유번호, 이메일, 닉네임, 프로필 사진
+    @GetMapping("/me")
+    public RsData<UserDto> getMyInfo(){
+        // 현재 로그인한 사용자의 정보를 가져오기
+        User user = rq.getActor();
+
+        return new RsData<>(
+                "200-1",
+                "내 정보 조회 성공",
+                new UserDto(user)
+        );
+    }
+    // 내 정보 수정 : 닉네임, 프로필 사진 변경 가능
+    @PostMapping("/me")
+    public RsData<UserDto> updateMyInfo(
+            @RequestHeader("Authorization") String authorization,
+            @Valid @RequestBody UserDto reqBody
+    ){
+        String apiKey = authorization.replace("Bearer ", "");
+        User user = userService.findByApiKey(apiKey)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 apiKey 입니다."));
+
+        userService.updateUserInfo(user, reqBody);
+
+        return new RsData<>(
+                "200-1",
+                "내 정보 수정 성공",
+                new UserDto(user)
+        );
+    }
+
+    //로그 아웃
+    @PostMapping("/logout")
+    public RsData<Void> logout(HttpServletRequest request) {
+        // 세션 무효화
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+
+        // 쿠키 삭제
+        rq.deleteCookie("apiKey");
+        rq.deleteCookie("accessToken");  // 이것도 있다면
+        rq.deleteCookie("refreshToken"); // 이것도 있다면
+        rq.deleteCookie("JSESSIONID");
+        // 다른 쿠키들도...
+
+        return new RsData<>(
+                "200-1",
+                "로그아웃 성공"
+        );
+    }
+
 }

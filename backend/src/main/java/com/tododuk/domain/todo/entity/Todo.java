@@ -1,9 +1,10 @@
 package com.tododuk.domain.todo.entity;
 
-import com.tododuk.domain.todoList.entity.TodoList;
+import com.tododuk.domain.todo.dto.TodoReqDto;
 import com.tododuk.global.entity.BaseEntity;
 import jakarta.persistence.Entity;
-import jakarta.persistence.ManyToOne;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -12,6 +13,8 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Todo extends BaseEntity {
     private  String title;
     private String description;
@@ -20,9 +23,41 @@ public class Todo extends BaseEntity {
 
     private LocalDateTime startDate;
     private LocalDateTime dueDate;
+    private int todoListId;
 
-    @ManyToOne
-    private TodoList todoList;
+    //initData test를 위해 일시적으로 주석처리
+//    @ManyToOne
+//    private TodoList todoList;
 
     //업데이트 날짜는 제외 (erd 수정 필요)
+
+    public Todo(String title, String description, boolean completed) {
+
+        this.title = title;
+        this.description = description;
+        this.isCompleted = completed;
+        this.priority = 2; // 기본값은 Medium으로 설정
+        this.startDate = LocalDateTime.now(); // 생성 시 현재 시간으로 설정
+        this.dueDate = null; // 기본값은 null로 설정
+    }
+
+    public Todo(String title, String description, int priority){
+        this.title = title;
+        this.description = description;
+        this.isCompleted = false;
+        this.priority = priority;
+        this.startDate = LocalDateTime.now();
+        this.dueDate = null;
+    }
+
+    public void update(TodoReqDto dto){
+        this.title = dto.getTitle();
+        this.description = dto.getDescription();
+        this.priority = dto.getPriority();
+    }
+
+    public void delete(TodoReqDto dto){
+
+    }
+
 }

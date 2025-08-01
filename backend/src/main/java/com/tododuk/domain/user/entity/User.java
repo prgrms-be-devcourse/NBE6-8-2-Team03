@@ -5,24 +5,37 @@ import com.tododuk.domain.notification.entity.Notification;
 import com.tododuk.domain.team.entity.TeamMember;
 import com.tododuk.domain.todoList.entity.TodoList;
 import com.tododuk.global.entity.BaseEntity;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Table(name="users")
 public class User extends BaseEntity {
 
     private String userEmail;
 
     private String password;
     private String nickName;
-    private boolean isAdmin;
+    @Column(nullable = false)
+    private boolean isAdmin = false;
     private String profileImgUrl;
+
+    @Column(unique = true)
+    private String apiKey;
 
     @OneToMany
     private List<TodoList> todoLists;
@@ -35,5 +48,20 @@ public class User extends BaseEntity {
     @OneToMany
     private List<Notification> notifications;
 
+    public User(String email, String password, String nickName) {
+        this.userEmail = email;
+        this.password = password;
+        this.nickName = nickName;
+        this.apiKey = UUID.randomUUID().toString();
+    }
 
+    public User(int id, String userEmail) {
+        this.id = id;
+        this.userEmail = userEmail;
+    }
+
+    public void updateUserInfo(String nickName, String profileImgUrl) {
+        this.nickName = nickName;
+        this.profileImgUrl = profileImgUrl;
+    }
 }

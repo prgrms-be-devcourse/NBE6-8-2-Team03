@@ -1,0 +1,82 @@
+package com.tododuk.domain.todo.controller;
+
+import com.tododuk.domain.todo.dto.TodoReqDto;
+import com.tododuk.domain.todo.dto.TodoResponseDto;
+import com.tododuk.domain.todo.entity.Todo;
+import com.tododuk.domain.todo.service.TodoService;
+import com.tododuk.global.exception.ServiceException;
+import com.tododuk.global.rsData.RsData;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/todo")
+@RequiredArgsConstructor
+@Tag(name = "todo")
+@CrossOrigin(origins = "http://localhost:3000")
+public class TodoController {
+
+    private final TodoService todoService;
+
+    @GetMapping // 메인에서 todo버튼 클릭시 이동하는 처음 화면
+    @Transactional
+    @Operation(summary = "전체 todo 조회")
+    public ResponseEntity<RsData<List<TodoResponseDto>>> getAllTodos() {
+        List<TodoResponseDto> todos = todoService.getAllTodos();
+        return ResponseEntity.ok(RsData.success("전체 todo 조회 성공", todos));
+    }
+
+    @GetMapping("/{todo_id}")
+    @Transactional
+    @Operation(summary = "개별 todo 조회")
+    public ResponseEntity<RsData<TodoResponseDto>> getTodoById(@PathVariable Integer todo_id) {
+        TodoResponseDto todo = todoService.getTodo(todo_id);
+        return ResponseEntity.ok(RsData.success("todo 조회 성공", todo));
+    }
+
+    @PostMapping
+    @Transactional
+    @Operation(summary = "새로운 todo 생성")
+    public ResponseEntity<RsData<Todo>> addTodo(
+            @Valid @RequestBody TodoReqDto reqDto
+    ) {
+        Todo saveTodo = todoService.addTodo(reqDto);
+        return ResponseEntity.ok(RsData.success("새로운 todo 생성 성공", saveTodo));
+    }
+
+    @PutMapping(value = "/{todo_id}")
+    @Transactional
+    @Operation(summary = "todo 수정")
+    public ResponseEntity<RsData<Todo>> updateTodo (
+            @PathVariable Integer todo_id,
+            @Valid @RequestBody TodoReqDto reqDto
+    ) {
+       try {
+           Todo todo = todoService.updateTodo(todo_id, reqDto);
+           return ResponseEntity.ok(RsData.success("todo 수정 성공",todo));
+       } catch (Exception e) {
+           throw new ServiceException("400-1", "수정에 실패하였습니다.");
+       }
+    }
+
+    @DeleteMapping(value = "/{todo_id}")
+    @Transactional
+    @Operation(summary = "todo 삭제")
+    public ResponseEntity<RsData<Todo>> deleteTodo(
+            @PathVariable Integer todo_id
+    ) {
+        try{
+            todoService.deleteTodo(todo_id);
+            return ResponseEntity.ok(RsData.success("todo 삭제 성공"));
+        } catch (Exception e) {
+            throw new ServiceException("400-1", "삭제에 실패하였습니다.");
+        }
+    }
+}

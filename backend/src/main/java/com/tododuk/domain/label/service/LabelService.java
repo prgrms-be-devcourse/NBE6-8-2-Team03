@@ -15,7 +15,7 @@ public class LabelService {
     private final LabelRepository labelRepository;
 
     @Transactional(readOnly = true)
-    public long countOrders(){
+    public long countLabels(){
         return labelRepository.count();
     }
 
@@ -27,6 +27,20 @@ public class LabelService {
     @Transactional
     public Label createLabel(Label label) {
         labelRepository.save(label);
+        return label;
+    }
+
+    @Transactional
+    public Label createLabelIfNotExists(String name, String color) {
+        Label label;
+        if (!labelRepository.existsByName(name)) {
+            label = createLabel(Label.builder()
+                    .name(name)
+                    .color(color)
+                    .build());
+        } else {
+            label = labelRepository.findByName(name);
+        }
         return label;
     }
 }

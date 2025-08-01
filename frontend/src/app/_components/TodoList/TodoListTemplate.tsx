@@ -1,42 +1,73 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './TodoListTemplate.css';
-import { Props } from 'next/script';
+import NotificationDropdown, { NotificationButton } from './NotificationDropdown';
+import UserProfileDropdown, { UserProfileButton } from './UserProfileDropdown';
 
-interface NotificationItem {
-  title: string;
-  text: string;
-  time: string;
-}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
 
 interface ContentItem {
   title: string;
   description: string;
 }
 
-const TodoListTemplate: React.FC = ({children}: Props) => {
+interface PropsWithChildren {
+  children: React.ReactNode;
+  contentClassName?: string; // 추가된 prop
+}
+
+const TodoListTemplate: React.FC<PropsWithChildren> = ({ 
+  children, 
+  contentClassName = '' 
+}) => {
+
+  useEffect(() => {
+    // 로그아웃으로 인한 리다이렉트인지 확인
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromLogout = urlParams.get('logout') === 'true';
+    
+    const checkLogin = async () => {
+      try {
+        const res = await fetch('http://localhost:8080/api/v1/user/me', {
+          method: 'GET',
+          credentials: 'include'
+        });
+        if (!res.ok) {
+          window.location.href = 'http://localhost:3000/login';
+        }
+      } catch (err) {
+        console.error('로그인 체크 실패:', err);
+        window.location.href = 'http://localhost:3000/login';
+      }
+    };
+    
+    // 로그아웃으로 온 경우 약간 지연 후 체크
+    if (fromLogout) {
+      setTimeout(checkLogin, 500);
+    } else {
+      checkLogin();
+    }
+  }, []);
+
+  
   const [activeNavItem, setActiveNavItem] = useState<string>('project-a');
   const [activeProject, setActiveProject] = useState<string>('');
   const [showNotificationDropdown, setShowNotificationDropdown] = useState<boolean>(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
+  
+  // 읽지 않은 알림 개수 (NotificationButton용)
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(0);
 
-  const notifications: NotificationItem[] = [
-    {
-      title: '새로운 업무 할당',
-      text: '프로젝트 A에 새로운 업무가 할당되었습니다.',
-      time: '2분 전'
-    },
-    {
-      title: '마감일 알림',
-      text: '개발팀 Sprint 24의 마감일이 내일입니다.',
-      time: '1시간 전'
-    },
-    {
-      title: '팀 멤버 초대',
-      text: '마케팅 Q2 프로젝트에 새로운 멤버가 참여했습니다.',
-      time: '3시간 전'
-    }
-  ];
+  // 사용자 정보
+  const userInfo = {
+    name: "개발자님",
+    email: "developer@example.com", 
+    joinDate: "2024.01.15",
+    role: "Frontend Developer",
+    department: "개발팀"
+  };
 
   const contentMap: Record<string, ContentItem> = {
     'inbox': {
@@ -61,10 +92,111 @@ const TodoListTemplate: React.FC = ({children}: Props) => {
     }
   };
 
+ // 읽지 않은 알림 개수 업데이트 (초기 로드용)
+const updateUnreadCount = async () => {
+  try {
+    // 환경변수 사용으로 하드코딩 제거
+    const response = await fetch(`${API_BASE_URL}/api/v1/notifications/me`, {
+      method: 'GET',
+      credentials: 'include', // 쿠키 포함해서 요청
+      headers: {
+        'Content-Type': 'application/json',
+        // 백엔드에서 api-key가 필요하다면 추가
+        // 'api-key': getApiKey(), // 필요시 주석 해제
+      },
+      // CORS 설정 추가
+      mode: 'cors',
+    });
+           
+    if (!response.ok) {
+      // HTTP 상태 코드별 세분화된 처리
+      if (response.status === 401) {
+        console.warn('인증이 필요합니다. 로그인을 확인해주세요.');
+        setUnreadNotificationCount(0);
+        return;
+      } else if (response.status === 403) {
+        console.warn('알림에 접근할 권한이 없습니다.');
+        setUnreadNotificationCount(0);
+        return;
+      } else if (response.status >= 500) {
+        console.warn('서버 오류가 발생했습니다:', response.status);
+        setUnreadNotificationCount(0);
+        return;
+      } else {
+        console.warn('알림 API 응답 실패:', response.status);
+        setUnreadNotificationCount(0);
+        return;
+      }
+    }
+
+    const result: ApiResponse = await response.json();
+    
+    if (result.resultCode === '200-1') {
+      // 타입 안전성 개선
+      const notifications = result.data || [];
+      const unreadCount = notifications.filter((notification: NotificationItem) => !notification.isRead).length;
+      setUnreadNotificationCount(unreadCount);
+      
+      console.log(`읽지 않은 알림 ${unreadCount}개 확인됨`);
+    } else {
+      console.warn('알림 데이터 가져오기 실패:', result.msg || result.resultCode);
+      setUnreadNotificationCount(0);
+    }
+
+  } catch (error) {
+    console.error('알림 개수 가져오기 실패:', error);
+    
+    // 에러 타입별 세분화된 처리
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.error('네트워크 연결 오류 - 서버에 연결할 수 없습니다.');
+    } else if (error instanceof SyntaxError) {
+      console.error('응답 파싱 오류 - 서버에서 올바르지 않은 JSON을 반환했습니다.');
+    }
+    
+    // 네트워크 오류나 서버 문제시 기본값 0으로 설정
+    setUnreadNotificationCount(0);
+  }
+};
+
+// API 키를 가져오는 헬퍼 함수 (필요시 사용)
+const getApiKey = (): string => {
+  return process.env.NEXT_PUBLIC_API_KEY || 
+         localStorage.getItem('apiKey') || 
+         getCookie('apiKey') || 
+         '';
+};
+
+// 쿠키에서 값을 읽는 헬퍼 함수
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null; // SSR 환경 체크
+  
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) {
+    return parts.pop()?.split(';').shift() || null;
+  }
+  return null;
+};
+
+  // 컴포넌트 마운트 시 읽지 않은 알림 개수 가져오기
+  useEffect(() => {
+    // 컴포넌트가 마운트된 후 약간의 지연을 두고 알림 개수 가져오기
+    // 로그인 체크가 완료된 후 실행되도록 함
+    const timer = setTimeout(() => {
+      updateUnreadCount();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const toggleDropdown = (dropdownType: 'notification' | 'profile') => {
     if (dropdownType === 'notification') {
       setShowNotificationDropdown(!showNotificationDropdown);
       setShowProfileDropdown(false);
+      // 알림 드롭다운을 열 때 개수 업데이트
+      if (!showNotificationDropdown) {
+        updateUnreadCount();
+      }
     } else {
       setShowProfileDropdown(!showProfileDropdown);
       setShowNotificationDropdown(false);
@@ -79,23 +211,6 @@ const TodoListTemplate: React.FC = ({children}: Props) => {
   const selectProject = (projectId: string) => {
     setActiveProject(projectId);
     setActiveNavItem('');
-  };
-
-  const showProfileSummary = () => {
-    alert('프로필 요약: 개발자님\n이메일: developer@example.com\n가입일: 2024.01.15');
-    setShowProfileDropdown(false);
-  };
-
-  const goToProfileEdit = () => {
-    alert('프로필 수정 페이지로 이동합니다.');
-    setShowProfileDropdown(false);
-  };
-
-  const logout = () => {
-    if (window.confirm('로그아웃 하시겠습니까?')) {
-      alert('로그아웃 되었습니다.');
-    }
-    setShowProfileDropdown(false);
   };
 
   const getCurrentContent = (): ContentItem => {
@@ -135,55 +250,32 @@ const TodoListTemplate: React.FC = ({children}: Props) => {
         <div className="header-actions">
           {/* 알림 드롭다운 */}
           <div className="dropdown">
-            <button 
-              className="header-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleDropdown('notification');
-              }}
-              title="알림"
-            >
-              🔔
-            </button>
-            {showNotificationDropdown && (
-              <div className="dropdown-content show">
-                <div className="dropdown-header">알림</div>
-                {notifications.map((notification, index) => (
-                  <div key={index} className="notification-item">
-                    <div className="notification-title">{notification.title}</div>
-                    <div className="notification-text">{notification.text}</div>
-                    <div className="notification-time">{notification.time}</div>
-                  </div>
-                ))}
-              </div>
+            {showNotificationDropdown ? (
+              <NotificationDropdown 
+                isOpen={showNotificationDropdown}
+                onClose={() => setShowNotificationDropdown(false)}
+              />
+            ) : (
+              <NotificationButton 
+                unreadCount={unreadNotificationCount}
+                onClick={() => toggleDropdown('notification')}
+              />
             )}
           </div>
 
           {/* 유저 프로필 드롭다운 */}
           <div className="dropdown">
-            <button 
-              className="header-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleDropdown('profile');
-              }}
-              title="프로필"
-            >
-              👤
-            </button>
-            {showProfileDropdown && (
-              <div className="dropdown-content show">
-                <div className="dropdown-header">개발자님</div>
-                <button className="dropdown-item" onClick={showProfileSummary}>
-                  프로필 요약
-                </button>
-                <button className="dropdown-item" onClick={goToProfileEdit}>
-                  프로필 수정
-                </button>
-                <button className="dropdown-item logout" onClick={logout}>
-                  로그아웃
-                </button>
-              </div>
+            {showProfileDropdown ? (
+              <UserProfileDropdown 
+                isOpen={showProfileDropdown}
+                onClose={() => setShowProfileDropdown(false)}
+                userName={userInfo.name}
+                userInfo={userInfo}
+              />
+            ) : (
+              <UserProfileButton 
+                onClick={() => toggleDropdown('profile')}
+              />
             )}
           </div>
         </div>
@@ -213,7 +305,6 @@ const TodoListTemplate: React.FC = ({children}: Props) => {
               >
                 <div className="item-left">
                   <span>📋</span>
-                  
                   <span>프로젝트 A</span>
                 </div>
                 <span className="item-count">8</span>
@@ -259,10 +350,10 @@ const TodoListTemplate: React.FC = ({children}: Props) => {
           </div>
         </aside>
 
-        {/* 메인 콘텐츠 */}
-        <main className="content">
+        {/* 메인 콘텐츠 - contentClassName prop 적용 */}
+        <main className={`content ${contentClassName}`}>
           <div className="welcome-message">
-          {children}
+            {children}
           </div>
         </main>
       </div>
