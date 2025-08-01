@@ -9,6 +9,9 @@ import com.tododuk.domain.team.repository.TeamMemberRepository;
 import com.tododuk.domain.team.repository.TeamRepository;
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.repository.UserRepository;
+import com.tododuk.global.exception.ServiceException;
+import com.tododuk.global.rsData.RsData;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +41,7 @@ public class TeamMemberService {
     }
 
     // 2. 특정 팀의 모든 멤버 조회
+
     public List<TeamMemberResponseDto> getTeamMembers(int teamId, int requesterUserId) {
         if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, requesterUserId)) {
             throw new IllegalStateException("해당 팀의 멤버 목록을 조회할 권한이 없습니다.");
@@ -71,6 +75,7 @@ public class TeamMemberService {
                 .build();
         team.addMember(teamMember);
         teamMemberRepository.save(teamMember);
+
 
         return TeamMemberResponseDto.from(teamMember);
     }

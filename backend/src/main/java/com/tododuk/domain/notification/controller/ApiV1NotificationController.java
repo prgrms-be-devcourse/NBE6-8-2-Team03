@@ -99,6 +99,7 @@ public class ApiV1NotificationController {
         return new RsData("200-1", "알림 상태가 변경되었습니다.", new NotificationDto(notification));
     }
 
+
     // 옵션 4: Spring Security의 Authentication 사용 (권장)
     @GetMapping("/me")
     @Transactional
