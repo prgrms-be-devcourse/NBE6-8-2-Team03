@@ -88,6 +88,7 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
     }
   };
 
+
   // 읽지 않은 알림 개수 업데이트 (초기 로드용)
   const updateUnreadCount = async () => {
     try {
@@ -118,6 +119,7 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
       setUnreadNotificationCount(0);
     }
   };
+
 
   // 컴포넌트 마운트 시 읽지 않은 알림 개수 가져오기
   useEffect(() => {

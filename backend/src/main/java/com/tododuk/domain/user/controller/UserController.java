@@ -115,14 +115,12 @@ public class UserController {
         User actor = rq.getActor();
         User user = userService.findById(actor.getId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
-
         return new RsData<>(
                 "200-1",
-                "내 정보 상세 조회 성공",
+                "내 정보 조회 성공",
                 new UserDto(user)
         );
     }
-
 
     // 내 정보 수정 : 닉네임, 프로필 사진 변경 가능
     @PostMapping("/me")

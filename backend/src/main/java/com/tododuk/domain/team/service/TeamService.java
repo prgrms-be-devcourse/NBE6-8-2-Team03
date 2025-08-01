@@ -1,4 +1,4 @@
-package com.tododuk.domain.team.service;
+package com.tododuk.domain.team.service; // 패키지명 확인
 
 import com.tododuk.domain.team.constant.TeamRoleType;
 import com.tododuk.domain.team.dto.TeamCreateRequestDto;
@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,71 +30,73 @@ public class TeamService {
     private final TeamMemberService teamMemberService;
 
     // 1. 팀 생성
-    @Transactional
-    public RsData<TeamResponseDto> createTeam(TeamCreateRequestDto dto, int creatorUserId) {
-        User creatorUser = userRepository.findById(creatorUserId)
-                .orElseThrow(() -> new ServiceException("404-USER_NOT_FOUND", "사용자를 찾을 수 없습니다. ID: " + creatorUserId));
+    public TeamResponseDto createTeam(TeamCreateRequestDto dto, int creatorUserId) {
+        User createrUser = userRepository.findById(creatorUserId)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. ID: " + creatorUserId));
 
         Team team = Team.builder()
                 .teamName(dto.getTeamName())
                 .description(dto.getDescription())
                 .build();
         teamRepository.save(team);
-        teamMemberService.createLeaderMember(team, creatorUser);
-        return RsData.success("팀이 성공적으로 생성되었습니다.", TeamResponseDto.from(team));
+
+        // 팀 생성 시 리더 멤버 추가
+        teamMemberService.createLeaderMember(team, createrUser);
+
+        // 팀 생성 후 응답 DTO로 변환
+        return TeamResponseDto.from(team);
     }
 
     // 2. 사용자가 속한 팀 목록 조회
-    public RsData<List<TeamResponseDto>> getMyTeams(int userId) {
+    public List<TeamResponseDto> getMyTeams(int userId) {
         List<Team> teams = teamRepository.findTeamsByUserId(userId);
-        if (teams.isEmpty()) {
-            return RsData.success("속한 팀이 없습니다.", List.of());
-        }
-        List<TeamResponseDto> teamResponseDtos = teams.stream()
+        return teams.stream()
                 .map(TeamResponseDto::from)
                 .collect(Collectors.toList());
-        return RsData.success("팀 목록 조회 성공", teamResponseDtos);
     }
 
     // 3. 특정 팀 상세 조회
-    public RsData<TeamResponseDto> getTeamDetails(int teamId, int viewerUserId) {
-        Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new ServiceException("404-TEAM_NOT_FOUND", "팀을 찾을 수 없습니다. ID: " + teamId));
+    public TeamResponseDto getTeamDetails(int teamId, int viewerUserId) {
+        Team team = teamRepository.findByIdWithMembers(teamId)
+                .orElseThrow(() -> new NoSuchElementException("팀을 찾을 수 없습니다. ID: " + teamId)); // 변경
 
         boolean isMember = teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, viewerUserId);
         if (!isMember) {
-            throw new ServiceException("403-NO_PERMISSION", "해당 팀의 정보를 조회할 권한이 없습니다.");
+            throw new IllegalStateException("해당 팀의 정보를 조회할 권한이 없습니다."); // 변경
         }
 
-        return RsData.success("팀 상세 정보 조회 성공", TeamResponseDto.from(team));
-    }
+        return TeamResponseDto.from(team);
 
+    }
     // 4. 팀 정보 수정 (PATCH)
     @Transactional
-    public RsData<TeamResponseDto> updateTeamInfo(int teamId, TeamUpdateRequestDto dto, int modifierUserId) {
+    public TeamResponseDto updateTeamInfo(int teamId, TeamUpdateRequestDto dto, int modifierUserId) {
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new ServiceException("404-TEAM_NOT_FOUND", "팀을 찾을 수 없습니다. ID: " + teamId));
+                .orElseThrow(() -> new NoSuchElementException("팀을 찾을 수 없습니다. ID: " + teamId));
 
+        // 팀 수정 권한 확인
         if (!teamMemberRepository.existsByTeam_IdAndUser_IdAndRole(teamId, modifierUserId, TeamRoleType.LEADER)) {
-            throw new ServiceException("403-NO_PERMISSION", "팀 정보를 수정할 권한이 없습니다.");
+            throw new IllegalStateException("팀 정보를 수정할 권한이 없습니다.");
         }
 
+        // 팀 정보 업데이트
         team.updateTeam(dto.getTeamName(), dto.getDescription());
         teamRepository.save(team);
-        return RsData.success("팀 정보가 성공적으로 수정되었습니다.", TeamResponseDto.from(team));
-    }
 
+        return TeamResponseDto.from(team);
+    }
     // 5. 팀 삭제
     @Transactional
-    public RsData<Void> deleteTeam(int teamId, int deleterUserId) {
+    public void deleteTeam(int teamId, int deleterUserId) {
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new ServiceException("404-TEAM_NOT_FOUND", "팀을 찾을 수 없습니다. ID: " + teamId));
+                .orElseThrow(() -> new NoSuchElementException("팀을 찾을 수 없습니다. ID: " + teamId));
 
+        // 팀 삭제 권한 확인
         if (!teamMemberRepository.existsByTeam_IdAndUser_IdAndRole(teamId, deleterUserId, TeamRoleType.LEADER)) {
-            throw new ServiceException("403-NO_PERMISSION", "팀을 삭제할 권한이 없습니다.");
+            throw new IllegalStateException("팀을 삭제할 권한이 없습니다.");
         }
 
         teamRepository.delete(team);
-        return RsData.success("팀이 성공적으로 삭제되었습니다.", null);
+
     }
 }
