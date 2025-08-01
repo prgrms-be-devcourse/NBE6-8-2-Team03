@@ -1,8 +1,11 @@
 package com.tododuk.domain.todo.entity;
 
 import com.tododuk.domain.todo.dto.TodoReqDto;
+import com.tododuk.domain.todoList.entity.TodoList;
 import com.tododuk.global.entity.BaseEntity;
 import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,11 +26,11 @@ public class Todo extends BaseEntity {
 
     private LocalDateTime startDate;
     private LocalDateTime dueDate;
-    private int todoListId;
 
     //initData test를 위해 일시적으로 주석처리
-//    @ManyToOne
-//    private TodoList todoList;
+    @ManyToOne
+    @JoinColumn(name = "Todo_List_Id")
+    private TodoList todoList;
 
     //업데이트 날짜는 제외 (erd 수정 필요)
 
@@ -41,7 +44,7 @@ public class Todo extends BaseEntity {
         this.dueDate = null; // 기본값은 null로 설정
     }
 
-    public Todo(String title, String description, int priority){
+    public Todo(String title, String description, int priority, boolean isCompleted, int todoListId){
         this.title = title;
         this.description = description;
         this.isCompleted = false;
@@ -54,10 +57,9 @@ public class Todo extends BaseEntity {
         this.title = dto.getTitle();
         this.description = dto.getDescription();
         this.priority = dto.getPriority();
-    }
-
-    public void delete(TodoReqDto dto){
-
+        this.isCompleted = dto.isCompleted();
+        this.dueDate = dto.getDueDate();
+        this.todoList = dto.toEntity().getTodoList();
     }
 
 }
