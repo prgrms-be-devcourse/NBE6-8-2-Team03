@@ -67,9 +67,9 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
 
         // 인증,인가가 필요 없는 요청이면 패스
         if (List.of(
-                "/api/v1/user/register",
-                "/api/v1/user/login",
-                "/api/v1/user/logout"
+                "/api/*/user/register",
+                "/api/*/user/login",
+                "/api/*/user/logout"
         ).contains(request.getRequestURI())) {
             filterChain.doFilter(request, response);
             return;
@@ -114,8 +114,9 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
             Map<String, Object> payload = userService.payload(accessToken);
 
             if (payload != null) {
-                int id = (int) payload.get("id");
-                String userEmail = (String) payload.get("userEmail");
+                Number userIdNum = (Number) payload.get("id");
+                int id = userIdNum.intValue();
+                String userEmail = (String) payload.get("email");
                 user = new User(id, userEmail);
 
                 isAccessTokenValid = true;
@@ -142,7 +143,7 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
         UserDetails springUser = new SecurityUser(
                 user.getId(),
                 user.getUserEmail(),
-                "",//이미 인증된 사용자므로 비밀번호는 빈 문자열로
+                "blank",//이미 인증된 사용자므로 비밀번호는 빈 문자열로
                 authorities
         );
 

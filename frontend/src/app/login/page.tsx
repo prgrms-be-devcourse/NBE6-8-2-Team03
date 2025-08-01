@@ -7,13 +7,29 @@ import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 const LoginPage = () => {
 
 
-    useEffect(() => {
-        const token = localStorage.getItem('accessToken');
-        if (token) {
-          // 토큰이 있으면 메인 페이지로 리다이렉트
-          window.location.href = 'http://localhost:3000';
-        }
-      }, []);
+  // 쿠키 기반 로그인 체크
+  useEffect(() => {
+    fetch('http://localhost:8080/api/v1/user/me', {
+      method: 'GET',
+      credentials: 'include' // 쿠키 포함해서 요청
+    })
+    .then(res => {
+      if (res.ok) {
+        // 로그인 되어 있음 → 메인 페이지로 이동
+        window.location.href = 'http://localhost:3000';
+      }
+    })
+    .catch(() => {
+      // 로그인 안 되어 있음 → 아무것도 안 함
+    });
+  }, []);
+    // useEffect(() => {
+    //     const token = localStorage.getItem('accessToken');
+    //     if (token) {
+    //       // 토큰이 있으면 메인 페이지로 리다이렉트
+    //       window.location.href = 'http://localhost:3000';
+    //     }
+    //   }, []);
 
       
   const [currentPage, setCurrentPage] = useState('login');
@@ -103,7 +119,8 @@ const LoginPage = () => {
           body: JSON.stringify({
             email: formData.email,
             password: formData.password
-          })
+          }),
+          credentials: 'include' // 쿠키 주고받기 허용
         });
       
         const result = await response.json();
@@ -113,8 +130,8 @@ const LoginPage = () => {
             setApiKey(result.data.apiKey);
             
             // 토큰을 localStorage에 저장 (선택사항)
-            localStorage.setItem('accessToken', result.data.accessToken);
-            localStorage.setItem('apiKey', result.data.apiKey);
+            //localStorage.setItem('accessToken', result.data.accessToken);
+            //localStorage.setItem('apiKey', result.data.apiKey);
             
             // localhost:3000으로 리다이렉트
             window.location.href = 'http://localhost:3000';
