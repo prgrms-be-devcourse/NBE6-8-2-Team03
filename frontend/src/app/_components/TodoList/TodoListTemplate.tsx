@@ -4,6 +4,10 @@ import './TodoListTemplate.css';
 import NotificationDropdown, { NotificationButton } from './NotificationDropdown';
 import UserProfileDropdown, { UserProfileButton } from './UserProfileDropdown';
 
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+
 interface ContentItem {
   title: string;
   description: string;
@@ -88,36 +92,91 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
     }
   };
 
-  // 읽지 않은 알림 개수 업데이트 (초기 로드용)
-  const updateUnreadCount = async () => {
-    try {
-      const response = await fetch('http://localhost:8080/api/v1/notifications', {
-        method: 'GET',
-        credentials: 'include', // 쿠키 포함해서 요청
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.resultCode === '200-1') {
-          const unreadCount = result.data.filter((n: any) => !n.isRead).length;
-          setUnreadNotificationCount(unreadCount);
-        } else {
-          console.warn('알림 데이터 가져오기 실패:', result);
-          setUnreadNotificationCount(0);
-        }
+ // 읽지 않은 알림 개수 업데이트 (초기 로드용)
+const updateUnreadCount = async () => {
+  try {
+    // 환경변수 사용으로 하드코딩 제거
+    const response = await fetch(`${API_BASE_URL}/api/v1/notifications/me`, {
+      method: 'GET',
+      credentials: 'include', // 쿠키 포함해서 요청
+      headers: {
+        'Content-Type': 'application/json',
+        // 백엔드에서 api-key가 필요하다면 추가
+        // 'api-key': getApiKey(), // 필요시 주석 해제
+      },
+      // CORS 설정 추가
+      mode: 'cors',
+    });
+           
+    if (!response.ok) {
+      // HTTP 상태 코드별 세분화된 처리
+      if (response.status === 401) {
+        console.warn('인증이 필요합니다. 로그인을 확인해주세요.');
+        setUnreadNotificationCount(0);
+        return;
+      } else if (response.status === 403) {
+        console.warn('알림에 접근할 권한이 없습니다.');
+        setUnreadNotificationCount(0);
+        return;
+      } else if (response.status >= 500) {
+        console.warn('서버 오류가 발생했습니다:', response.status);
+        setUnreadNotificationCount(0);
+        return;
       } else {
         console.warn('알림 API 응답 실패:', response.status);
         setUnreadNotificationCount(0);
+        return;
       }
-    } catch (error) {
-      console.error('알림 개수 가져오기 실패:', error);
-      // 네트워크 오류나 서버 문제시 기본값 0으로 설정
+    }
+
+    const result: ApiResponse = await response.json();
+    
+    if (result.resultCode === '200-1') {
+      // 타입 안전성 개선
+      const notifications = result.data || [];
+      const unreadCount = notifications.filter((notification: NotificationItem) => !notification.isRead).length;
+      setUnreadNotificationCount(unreadCount);
+      
+      console.log(`읽지 않은 알림 ${unreadCount}개 확인됨`);
+    } else {
+      console.warn('알림 데이터 가져오기 실패:', result.msg || result.resultCode);
       setUnreadNotificationCount(0);
     }
-  };
+
+  } catch (error) {
+    console.error('알림 개수 가져오기 실패:', error);
+    
+    // 에러 타입별 세분화된 처리
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.error('네트워크 연결 오류 - 서버에 연결할 수 없습니다.');
+    } else if (error instanceof SyntaxError) {
+      console.error('응답 파싱 오류 - 서버에서 올바르지 않은 JSON을 반환했습니다.');
+    }
+    
+    // 네트워크 오류나 서버 문제시 기본값 0으로 설정
+    setUnreadNotificationCount(0);
+  }
+};
+
+// API 키를 가져오는 헬퍼 함수 (필요시 사용)
+const getApiKey = (): string => {
+  return process.env.NEXT_PUBLIC_API_KEY || 
+         localStorage.getItem('apiKey') || 
+         getCookie('apiKey') || 
+         '';
+};
+
+// 쿠키에서 값을 읽는 헬퍼 함수
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null; // SSR 환경 체크
+  
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) {
+    return parts.pop()?.split(';').shift() || null;
+  }
+  return null;
+};
 
   // 컴포넌트 마운트 시 읽지 않은 알림 개수 가져오기
   useEffect(() => {

@@ -27,28 +27,71 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('unread');
   const [isLoadingNotifications, setIsLoadingNotifications] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // API 기본 URL (환경변수 사용 권장)
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
   // 알림 데이터 가져오기
   const fetchNotifications = async () => {
     setIsLoadingNotifications(true);
+    setError(null);
+    
     try {
-      const response = await fetch('http://localhost:8080/api/v1/notifications');
+      const response = await fetch(`${API_BASE_URL}/api/v1/notifications/me`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          // Authorization 헤더 제거 (쿠키로 인증하므로 불필요)
+        },
+        mode: 'cors',
+        credentials: 'include', // 쿠키 전송을 위해 필수
+      });
+  
       if (!response.ok) {
-        throw new Error('네트워크 응답이 올바르지 않습니다');
+        if (response.status === 401) {
+          // 인증 실패 처리
+          throw new Error('로그인이 필요합니다.');
+        } else if (response.status === 403) {
+          // 권한 없음
+          throw new Error('알림에 접근할 권한이 없습니다.');
+        } else if (response.status === 404) {
+          // 리소스 없음
+          throw new Error('알림 서비스를 찾을 수 없습니다.');
+        } else if (response.status >= 500) {
+          // 서버 오류
+          throw new Error('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+        } else {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
       }
+  
       const result: ApiResponse = await response.json();
+      
       if (result.resultCode === '200-1') {
-        setNotifications(result.data);
+        setNotifications(result.data || []);
       } else {
-        console.error('API 오류:', result.msg);
+        throw new Error(result.msg || '알 수 없는 API 오류');
       }
+      
     } catch (error) {
       console.error('알림을 가져오는데 실패했습니다:', error);
+      
+      // 에러 타입별 처리
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        setError('서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.');
+      } else if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('알림을 가져오는데 실패했습니다.');
+      }
+      
       setNotifications([]);
     } finally {
       setIsLoadingNotifications(false);
     }
   };
+  
 
   // 컴포넌트 마운트 시 알림 데이터 가져오기
   useEffect(() => {
@@ -77,12 +120,16 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
 
     try {
       const response = await fetch(
-        `http://localhost:8080/api/v1/notifications/setStatus/${notification.id}`, 
+        `${API_BASE_URL}/api/v1/notifications/setStatus/${notification.id}`, 
         {
           method: 'PUT',
           headers: {
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+            // 필요시 인증 헤더 추가
+            // 'Authorization': `Bearer ${token}`,
+          },
+          mode: 'cors',
+          credentials: 'include',
         }
       );
       
@@ -97,9 +144,11 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
         console.log('알림 읽음 처리 완료:', notification.id);
       } else {
         console.error('읽음 처리 실패:', response.status);
+        setError(`읽음 처리 실패: ${response.status}`);
       }
     } catch (error) {
       console.error('읽음 처리 API 호출 오류:', error);
+      setError('읽음 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -149,6 +198,20 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
             🔄
           </button>
         </div>
+        
+        {/* 에러 메시지 표시 */}
+        {error && (
+          <div className="notification-error" style={{ 
+            padding: '10px', 
+            backgroundColor: '#fee', 
+            color: '#c33', 
+            margin: '5px',
+            borderRadius: '4px',
+            fontSize: '12px'
+          }}>
+            {error}
+          </div>
+        )}
         
         {/* 필터 버튼들 */}
         <div className="notification-filters">
@@ -204,7 +267,6 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
                     {!notification.isRead && (
                       <button 
                         className="read-toggle-btn"
-                        
                         onDoubleClick={(e) => {
                           e.stopPropagation();
                           handleNotificationReadToggle(notification);
