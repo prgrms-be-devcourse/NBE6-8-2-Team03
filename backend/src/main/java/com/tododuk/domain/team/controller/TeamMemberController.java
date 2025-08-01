@@ -27,8 +27,8 @@ public class TeamMemberController {
             @PathVariable int teamId
     ) {
         int requesterUserId = rq.getActor().getId();
-        List<TeamMemberResponseDto> teamMembers = teamMemberService.getTeamMembers(teamId, requesterUserId);
-        return new RsData<>("200-1", "팀 멤버 목록 조회 성공", teamMembers);
+        // 서비스로부터 받은 RsData 객체를 그대로 반환
+        return teamMemberService.getTeamMembers(teamId, requesterUserId);
     }
 
 
@@ -40,8 +40,8 @@ public class TeamMemberController {
             @Valid @RequestBody TeamMemberAddRequestDto addDto) {
 
         int requesterUserId = rq.getActor().getId();
-        TeamMemberResponseDto responseDto = teamMemberService.addTeamMember(teamId, addDto, requesterUserId);
-        return new RsData<>("201-1", "팀 멤버 추가 성공", responseDto);
+        // 서비스로부터 받은 RsData 객체를 그대로 반환
+        return teamMemberService.addTeamMember(teamId, addDto, requesterUserId);
     }
 
 
@@ -54,8 +54,8 @@ public class TeamMemberController {
             @Valid @RequestBody TeamMemberUpdateRequestDto updateDto) {
 
         int requesterUserId = rq.getActor().getId();
-        TeamMemberResponseDto responseDto = teamMemberService.updateTeamMemberRole(teamId, memberUserId, updateDto.getRole(), requesterUserId);
-        return new RsData<>("200-1", "팀 멤버 역할 변경 성공", responseDto);
+        // 서비스로부터 받은 RsData 객체를 그대로 반환
+        return teamMemberService.updateTeamMemberRole(teamId, memberUserId, updateDto.getRole(), requesterUserId);
     }
 
 
@@ -67,7 +67,7 @@ public class TeamMemberController {
             @PathVariable int memberUserId) {
 
         int requesterUserId = rq.getActor().getId();
-        teamMemberService.deleteTeamMember(teamId, memberUserId, requesterUserId);
-        return new RsData<>("200-1", "팀 멤버 제거 성공");
+        // 서비스로부터 받은 RsData 객체를 그대로 반환
+        return teamMemberService.deleteTeamMember(teamId, memberUserId, requesterUserId);
     }
 }

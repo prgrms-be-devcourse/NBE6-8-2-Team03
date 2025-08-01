@@ -1,6 +1,5 @@
 package com.tododuk.domain.team.controller;
 
-
 import com.tododuk.domain.team.dto.TeamCreateRequestDto;
 import com.tododuk.domain.team.dto.TeamResponseDto;
 import com.tododuk.domain.team.dto.TeamUpdateRequestDto;
@@ -28,18 +27,18 @@ public class TeamController {
     public RsData<TeamResponseDto> createTeam(
             @Valid @RequestBody TeamCreateRequestDto createDto) {
         int creatorUserId = rq.getActor().getId();
-        TeamResponseDto responseDto = teamService.createTeam(createDto, creatorUserId);
-        return new RsData<>("201-1", "팀이 성공적으로 생성되었습니다.", responseDto);
+        // 서비스로부터 받은 RsData 객체를 그대로 반환
+        return teamService.createTeam(createDto, creatorUserId);
     }
 
     // 2. 사용자가 속한 팀 목록 조회
     @Operation(summary = "내가 속한 팀 목록 조회",
-              description = "현재 로그인한 사용자가 속한 모든 팀의 목록을 조회합니다.")
+            description = "현재 로그인한 사용자가 속한 모든 팀의 목록을 조회합니다.")
     @GetMapping
     public RsData<List<TeamResponseDto>> getMyTeams() {
         int userId = rq.getActor().getId();
-        List<TeamResponseDto> teamList = teamService.getMyTeams(userId);
-        return new RsData<>("200-1", "팀 목록 조회 성공", teamList);
+        // 서비스로부터 받은 RsData 객체를 그대로 반환
+        return teamService.getMyTeams(userId);
     }
 
     // 3. 특정 팀 상세 조회
@@ -49,8 +48,8 @@ public class TeamController {
     public RsData<TeamResponseDto> getTeamDetails(
             @PathVariable("teamId") int teamId) {
         int viewrUserId = rq.getActor().getId();
-        TeamResponseDto responseDto = teamService.getTeamDetails(teamId, viewrUserId);
-        return new RsData<>("200-1", "팀 상세 정보 조회 성공", responseDto);
+        // 서비스로부터 받은 RsData 객체를 그대로 반환
+        return teamService.getTeamDetails(teamId, viewrUserId);
     }
 
     // 4. 팀 정보 수정 (PATCH)
@@ -61,8 +60,8 @@ public class TeamController {
             @PathVariable("teamId") int teamId,
             @Valid @RequestBody TeamUpdateRequestDto updateDto) {
         int updaterUserId = rq.getActor().getId();
-        TeamResponseDto responseDto = teamService.updateTeamInfo(teamId, updateDto, updaterUserId);
-        return new RsData<>("200-1", "팀 정보가 성공적으로 수정되었습니다.", responseDto);
+        // 서비스로부터 받은 RsData 객체를 그대로 반환
+        return teamService.updateTeamInfo(teamId, updateDto, updaterUserId);
     }
 
     // 5. 팀 삭제
@@ -71,9 +70,7 @@ public class TeamController {
     @DeleteMapping("/{teamId}")
     public RsData<Void> deleteTeam(@PathVariable int teamId) {
         int deleterUserId = rq.getActor().getId();
-        teamService.deleteTeam(teamId, deleterUserId);
-        return new RsData<>("200-1", "팀이 성공적으로 삭제되었습니다.");
+        // 서비스로부터 받은 RsData 객체를 그대로 반환
+        return teamService.deleteTeam(teamId, deleterUserId);
     }
-
-    // 팀 멤버 관련 엔드포인트는 TeamMemberController로 이동
 }
