@@ -53,12 +53,9 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
   const fetchUserProfile = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
       const response = await fetch('http://localhost:8080/api/v1/user/me', {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include' // 쿠키 포함
       });
 
       const result = await response.json();
@@ -89,45 +86,68 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
   };
 
   const goToProfileEdit = () => {
-    window.location.href = '/profile/edit'; // 또는 프로필 수정 페이지 경로
+    window.location.href = '/profile/edit';
     onClose();
   };
 
   const logout = async () => {
     if (window.confirm('로그아웃 하시겠습니까?')) {
       try {
-        const token = localStorage.getItem('accessToken');
-        
+        // 로그아웃 API 호출
         const response = await fetch('http://localhost:8080/api/v1/user/logout', {
           method: 'POST',
+          credentials: 'include', // 쿠키 포함해서 요청
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // 토큰이 필요한 경우
+            'Content-Type': 'application/json'
           }
         });
 
         const result = await response.json();
         
+        // API 응답과 관계없이 프론트엔드에서 정리 작업 수행
+        // 로컬 스토리지에서 토큰 제거
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('apiKey');
+        
+        // 세션 스토리지도 정리 (혹시 사용 중이라면)
+        sessionStorage.clear();
+        
         if (result.resultCode === "200-1") {
-          // 로컬 스토리지에서 토큰 제거
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('apiKey');
-          
-          alert(result.msg || '로그아웃 되었습니다.');
-          
-          // 로그인 페이지로 리다이렉트
-          window.location.href = '/login'; // 또는 로그인 페이지 경로
+          console.log('로그아웃 성공:', result.msg);
         } else {
-          alert('로그아웃에 실패했습니다.');
+          console.warn('로그아웃 API 응답 이상:', result);
         }
+        
+        // 강제로 쿠키 삭제 시도 (클라이언트 사이드에서 가능한 범위)
+        document.cookie.split(";").forEach(function(c) { 
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+        });
+        
+        alert('로그아웃 되었습니다.');
+        
+        // 약간의 지연 후 로그인 페이지로 이동 (쿠키 삭제 완료 대기)
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
+        
       } catch (error) {
         console.error('로그아웃 오류:', error);
         
         // API 호출이 실패해도 프론트엔드에서 로그아웃 처리
         localStorage.removeItem('accessToken');
         localStorage.removeItem('apiKey');
+        sessionStorage.clear();
+        
+        // 강제로 쿠키 삭제
+        document.cookie.split(";").forEach(function(c) { 
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+        });
+        
         alert('로그아웃 되었습니다.');
-        window.location.href = '/login';
+        
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
       }
     }
     onClose();

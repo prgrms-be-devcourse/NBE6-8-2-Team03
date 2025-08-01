@@ -1,37 +1,93 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 
-
-
 const LoginPage = () => {
-
+  const router = useRouter();
 
   // 쿠키 기반 로그인 체크
   useEffect(() => {
-    fetch('http://localhost:8080/api/v1/user/me', {
-      method: 'GET',
-      credentials: 'include' // 쿠키 포함해서 요청
-    })
-    .then(res => {
-      if (res.ok) {
-        // 로그인 되어 있음 → 메인 페이지로 이동
-        window.location.href = 'http://localhost:3000';
-      }
-    })
-    .catch(() => {
-      // 로그인 안 되어 있음 → 아무것도 안 함
-    });
-  }, []);
-    // useEffect(() => {
-    //     const token = localStorage.getItem('accessToken');
-    //     if (token) {
-    //       // 토큰이 있으면 메인 페이지로 리다이렉트
-    //       window.location.href = 'http://localhost:3000';
-    //     }
-    //   }, []);
-
+    // 로그아웃으로 인한 리다이렉트인지 확인
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromLogout = urlParams.get('logout') === 'true';
+    
+    // 로그아웃으로 온 경우에는 로그인 체크를 더 오래 지연시키고, URL 파라미터 정리
+    if (fromLogout) {
+      console.log('로그아웃으로 인한 리다이렉트 - 로그인 체크 지연');
       
+      // URL에서 logout 파라미터 제거
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      
+      // 로그아웃 직후이므로 더 오랜 지연 시간 적용
+      setTimeout(checkLoginStatus, 2000); // 2초 지연으로 증가
+      return;
+    }
+
+    // 일반적인 경우 즉시 체크
+    checkLoginStatus();
+    
+    async function checkLoginStatus() {
+      try {
+        // 네트워크 연결 상태 확인
+        if (!navigator.onLine) {
+          console.log('오프라인 상태 - 로그인 체크 스킵');
+          return;
+        }
+
+        // AbortController로 타임아웃 설정
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5초 타임아웃
+
+        const res = await fetch('http://localhost:8080/api/v1/user/me', {
+          method: 'GET',
+          credentials: 'include', // 쿠키 포함해서 요청
+          signal: controller.signal,
+          // 캐시 방지를 위한 헤더 추가
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+
+        clearTimeout(timeoutId);
+        
+        if (res.ok) {
+          // 응답이 성공적이면 사용자 데이터도 확인
+          const userData = await res.json();
+          if (userData && userData.resultCode === "200-1" && userData.data) {
+            console.log('이미 로그인된 상태:', userData);
+            
+            // 로그아웃 직후가 아닌 경우에만 리다이렉트
+            if (!fromLogout) {
+              // 로그인 되어 있음 → 메인 페이지로 이동
+              router.push('/');
+              // 백업으로 window.location도 사용
+              if (typeof window !== 'undefined') {
+                window.location.href = 'http://localhost:3000';
+              }
+            }
+          }
+        } else {
+          console.log('로그인 상태 아님 - 상태코드:', res.status);
+        }
+        // res.ok가 false거나 데이터가 없으면 로그인 안 된 상태이므로 아무것도 안 함
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          console.log('로그인 상태 확인 타임아웃');
+        } else if (error.message.includes('Failed to fetch')) {
+          console.log('서버 연결 실패 - 백엔드 서버가 꺼져있거나 CORS 문제일 수 있습니다');
+        } else {
+          console.error('로그인 상태 확인 에러:', error.message);
+        }
+        // 네트워크 에러 등의 경우 → 로그인 페이지에 그대로 있음
+        // 에러가 발생해도 페이지는 정상 작동하도록 함
+      }
+    }
+  }, [router]);
+
   const [currentPage, setCurrentPage] = useState('login');
   const [formData, setFormData] = useState({
     email: '',
@@ -111,17 +167,30 @@ const LoginPage = () => {
     setIsLoading(true);
     
     try {
+        // 네트워크 연결 상태 확인
+        if (!navigator.onLine) {
+          setErrors({ general: '인터넷 연결을 확인해주세요.' });
+          return;
+        }
+
+        // AbortController로 타임아웃 설정
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+
         const response = await fetch('http://localhost:8080/api/v1/user/login', {
           method: 'POST',
+          credentials: 'include', // 쿠키 포함
+          signal: controller.signal,
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             email: formData.email,
             password: formData.password
-          }),
-          credentials: 'include' // 쿠키 주고받기 허용
+          })
         });
+
+        clearTimeout(timeoutId);
       
         const result = await response.json();
         
@@ -129,18 +198,27 @@ const LoginPage = () => {
             setUserToken(result.data.accessToken);
             setApiKey(result.data.apiKey);
             
-            // 토큰을 localStorage에 저장 (선택사항)
-            //localStorage.setItem('accessToken', result.data.accessToken);
-            //localStorage.setItem('apiKey', result.data.apiKey);
-            
-            // localhost:3000으로 리다이렉트
-            window.location.href = 'http://localhost:3000';
+            console.log('로그인 성공, 메인 페이지로 이동');
+            // Next.js 라우터 사용
+            router.push('/');
+            // 백업으로 window.location도 사용
+            if (typeof window !== 'undefined') {
+              window.location.href = 'http://localhost:3000';
+            }
           } else {
           setErrors({ general: result.msg || '로그인에 실패했습니다.' });
         }
       
     } catch (error) {
-      setErrors({ general: '로그인에 실패했습니다. 다시 시도해주세요.' });
+      console.error('로그인 에러:', error);
+      
+      if (error.name === 'AbortError') {
+        setErrors({ general: '요청 시간이 초과되었습니다. 다시 시도해주세요.' });
+      } else if (error.message.includes('Failed to fetch')) {
+        setErrors({ general: '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.' });
+      } else {
+        setErrors({ general: '로그인에 실패했습니다. 다시 시도해주세요.' });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -155,8 +233,19 @@ const LoginPage = () => {
     setIsLoading(true);
     
     try {
+      // 네트워크 연결 상태 확인
+      if (!navigator.onLine) {
+        setErrors({ general: '인터넷 연결을 확인해주세요.' });
+        return;
+      }
+
+      // AbortController로 타임아웃 설정
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+
       const response = await fetch('http://localhost:8080/api/v1/user/register', {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -167,6 +256,7 @@ const LoginPage = () => {
         })
       });
 
+      clearTimeout(timeoutId);
       const result = await response.json();
 
       if (result.resultCode === "200-1") {
@@ -178,7 +268,15 @@ const LoginPage = () => {
       }
       
     } catch (error) {
-      setErrors({ general: '회원가입에 실패했습니다. 다시 시도해주세요.' });
+      console.error('회원가입 에러:', error);
+      
+      if (error.name === 'AbortError') {
+        setErrors({ general: '요청 시간이 초과되었습니다. 다시 시도해주세요.' });
+      } else if (error.message.includes('Failed to fetch')) {
+        setErrors({ general: '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.' });
+      } else {
+        setErrors({ general: '회원가입에 실패했습니다. 다시 시도해주세요.' });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -192,7 +290,6 @@ const LoginPage = () => {
     setFormData({ email: '', password: '', confirmPassword: '', name: '' });
     setCurrentPage('login');
   };
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

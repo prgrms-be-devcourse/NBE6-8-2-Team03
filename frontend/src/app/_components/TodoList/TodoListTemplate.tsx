@@ -19,21 +19,32 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
   contentClassName = '' 
 }) => {
 
-
   useEffect(() => {
+    // 로그아웃으로 인한 리다이렉트인지 확인
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromLogout = urlParams.get('logout') === 'true';
+    
     const checkLogin = async () => {
       try {
         const res = await fetch('http://localhost:8080/api/v1/user/me', {
+          method: 'GET',
           credentials: 'include'
         });
         if (!res.ok) {
           window.location.href = 'http://localhost:3000/login';
         }
       } catch (err) {
+        console.error('로그인 체크 실패:', err);
         window.location.href = 'http://localhost:3000/login';
       }
     };
-    checkLogin();
+    
+    // 로그아웃으로 온 경우 약간 지연 후 체크
+    if (fromLogout) {
+      setTimeout(checkLogin, 500);
+    } else {
+      checkLogin();
+    }
   }, []);
 
   
@@ -80,22 +91,43 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
   // 읽지 않은 알림 개수 업데이트 (초기 로드용)
   const updateUnreadCount = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/v1/notifications');
+      const response = await fetch('http://localhost:8080/api/v1/notifications', {
+        method: 'GET',
+        credentials: 'include', // 쿠키 포함해서 요청
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (response.ok) {
         const result = await response.json();
         if (result.resultCode === '200-1') {
           const unreadCount = result.data.filter((n: any) => !n.isRead).length;
           setUnreadNotificationCount(unreadCount);
+        } else {
+          console.warn('알림 데이터 가져오기 실패:', result);
+          setUnreadNotificationCount(0);
         }
+      } else {
+        console.warn('알림 API 응답 실패:', response.status);
+        setUnreadNotificationCount(0);
       }
     } catch (error) {
       console.error('알림 개수 가져오기 실패:', error);
+      // 네트워크 오류나 서버 문제시 기본값 0으로 설정
+      setUnreadNotificationCount(0);
     }
   };
 
   // 컴포넌트 마운트 시 읽지 않은 알림 개수 가져오기
   useEffect(() => {
-    updateUnreadCount();
+    // 컴포넌트가 마운트된 후 약간의 지연을 두고 알림 개수 가져오기
+    // 로그인 체크가 완료된 후 실행되도록 함
+    const timer = setTimeout(() => {
+      updateUnreadCount();
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const toggleDropdown = (dropdownType: 'notification' | 'profile') => {
