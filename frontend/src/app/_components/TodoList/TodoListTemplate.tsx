@@ -20,12 +20,20 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
 }) => {
 
 
-  React.useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      // 토큰이 없으면 로그인 페이지로 리다이렉트
-      window.location.href = 'http://localhost:3000/login'; // 또는 로그인 페이지 경로
-    }
+  useEffect(() => {
+    const checkLogin = async () => {
+      try {
+        const res = await fetch('http://localhost:8080/api/v1/user/me', {
+          credentials: 'include'
+        });
+        if (!res.ok) {
+          window.location.href = 'http://localhost:3000/login';
+        }
+      } catch (err) {
+        window.location.href = 'http://localhost:3000/login';
+      }
+    };
+    checkLogin();
   }, []);
 
   
