@@ -6,15 +6,13 @@ import com.tododuk.global.entity.BaseEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -47,7 +45,7 @@ public class Todo extends BaseEntity {
     public Todo(String title, String description, int priority, boolean isCompleted, int todoListId){
         this.title = title;
         this.description = description;
-        this.isCompleted = false;
+        this.isCompleted = isCompleted;
         this.priority = priority;
         this.startDate = LocalDateTime.now();
         this.dueDate = null;
@@ -59,7 +57,7 @@ public class Todo extends BaseEntity {
         this.priority = dto.getPriority();
         this.isCompleted = dto.isCompleted();
         this.dueDate = dto.getDueDate();
-        this.todoList = dto.toEntity().getTodoList();
+//        this.todoList = dto.toEntity().getTodoList();
     }
 
 }
