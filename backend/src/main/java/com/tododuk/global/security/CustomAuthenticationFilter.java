@@ -67,9 +67,9 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
 
         // 인증,인가가 필요 없는 요청이면 패스
         if (List.of(
-                "/api/v1/user/register",
-                "/api/v1/user/login",
-                "/api/v1/user/logout"
+                "/api/*/user/register",
+                "/api/*/user/login",
+                "/api/*/user/logout"
         ).contains(request.getRequestURI())) {
             filterChain.doFilter(request, response);
             return;
