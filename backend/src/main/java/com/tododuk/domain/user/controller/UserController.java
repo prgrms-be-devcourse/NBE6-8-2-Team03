@@ -2,10 +2,12 @@ package com.tododuk.domain.user.controller;
 
 import com.tododuk.domain.user.dto.UserDto;
 import com.tododuk.domain.user.entity.User;
-import com.tododuk.global.rq.Rq;
 import com.tododuk.domain.user.service.UserService;
+import com.tododuk.global.rq.Rq;
 import com.tododuk.global.rsData.RsData;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -76,6 +78,8 @@ public class UserController {
             @Valid @RequestBody UserLoginReqDto reqBody,
             HttpServletResponse response
     ) {
+
+        System.out.println("로그인 요청: " + reqBody.email + ", " + reqBody.password);
         User user = userService.findByUserEmail(reqBody.email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
 
@@ -137,13 +141,24 @@ public class UserController {
 
     //로그 아웃
     @PostMapping("/logout")
-    public RsData<Void> logout() {
+    public RsData<Void> logout(HttpServletRequest request) {
+        // 세션 무효화
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+
+        // 쿠키 삭제
         rq.deleteCookie("apiKey");
+        rq.deleteCookie("accessToken");  // 이것도 있다면
+        rq.deleteCookie("refreshToken"); // 이것도 있다면
+        rq.deleteCookie("JSESSIONID");
+        // 다른 쿠키들도...
+
         return new RsData<>(
                 "200-1",
                 "로그아웃 성공"
         );
-
     }
 
 }
