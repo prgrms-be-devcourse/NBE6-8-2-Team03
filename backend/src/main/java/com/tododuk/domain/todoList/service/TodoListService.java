@@ -10,6 +10,7 @@ import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -33,6 +34,7 @@ public class TodoListService {
         return TodoListResponseDto.from(todoList);
     }
 
+    @Transactional
     public TodoList addTodoList(TodoListReqDto reqDto) {
         User user = userRepository.findById(reqDto.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("해당 유저가 없습니다."));
@@ -47,6 +49,7 @@ public class TodoListService {
         return todoListRepository.save(todoList);
     }
 
+    @Transactional
     public TodoList updateTodoList(Integer listId, TodoListReqDto reqDto) {
         TodoList todoList = todoListRepository.findById(listId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 todolist가 존재하지 않습니다."));
@@ -65,6 +68,7 @@ public class TodoListService {
         return todoListRepository.save(todoList);
     }
 
+    @Transactional
     public void deleteTodoList(Integer listId) {
         TodoList todoList = todoListRepository.findById(listId)
                 .orElseThrow(()-> new IllegalArgumentException("해당 todolist는 존재하지 않습니다."));
