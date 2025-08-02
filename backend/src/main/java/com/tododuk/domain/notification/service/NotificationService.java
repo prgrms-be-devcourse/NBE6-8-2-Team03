@@ -64,4 +64,8 @@ public class NotificationService {
 
     }
 
+    public List<Notification> getNotificationsByUserId(int id) {
+        return notificationRepository.findByUser_Id(id);
+    }
+
 }
