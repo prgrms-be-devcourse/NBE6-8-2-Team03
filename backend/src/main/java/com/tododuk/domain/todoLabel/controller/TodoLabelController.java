@@ -7,6 +7,7 @@ import com.tododuk.domain.todoLabel.dto.TodoLabelResponseDto;
 import com.tododuk.domain.todoLabel.entity.TodoLabel;
 import com.tododuk.domain.todoLabel.service.TodoLabelService;
 import com.tododuk.global.rsData.RsData;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +17,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/todos")
+@Tag(name = "Todolabel")
+@CrossOrigin(origins = "http://localhost:3000")
 public class TodoLabelController {
 
     private final TodoLabelService todoLabelService;
