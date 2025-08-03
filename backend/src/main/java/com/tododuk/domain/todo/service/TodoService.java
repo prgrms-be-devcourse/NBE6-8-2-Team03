@@ -4,6 +4,8 @@ import com.tododuk.domain.todo.dto.TodoReqDto;
 import com.tododuk.domain.todo.dto.TodoResponseDto;
 import com.tododuk.domain.todo.entity.Todo;
 import com.tododuk.domain.todo.repository.TodoRepository;
+import com.tododuk.domain.todoList.entity.TodoList;
+import com.tododuk.domain.todoList.repository.TodoListRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TodoService {
     private final  TodoRepository todoRepository;
+    private final TodoListRepository todoListRepository;
 
     public Todo save(Todo todo) {
         return todoRepository.save(todo);
@@ -42,7 +45,10 @@ public class TodoService {
 
     @Transactional
     public Todo addTodo(TodoReqDto reqDto){
+        TodoList todoList = todoListRepository.findById(reqDto.getTodoListId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 todo_list_id는 존재하지 않습니다."));
         Todo todo = reqDto.toEntity();
+        todo.setTodoList(todoList);
         return todoRepository.save(todo);
     }
 
@@ -50,6 +56,9 @@ public class TodoService {
     public Todo updateTodo(int id, TodoReqDto reqDto){
         Todo todo = todoRepository.findById(id)
                 .orElseThrow(()-> new IllegalArgumentException("해당 todo는 존재하지 않습니다."));
+        TodoList todoList = todoListRepository.findById(reqDto.getTodoListId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 todo_list_id는 존재하지 않습니다."));
+        todo.setTodoList(todoList);
         todo.update(reqDto);
         return todo;
     }
