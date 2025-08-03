@@ -31,6 +31,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
   // 알림 데이터 가져오기
   const fetchNotifications = async () => {
     setIsLoadingNotifications(true);
+
     try {
       const response = await fetch('http://localhost:8080/api/v1/notifications');
       if (!response.ok) {
@@ -44,11 +45,13 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
       }
     } catch (error) {
       console.error('알림을 가져오는데 실패했습니다:', error);
+
       setNotifications([]);
     } finally {
       setIsLoadingNotifications(false);
     }
   };
+
 
   // 컴포넌트 마운트 시 알림 데이터 가져오기
   useEffect(() => {
@@ -77,12 +80,14 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
 
     try {
       const response = await fetch(
+
         `http://localhost:8080/api/v1/notifications/setStatus/${notification.id}`, 
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
           }
+
         }
       );
       
@@ -97,9 +102,11 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
         console.log('알림 읽음 처리 완료:', notification.id);
       } else {
         console.error('읽음 처리 실패:', response.status);
+
       }
     } catch (error) {
       console.error('읽음 처리 API 호출 오류:', error);
+
     }
   };
 
@@ -150,6 +157,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
           </button>
         </div>
         
+
         {/* 필터 버튼들 */}
         <div className="notification-filters">
           <button 
@@ -204,7 +212,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onC
                     {!notification.isRead && (
                       <button 
                         className="read-toggle-btn"
-                        
+
                         onDoubleClick={(e) => {
                           e.stopPropagation();
                           handleNotificationReadToggle(notification);

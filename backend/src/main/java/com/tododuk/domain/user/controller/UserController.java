@@ -123,7 +123,6 @@ public class UserController {
         );
     }
 
-
     // 내 정보 수정 : 닉네임, 프로필 사진 변경 가능
     @PostMapping("/me")
     public RsData<UserDto> updateMyInfo(

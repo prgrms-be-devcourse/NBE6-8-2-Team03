@@ -2,7 +2,7 @@ spring:
   application:
     name: tododok
   profiles:
-    active: test
+    active: dev
   h2:
     console:
       enabled: true
