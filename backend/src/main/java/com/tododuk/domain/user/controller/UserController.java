@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -50,13 +51,13 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public RsData<UserDto> join(
+    public ResponseEntity<?> join(
             @Valid @RequestBody UserJoinReqDto reqBody
-    ){
-        userService.findByUserEmail(reqBody.email)
-                .ifPresent(_user -> {
-                    throw new ServiceException("409-1", "이미 존재하는 이메일입니다.");
-                });
+    ) {
+        if (userService.findByUserEmail(reqBody.email).isPresent()) {
+            RsData<Void> errorRsData = new RsData<>("409-1", "이미 존재하는 이메일입니다.", null);
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(errorRsData);
+        }
 
         User user = userService.join(
                 reqBody.email(),
@@ -64,11 +65,13 @@ public class UserController {
                 reqBody.nickname()
         );
 
-        return new RsData<>(
-                "200-1",// 생성은 201이지만 기본값이 200이라 추후 수정 필
+        RsData<UserDto> successRsData = new RsData<>(
+                "200-1", // 나중에 201로 수정 가능
                 "%s님 환영합니다. 회원가입이 완료되었습니다.".formatted(user.getNickName()),
                 new UserDto(user)
         );
+
+        return ResponseEntity.ok(successRsData);
     }
 
     record UserLoginReqDto(
