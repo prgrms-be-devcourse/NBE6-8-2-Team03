@@ -79,4 +79,14 @@ public class TodoListController {
             throw new ServiceException("400-1", "삭제에 실패하였습니다.");
         }
     }
+
+    @GetMapping("/user/{user_id}")
+    @Transactional
+    @Operation(summary = "유저 아이디 별 todo list 조회")
+    public ResponseEntity<RsData<List<TodoListResponseDto>>> getUserTodoList(
+            @PathVariable Integer user_id
+    ) {
+        List<TodoListResponseDto> todoLists = todoListService.getUserTodoList(user_id);
+        return ResponseEntity.ok(RsData.success("유저의 todo list 조회 성공", todoLists));
+    }
 }

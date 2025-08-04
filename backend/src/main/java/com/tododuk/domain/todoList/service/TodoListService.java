@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -73,5 +74,12 @@ public class TodoListService {
         TodoList todoList = todoListRepository.findById(listId)
                 .orElseThrow(()-> new IllegalArgumentException("해당 todolist는 존재하지 않습니다."));
         todoListRepository.delete(todoList);
+    }
+
+    public List<TodoListResponseDto> getUserTodoList(Integer userId) {
+        List<TodoList> todoLists = todoListRepository.findAllByUserId(userId);
+        return todoLists.stream()
+                .map(TodoListResponseDto::from)  // DTO 변환 메서드가 있다고 가정
+                .collect(Collectors.toList());
     }
 }
