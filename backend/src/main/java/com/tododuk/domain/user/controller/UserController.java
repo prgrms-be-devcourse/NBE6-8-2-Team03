@@ -2,7 +2,9 @@ package com.tododuk.domain.user.controller;
 
 import com.tododuk.domain.user.dto.UserDto;
 import com.tododuk.domain.user.entity.User;
+import com.tododuk.domain.user.service.FileUploadService;
 import com.tododuk.domain.user.service.UserService;
+import com.tododuk.global.exception.ServiceException;
 import com.tododuk.global.rq.Rq;
 import com.tododuk.global.rsData.RsData;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,13 +14,26 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import lombok.extern.slf4j.Slf4j;
+import com.tododuk.global.exception.ServiceException;
+import java.util.Map;
+
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/user")
+@Slf4j
 public class UserController {
     private final UserService userService;
+    private final FileUploadService fileUploadService;
     private final Rq rq;
 
     record UserJoinReqDto(
@@ -126,12 +141,12 @@ public class UserController {
     // 내 정보 수정 : 닉네임, 프로필 사진 변경 가능
     @PostMapping("/me")
     public RsData<UserDto> updateMyInfo(
-            @RequestHeader("Authorization") String authorization,
             @Valid @RequestBody UserDto reqBody
     ){
-        String apiKey = authorization.replace("Bearer ", "");
-        User user = userService.findByApiKey(apiKey)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 apiKey 입니다."));
+        // Authorization 헤더 대신 rq.getActor() 사용 (쿠키 기반 인증)
+        User actor = rq.getActor();
+        User user = userService.findById(actor.getId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
         userService.updateUserInfo(user, reqBody);
 
@@ -139,6 +154,50 @@ public class UserController {
                 "200-1",
                 "내 정보 수정 성공",
                 new UserDto(user)
+        );
+    }
+
+    @PostMapping("/profile-image")
+    public RsData<Map<String, String>> uploadProfileImage(
+            @RequestParam("profileImage") MultipartFile file
+    ) {
+        // 현재 로그인한 사용자 정보 가져오기
+        User actor = rq.getActor();
+        if (actor == null) {
+            throw new ServiceException("401-1", "로그인이 필요합니다.");
+        }
+
+        User user = userService.findById(actor.getId())
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 사용자입니다."));
+
+        // 기존 프로필 이미지가 있다면 삭제
+        if (user.getProfileImgUrl() != null && !user.getProfileImgUrl().isEmpty()) {
+            fileUploadService.deleteProfileImage(user.getProfileImgUrl());
+        }
+
+        // 새 프로필 이미지 업로드
+        String imageUrl = fileUploadService.uploadProfileImage(file, (long) user.getId());
+
+        // 사용자 정보 업데이트 - 기존 UserService의 updateUserInfo 메서드 활용
+        UserDto updateDto = new UserDto(
+                user.getId(),
+                user.getUserEmail(),
+                user.getNickName(),
+                imageUrl,  // 새로운 이미지 URL
+                user.getCreateDate(),
+                user.getModifyDate()
+        );
+
+        userService.updateUserInfo(user, updateDto);
+
+        // 응답 데이터 구성
+        Map<String, String> responseData = new HashMap<>();
+        responseData.put("imageUrl", imageUrl);
+
+        return new RsData<>(
+                "200-1",
+                "프로필 이미지 업로드 성공",
+                responseData
         );
     }
 

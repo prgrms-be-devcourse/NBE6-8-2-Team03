@@ -747,4 +747,16 @@
   .content.calendar-content {
     padding: 0.5rem !important;
   }
+  .content.profile-content {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    padding: 0 !important;
+  }
+  
+  .content.profile-content .welcome-message {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
 }
