@@ -41,20 +41,20 @@ public class BaseInitData {
         if(labelService.countLabels() ==0){
             // 사용자 생성
             User user1 = User.builder()
-                    .nickname("김개발")
-                    .email("dev@test.com")
+                    .nickName("김개발")
+                    .userEmail("dev@test.com")
                     .password("password123")
                     .build();
             
             User user2 = User.builder()
-                    .nickname("이코딩")
-                    .email("coding@test.com")
+                    .nickName("이코딩")
+                    .userEmail("coding@test.com")
                     .password("password123")
                     .build();
             
             User user3 = User.builder()
-                    .nickname("박서버")
-                    .email("server@test.com")
+                    .nickName("박서버")
+                    .userEmail("server@test.com")
                     .password("password123")
                     .build();
 
