@@ -4,6 +4,8 @@ import com.tododuk.domain.todo.dto.TodoReqDto;
 import com.tododuk.domain.todo.dto.TodoResponseDto;
 import com.tododuk.domain.todo.entity.Todo;
 import com.tododuk.domain.todo.service.TodoService;
+import com.tododuk.domain.user.entity.User;
+import com.tododuk.domain.user.service.UserService;
 import com.tododuk.global.exception.ServiceException;
 import com.tododuk.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +27,7 @@ import java.util.List;
 public class TodoController {
 
     private final TodoService todoService;
+    private final UserService userService;
 
     @GetMapping // 메인에서 todo버튼 클릭시 이동하는 처음 화면
     @Transactional
@@ -99,5 +103,27 @@ public class TodoController {
     ) {
         List<TodoResponseDto> todos = todoService.getUserTodo(user_id);
         return ResponseEntity.ok(RsData.success("유저의 todo 조회 성공", todos));
+    }
+
+    @GetMapping("/me")
+    @Transactional
+    @Operation(summary = "사용자의 투두 조회")
+    public ResponseEntity<RsData<List<TodoResponseDto>>> getMyTodo(
+            Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body(new RsData<>("401-1", "인증이 필요합니다."));
+        }
+        String username = authentication.getName();
+        System.out.println("Authenticated Username: " + username);
+        User user = userService.findByUserEmail(username)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
+        try {
+            List<TodoResponseDto> todos = todoService.getUserTodo(user.getId());
+            return ResponseEntity.ok(RsData.success("유저의 todo list 조회 성공", todos));
+        } catch (Exception e) {
+            throw new ServiceException("400-1", "todo가 존재하지 않습니다.");
+        }
     }
 }

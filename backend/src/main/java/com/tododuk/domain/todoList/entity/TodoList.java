@@ -34,7 +34,7 @@ public class TodoList extends BaseEntity {
     @JoinColumn(name = "team_id")
     private Team team;
 
-    @OneToMany(fetch = LAZY, cascade = REMOVE)
+    @OneToMany(mappedBy = "todoList", fetch = LAZY, cascade = REMOVE)
     private List<Todo> todo;
 
     public TodoList(String name, String description, User user, Team team){
