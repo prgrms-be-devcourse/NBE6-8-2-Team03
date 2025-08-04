@@ -55,6 +55,16 @@ public class TeamService {
         return RsData.success("팀 목록 조회 성공", teamResponseDtos);
     }
 
+    // 사용자 ID로 팀 목록 조회 (컨트롤러에서 사용)
+    public List<Team> getTeamsByUserId(int userId) {
+        return teamRepository.findTeamsByUserId(userId);
+    }
+
+    // 모든 팀 목록 조회 (관리자용)
+    public List<Team> getAllTeams() {
+        return teamRepository.findAll();
+    }
+
     // 3. 특정 팀 상세 조회
     public RsData<TeamResponseDto> getTeamDetails(int teamId, int viewerUserId) {
         Team team = teamRepository.findById(teamId)
