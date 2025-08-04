@@ -46,8 +46,58 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
 }) => {
   
   const [showProfileDetail, setShowProfileDetail] = useState<boolean>(false);
-  const [userProfileData, setUserProfileData] = useState(null);
+  const [userProfileData, setUserProfileData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // API 기본 설정
+  const API_BASE_URL = 'http://localhost:8080';
+
+  // 이미지 URL 처리 헬퍼 함수 (수정 페이지와 동일한 로직)
+  const processImageUrl = (imageUrl: string | null | undefined): string | null => {
+    console.log('processImageUrl 호출됨, 입력값:', imageUrl);
+    
+    if (!imageUrl) {
+      console.log('이미지 URL이 null/undefined, null 반환');
+      return null;
+    }
+    
+    // 이미 완전한 URL인 경우 (http:// 또는 https://로 시작)
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      console.log('완전한 URL로 판단, 그대로 반환:', imageUrl);
+      return imageUrl;
+    }
+    
+    // 상대 경로인 경우 API_BASE_URL을 앞에 붙임
+    if (imageUrl.startsWith('/')) {
+      const result = `${API_BASE_URL}${imageUrl}`;
+      console.log('상대 경로로 판단, 변환된 URL:', result);
+      return result;
+    }
+    
+    // 기타 경우 API_BASE_URL과 조합
+    const result = `${API_BASE_URL}/${imageUrl}`;
+    console.log('기타 경우, 변환된 URL:', result);
+    return result;
+  };
+
+  // 이미지 URL을 표시용으로 변환 (프리뷰용)
+  const getDisplayImageUrl = (imageUrl: string | null | undefined): string => {
+    console.log('getDisplayImageUrl 호출됨, 입력값:', imageUrl);
+    const processedUrl = processImageUrl(imageUrl);
+    const result = processedUrl || 'https://via.placeholder.com/150';
+    console.log('getDisplayImageUrl 결과:', result);
+    return result;
+  };
+
+  // 이미지 로드 성공/실패 핸들러
+  const handleImageLoad = () => {
+    setImageError(false);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
 
   // 유저 프로필 데이터 가져오기
   const fetchUserProfile = async () => {
@@ -61,7 +111,9 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
       const result = await response.json();
       
       if (result.resultCode === "200-1") {
+        console.log('프로필 데이터:', result.data);
         setUserProfileData(result.data);
+        setImageError(false); // 새 데이터 로드 시 이미지 에러 상태 리셋
       }
     } catch (error) {
       console.error('프로필 정보 가져오기 실패:', error);
@@ -153,6 +205,38 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
     onClose();
   };
 
+  // 프로필 이미지 렌더링 함수
+  const renderProfileImage = (size: 'small' | 'large' = 'small') => {
+    const imageUrl = getDisplayImageUrl(userProfileData?.profileImageUrl);
+    const sizeClass = size === 'large' ? 'profile-avatar-large' : 'user-avatar';
+    
+    if (imageError) {
+      // 이미지 로드 실패 시 기본 아이콘 표시
+      return (
+        <div className={`${sizeClass} avatar-fallback`}>
+          👤
+        </div>
+      );
+    }
+
+    return (
+      <div className={sizeClass}>
+        <img 
+          src={imageUrl}
+          alt="프로필 이미지"
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: '50%',
+            objectFit: 'cover'
+          }}
+        />
+      </div>
+    );
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -172,10 +256,20 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
           <>
             <div className="dropdown-header">
               <div className="user-header-info">
-                <div className="user-avatar">👤</div>
+                {isLoading ? (
+                  <div className="user-avatar loading-avatar">
+                    ⏳
+                  </div>
+                ) : (
+                  renderProfileImage('small')
+                )}
                 <div className="user-basic-info">
-                  <div className="user-name">{userProfileData?.nickname || userName}</div>
-                  <div className="user-role">{userProfileData?.email || userInfo.email}</div>
+                  <div className="user-name">
+                    {isLoading ? '로딩 중...' : (userProfileData?.nickname || userName)}
+                  </div>
+                  <div className="user-role">
+                    {isLoading ? '로딩 중...' : (userProfileData?.email || userInfo.email)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -205,21 +299,31 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
               <span>프로필 상세정보</span>
             </div>
             <div className="profile-detail-content">
-              <div className="profile-avatar-large">
-                👤
-              </div>
+              {isLoading ? (
+                <div className="profile-avatar-large loading-avatar-large">
+                  ⏳
+                </div>
+              ) : (
+                renderProfileImage('large')
+              )}
               <div className="profile-info-section">
                 <div className="info-item">
                   <span className="info-label">닉네임</span>
-                  <span className="info-value">{userProfileData?.nickname || userInfo.name}</span>
+                  <span className="info-value">
+                    {isLoading ? '로딩 중...' : (userProfileData?.nickname || userInfo.name)}
+                  </span>
                 </div>
                 <div className="info-item">
                   <span className="info-label">이메일</span>
-                  <span className="info-value">{userProfileData?.email || userInfo.email}</span>
+                  <span className="info-value">
+                    {isLoading ? '로딩 중...' : (userProfileData?.email || userInfo.email)}
+                  </span>
                 </div>
                 <div className="info-item">
                   <span className="info-label">가입일</span>
-                  <span className="info-value">{userProfileData?.createDate ? new Date(userProfileData.createDate).toLocaleDateString('ko-KR') : userInfo.joinDate}</span>
+                  <span className="info-value">
+                    {isLoading ? '로딩 중...' : (userProfileData?.createDate ? new Date(userProfileData.createDate).toLocaleDateString('ko-KR') : userInfo.joinDate)}
+                  </span>
                 </div>
               </div>
               <div className="profile-actions">
@@ -231,6 +335,68 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
           </>
         )}
       </div>
+
+      {/* 프로필 이미지 관련 CSS 스타일 추가 */}
+      <style jsx>{`
+        .user-avatar, .profile-avatar-large {
+          position: relative;
+          border-radius: 50%;
+          overflow: hidden;
+          background-color: #f8f9fa;
+          border: 2px solid #e9ecef;
+        }
+        
+        .user-avatar {
+          width: 40px;
+          height: 40px;
+        }
+        
+        .profile-avatar-large {
+          width: 80px;
+          height: 80px;
+          margin: 0 auto 15px;
+        }
+        
+        .avatar-fallback {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          color: #6c757d;
+          background-color: #f8f9fa;
+        }
+        
+        .profile-avatar-large.avatar-fallback {
+          font-size: 40px;
+        }
+        
+        .loading-avatar, .loading-avatar-large {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: #f8f9fa;
+          color: #6c757d;
+          animation: spin 1s linear infinite;
+        }
+        
+        .loading-avatar {
+          width: 40px;
+          height: 40px;
+          font-size: 16px;
+        }
+        
+        .loading-avatar-large {
+          width: 80px;
+          height: 80px;
+          font-size: 24px;
+          margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </>
   );
 };
