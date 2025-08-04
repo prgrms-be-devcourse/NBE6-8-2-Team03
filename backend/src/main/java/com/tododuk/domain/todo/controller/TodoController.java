@@ -107,7 +107,7 @@ public class TodoController {
 
     @GetMapping("/me")
     @Transactional
-    @Operation(summary = "사용자의 투두리스트 조회")
+    @Operation(summary = "사용자의 투두 조회")
     public ResponseEntity<RsData<List<TodoResponseDto>>> getMyTodo(
             Authentication authentication
     ) {
