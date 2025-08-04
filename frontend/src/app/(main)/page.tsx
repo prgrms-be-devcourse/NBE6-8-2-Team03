@@ -107,7 +107,7 @@ export default function MainPage() {
             completed: item.completed,
             dueDate: formatISOToYMD(item.dueDate),
           };
-          if (list.teamId == 0) {
+          if (list.teamId === 0) {
             newPersonalTodos.push(common);
           } else  {
             newTeamTodos.push({
@@ -366,7 +366,7 @@ export default function MainPage() {
                   todosForSelectedDateTeam.map(todo => (
                     <div key={todo.id} className="group bg-white rounded-2xl p-4 border border-gray-100 hover:shadow-lg transition-all duration-200 hover:border-emerald-200">
                       <div className="flex items-start gap-3">
-                        <button
+                        {/* <button
                           onClick={() => toggleTodo('team', todo.id)}
                           className={`mt-1 w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
                             todo.completed
@@ -375,7 +375,7 @@ export default function MainPage() {
                           }`}
                         >
                           {todo.completed && <CheckSquare className="w-3 h-3" />}
-                        </button>
+                        </button> */}
                         <div className="flex-1 min-w-0">
                           <div className={`text-sm font-medium truncate ${todo.completed ? 'line-through text-gray-500' : 'text-gray-800'}`}>
                             {todo.title}
@@ -433,7 +433,7 @@ export default function MainPage() {
                   todosForSelectedDatePersonal.map(todo => (
                     <div key={todo.id} className="group bg-white rounded-2xl p-4 border border-gray-100 hover:shadow-lg transition-all duration-200 hover:border-violet-200">
                       <div className="flex items-start gap-3">
-                        <button
+                        {/* <button
                           onClick={() => toggleTodo('personal', todo.id)}
                           className={`mt-1 w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
                             todo.completed
@@ -442,7 +442,7 @@ export default function MainPage() {
                           }`}
                         >
                           {todo.completed && <CheckSquare className="w-3 h-3" />}
-                        </button>
+                        </button> */}
                         <div className="flex-1 min-w-0">
                           <div className={`text-sm font-medium truncate ${todo.completed ? 'line-through text-gray-500' : 'text-gray-800'}`}>
                             {todo.title}
