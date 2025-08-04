@@ -48,23 +48,23 @@ public class TodoListController {
     @PostMapping
     @Transactional
     @Operation(summary = "todolist 생성")
-    public ResponseEntity<RsData<TodoList>> addTodoList(
+    public ResponseEntity<RsData<TodoListResponseDto>> addTodoList(
             @RequestBody TodoListReqDto reqDto
     ) {
         TodoList saveList = todoListService.addTodoList(reqDto);
-        return ResponseEntity.ok(RsData.success("새로운 todo 생성 성공", saveList));
+        return ResponseEntity.ok(RsData.success("새로운 todo 생성 성공", TodoListResponseDto.from(saveList)));
     }
 
     @PutMapping(value = "/{list_id}")
     @Transactional
     @Operation(summary = "todolist 수정")
-    public ResponseEntity<RsData<TodoList>> updateTodoList(
+    public ResponseEntity<RsData<TodoListResponseDto>> updateTodoList(
             @PathVariable Integer list_id,
             @RequestBody TodoListReqDto reqDto
     ) {
         try {
             TodoList todoList = todoListService.updateTodoList(list_id, reqDto);
-            return ResponseEntity.ok(RsData.success("todolist 수정 성공", todoList));
+            return ResponseEntity.ok(RsData.success("todolist 수정 성공", TodoListResponseDto.from(todoList)));
         } catch (Exception e) {
             throw new ServiceException("400-1", "수정에 실패하였습니다.");
         }
@@ -73,7 +73,7 @@ public class TodoListController {
     @DeleteMapping("/{list_id}")
     @Transactional
     @Operation(summary = "todolist 삭제")
-    public ResponseEntity<RsData<TodoList>> deleteTodoList(
+    public ResponseEntity<RsData<Void>> deleteTodoList(
             @PathVariable Integer list_id
     ) {
         try {
