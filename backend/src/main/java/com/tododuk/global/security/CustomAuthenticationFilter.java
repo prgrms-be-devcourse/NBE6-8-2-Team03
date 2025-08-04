@@ -139,7 +139,7 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
         if (user == null) {
             user = userService
                     .findByApiKey(apiKey)
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 Api키 입니다."));
+                    .orElseThrow(() -> new ServiceException("404-2","존재하지 않는 Api키 입니다."));
         }
 
         if (isAccessTokenExists && !isAccessTokenValid) {
