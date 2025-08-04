@@ -27,7 +27,8 @@ public class BaseEntity {
     @LastModifiedDate
     private LocalDateTime modifyDate;
 
-    public int getId() {
-        return id;
-    }
+    // 위에 getter를 써서 잠시 해놨습니다.
+//    public int getId() {
+//        return id;
+//    }
 }

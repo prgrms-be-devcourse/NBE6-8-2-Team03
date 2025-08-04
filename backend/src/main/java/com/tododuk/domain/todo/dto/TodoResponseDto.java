@@ -20,7 +20,7 @@ public class TodoResponseDto {
     private int priority;
     private LocalDateTime startDate;
     private LocalDateTime dueDate;
-    private int todoListId;
+    private int todoList;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -33,7 +33,7 @@ public class TodoResponseDto {
                 todo.getPriority(),
                 todo.getStartDate(),
                 todo.getDueDate(),
-                todo.getTodoListId(),
+                todo.getTodoList().getId(),
                 todo.getCreateDate(),
                 todo.getModifyDate()
         );

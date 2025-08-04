@@ -21,12 +21,15 @@ public class TodoReqDto {
     @NotNull
     int priority;
 
+    boolean isCompleted;
+    int todoListId;
+
     LocalDateTime startDate;
     LocalDateTime dueDate;
     LocalDateTime createdAt;
     LocalDateTime modifyedAt;
 
     public Todo toEntity() {
-        return new Todo(title, description, priority);
+        return new Todo(title, description, priority,isCompleted,todoListId);
     }
 }

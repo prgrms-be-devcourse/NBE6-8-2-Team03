@@ -1,3 +1,8 @@
+import org.gradle.kotlin.dsl.annotationProcessor
+import org.gradle.kotlin.dsl.compileOnly
+import org.gradle.kotlin.dsl.testAnnotationProcessor
+import org.gradle.kotlin.dsl.testCompileOnly
+
 plugins {
     java
     id("org.springframework.boot") version "3.5.4"
@@ -43,6 +48,10 @@ dependencies {
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor("org.projectlombok:lombok")
+    testCompileOnly("org.projectlombok:lombok")
+    testAnnotationProcessor("org.projectlombok:lombok")
 }
 
 tasks.withType<Test> {
