@@ -10,6 +10,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 @RequiredArgsConstructor
@@ -17,9 +22,26 @@ public class SecurityConfig {
     private final CustomAuthenticationFilter customAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "https://cdpn.io"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", configuration);
+        return source;
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                // CORS 설정 추가
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                .authorizeHttpRequests(
                         auth -> auth
                                 //웹 아이콘 접근 허용
                                 .requestMatchers("/favicon.ico").permitAll()
@@ -28,6 +50,8 @@ public class SecurityConfig {
                                 // 로그인, 로그아웃, 회원가입은 모두 접근 허용
                                 .requestMatchers("/api/*/user/login", "/api/*/user/logout").permitAll()
                                 .requestMatchers("/api/*/user/register").permitAll()
+                                // 업로드된 파일 접근 허용
+                                .requestMatchers("/uploads/**").permitAll()
                                 // 위 요청 제외 나머지는 로그인 요구
                                 .requestMatchers("/api/*/**").authenticated()
                                 .anyRequest().authenticated()
@@ -44,39 +68,45 @@ public class SecurityConfig {
 
                 //Spring Security에서 인증/인가 실패 시 커스텀 JSON 응답 로직
                 .addFilterBefore(customAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                        .exceptionHandling(
-                                exceptionHandling -> exceptionHandling
-                                        .authenticationEntryPoint(
-                                                (request, response, authException) -> {
-                                                    response.setContentType("application/json;charset=UTF-8");
+                .exceptionHandling(
+                        exceptionHandling -> exceptionHandling
+                                .authenticationEntryPoint(
+                                        (request, response, authException) -> {
+                                            response.setContentType("application/json;charset=UTF-8");
+                                            // CORS 헤더 추가
+                                            response.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+                                            response.setHeader("Access-Control-Allow-Credentials", "true");
 
-                                                    response.setStatus(401);
-                                                    response.getWriter().write(
+                                            response.setStatus(401);
+                                            response.getWriter().write(
+                                                    """
+                                                            {
+                                                                 "resultCode": "401-1",
+                                                                 "msg": "로그인 후 이용해주세요."
+                                                            }
                                                             """
-                                                                    {
-                                                                         "resultCode": "401-1",
-                                                                         "msg": "로그인 후 이용해주세요."
-                                                                    }
-                                                                    """
-                                                    );
-                                                }
-                                        )
-                                        .accessDeniedHandler(
-                                                (request, response, accessDeniedException) -> {
-                                                    response.setContentType("application/json;charset=UTF-8");
+                                            );
+                                        }
+                                )
+                                .accessDeniedHandler(
+                                        (request, response, accessDeniedException) -> {
+                                            response.setContentType("application/json;charset=UTF-8");
+                                            // CORS 헤더 추가
+                                            response.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+                                            response.setHeader("Access-Control-Allow-Credentials", "true");
 
-                                                    response.setStatus(403);
-                                                    response.getWriter().write(
+                                            response.setStatus(403);
+                                            response.getWriter().write(
+                                                    """
+                                                            {
+                                                                 "resultCode": "403-1",
+                                                                 "msg": "권한이 없습니다."
+                                                            }
                                                             """
-                                                                    {
-                                                                         "resultCode": "403-1",
-                                                                         "msg": "권한이 없습니다."
-                                                                    }
-                                                                    """
-                                                    );
-                                                }
-                                        )
-                        );
+                                            );
+                                        }
+                                )
+                );
 
         return http.build();
     }
