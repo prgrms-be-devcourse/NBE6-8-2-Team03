@@ -1,7 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Calendar, CheckSquare, Users, User, Plus, Clock, ChevronLeft, ChevronRight, Target, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Calendar,
+  CheckSquare,
+  Users,
+  User,
+  Plus,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Target,
+} from 'lucide-react';
 import TodoListTemplate from "../_components/TodoList/TodoListTemplate";
 
 interface TeamTodo {
@@ -9,41 +19,117 @@ interface TeamTodo {
   title: string;
   completed: boolean;
   assignee: string;
-  dueDate: string;
+  dueDate: string; // 'YYYY-MM-DD'
 }
 
 interface PersonalTodo {
   id: number;
   title: string;
   completed: boolean;
-  dueDate: string;
+  dueDate: string; // 'YYYY-MM-DD'
 }
 
-//main page
+// API DTOs
+interface ApiTodoItem {
+  id: number;
+  title: string;
+  description: string;
+  priority: number;
+  startDate: string; // ISO
+  dueDate: string; // ISO
+  todoList: number;
+  createdAt: string;
+  updatedAt: string;
+  completed: boolean;
+}
+
+interface ApiTodoList {
+  id: number;
+  name: string;
+  description: string;
+  userId: number;
+  teamId: number | null;
+  createDate: string;
+  modifyDate: string;
+  todo: ApiTodoItem[];
+}
+
+interface ApiResponse {
+  resultCode: string;
+  msg: string;
+  data: ApiTodoList[];
+}
+
+const formatISOToYMD = (iso: string) => {
+  const d = new Date(iso);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export default function MainPage() {
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(today);
   const [currentCalendarDate, setCurrentCalendarDate] = useState(today);
 
-  const [teamTodos, setTeamTodos] = useState<TeamTodo[]>([
-    { id: 1, title: '프로젝트 기획서 검토', completed: false, assignee: '김철수', dueDate: '2025-07-31' },
-    { id: 2, title: '디자인 시안 피드백', completed: false, assignee: '이영희', dueDate: '2025-07-30' },
-    { id: 3, title: '개발 일정 조율', completed: false, assignee: '박민수', dueDate: '2025-08-02' },
-    { id: 4, title: '데모 준비', completed: false, assignee: '최영수', dueDate: '2025-07-31' },
-    { id: 5, title: '문서화 작업', completed: true, assignee: '김철수', dueDate: '2025-07-29' },
-    { id: 6, title: '백엔드 API 연동 테스트', completed: false, assignee: '박민수', dueDate: '2025-08-05' },
-    { id: 7, title: '프론트엔드 컴포넌트 개발', completed: false, assignee: '이영희', dueDate: '2025-08-03' },
-  ]);
+  const [teamTodos, setTeamTodos] = useState<TeamTodo[]>([]);
+  const [personalTodos, setPersonalTodos] = useState<PersonalTodo[]>([]);
 
-  const [personalTodos, setPersonalTodos] = useState<PersonalTodo[]>([
-    { id: 1, title: '일일 리포트 작성', completed: false, dueDate: '2025-07-31' },
-    { id: 2, title: '회의 자료 준비', completed: false, dueDate: '2025-08-01' },
-    { id: 3, title: '코드 리뷰', completed: true, dueDate: '2025-07-30' },
-    { id: 4, title: '문서 업데이트', completed: false, dueDate: '2025-08-02' },
-    { id: 5, title: '자기계발 학습', completed: false, dueDate: '2025-07-31' },
-    { id: 6, title: '운동하기', completed: false, dueDate: '2025-07-31' },
-    { id: 7, title: '블로그 글 작성', completed: false, dueDate: '2025-08-04' },
-  ]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchTodos = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('http://localhost:8080/api/todo-lists/me', {
+        credentials: 'include', // 쿠키 포함
+      });
+
+      if (res.status === 401) {
+        window.location.href = '/login'; // 인증 실패시 로그인 페이지로 이동
+        return;
+      }
+
+      if (!res.ok) throw new Error(`서버 오류: ${res.status}`);
+
+      const json: ApiResponse = await res.json();
+
+      const newTeamTodos: TeamTodo[] = [];
+      const newPersonalTodos: PersonalTodo[] = [];
+
+      json.data.forEach((list) => {
+        list.todo.forEach((item) => {
+          const common = {
+            id: item.id,
+            title: item.title,
+            completed: item.completed,
+            dueDate: formatISOToYMD(item.dueDate),
+          };
+          if (list.teamId == 0) {
+            newPersonalTodos.push(common);
+          } else  {
+            newTeamTodos.push({
+              ...common,
+              assignee: list.name || '알 수 없음',
+            });
+          }
+        });
+      });
+
+      setTeamTodos(newTeamTodos);
+      setPersonalTodos(newPersonalTodos);
+    } catch (err: any) {
+      setError(err.message || '알 수 없는 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTodos();
+  }, []);
 
   const generateCalendar = () => {
     const year = currentCalendarDate.getFullYear();
@@ -54,19 +140,17 @@ export default function MainPage() {
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
 
-    const days = [];
+    const days: Date[] = [];
     const current = new Date(startDate);
-
     for (let i = 0; i < 42; i++) {
       days.push(new Date(current));
       current.setDate(current.getDate() + 1);
     }
-
     return days;
   };
 
   const getTodoSummaryForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatISOToYMD(date.toISOString());
     const teamCount = teamTodos.filter(todo => todo.dueDate === dateStr && !todo.completed).length;
     const personalCount = personalTodos.filter(todo => todo.dueDate === dateStr && !todo.completed).length;
     return { team: teamCount, personal: personalCount };
@@ -92,15 +176,46 @@ export default function MainPage() {
     return date.toDateString() === selectedDate.toDateString();
   };
 
-  const toggleTodo = (type: 'team' | 'personal', id: number) => {
-    if (type === 'team') {
-      setTeamTodos(prev => prev.map(todo =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      ));
+  const toggleTodo = async (type: 'team' | 'personal', id: number) => {
+    const isTeam = type === 'team';
+
+    // 로컬 상태 optimistic update
+    if (isTeam) {
+      setTeamTodos(prev => prev.map(todo => todo.id === id ? { ...todo, completed: !todo.completed } : todo));
     } else {
-      setPersonalTodos(prev => prev.map(todo =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      ));
+      setPersonalTodos(prev => prev.map(todo => todo.id === id ? { ...todo, completed: !todo.completed } : todo));
+    }
+
+    try {
+      const currentCompleted = isTeam
+        ? teamTodos.find(t => t.id === id)?.completed
+        : personalTodos.find(t => t.id === id)?.completed;
+
+      // toggle 했으니 반대값을 보냄
+      const newCompleted = currentCompleted === undefined ? true : !currentCompleted;
+
+      const res = await fetch(`http://localhost:8080/api/todos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // 쿠키 포함
+        body: JSON.stringify({ completed: newCompleted }),
+      });
+
+      if (res.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+
+      if (!res.ok) throw new Error(`서버 오류: ${res.status}`);
+
+    } catch (e: any) {
+      setError('할일 상태 업데이트 실패');
+      // 롤백 처리
+      if (isTeam) {
+        setTeamTodos(prev => prev.map(todo => todo.id === id ? { ...todo, completed: !todo.completed } : todo));
+      } else {
+        setPersonalTodos(prev => prev.map(todo => todo.id === id ? { ...todo, completed: !todo.completed } : todo));
+      }
     }
   };
 
@@ -116,10 +231,10 @@ export default function MainPage() {
   const selectedDateSummary = getTodoSummaryForDate(selectedDate);
 
   const todosForSelectedDateTeam = teamTodos.filter(todo =>
-    todo.dueDate === selectedDate.toISOString().split('T')[0]
+    todo.dueDate === formatISOToYMD(selectedDate.toISOString())
   );
   const todosForSelectedDatePersonal = personalTodos.filter(todo =>
-    todo.dueDate === selectedDate.toISOString().split('T')[0]
+    todo.dueDate === formatISOToYMD(selectedDate.toISOString())
   );
 
   return (
@@ -139,6 +254,18 @@ export default function MainPage() {
             </div>
           </div>
         </div>
+
+        {/* 로딩 / 에러 */}
+        {loading && (
+          <div className="text-center mb-4">
+            <p className="text-gray-600">할일을 불러오는 중입니다...</p>
+          </div>
+        )}
+        {error && (
+          <div className="text-center mb-4 text-red-600">
+            <p>{error}</p>
+          </div>
+        )}
 
         {/* 메인 콘텐츠 영역 */}
         <div className="flex-grow grid grid-cols-1 lg:grid-cols-4 gap-8 h-[400px]">
@@ -169,8 +296,8 @@ export default function MainPage() {
               <div className="grid grid-cols-7 gap-2 mb-4 flex-shrink-0">
                 {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => (
                   <div key={day} className={`text-center text-sm font-semibold py-3 rounded-lg ${
-                    index === 0 ? 'text-red-500 bg-red-50' : 
-                    index === 6 ? 'text-blue-500 bg-blue-50' : 
+                    index === 0 ? 'text-red-500 bg-red-50' :
+                    index === 6 ? 'text-blue-500 bg-blue-50' :
                     'text-gray-600 bg-gray-50'
                   }`}>
                     {day}
@@ -222,10 +349,7 @@ export default function MainPage() {
                   </div>
                   팀 할일
                 </h3>
-                <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 transform hover:scale-105 shadow-lg text-sm">
-                  <Plus className="w-4 h-4" />
-                  추가
-                </button>
+            
               </div>
 
               <div className="mb-4 text-center bg-emerald-50 rounded-xl p-4">
@@ -292,10 +416,7 @@ export default function MainPage() {
                   </div>
                   개인 할일
                 </h3>
-                <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-violet-600 text-white rounded-xl hover:from-violet-600 hover:to-violet-700 transition-all duration-200 transform hover:scale-105 shadow-lg text-sm">
-                  <Plus className="w-4 h-4" />
-                  추가
-                </button>
+
               </div>
 
               <div className="mb-4 text-center bg-violet-50 rounded-xl p-4">
@@ -326,9 +447,11 @@ export default function MainPage() {
                           <div className={`text-sm font-medium truncate ${todo.completed ? 'line-through text-gray-500' : 'text-gray-800'}`}>
                             {todo.title}
                           </div>
-                          <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {todo.dueDate}
+                          <div className="text-xs text-gray-500 mt-2 flex items-center gap-4">
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {todo.dueDate}
+                            </div>
                           </div>
                         </div>
                       </div>
