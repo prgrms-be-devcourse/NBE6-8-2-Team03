@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -68,5 +69,21 @@ public class TodoService {
         Todo todo = todoRepository.findById(id)
                 .orElseThrow(()-> new IllegalArgumentException("해당 todo는 존재하지 않습니다."));
         todoRepository.delete(todo);
+    }
+
+    @Transactional
+    public TodoResponseDto isComplete(Integer todoId) {
+        Todo todo = todoRepository.findById(todoId)
+                .orElseThrow(()-> new IllegalArgumentException("해당 todo는 존재하지 않습니다."));
+        todo.setCompleted(!todo.isCompleted());
+
+        return TodoResponseDto.from(todoRepository.save(todo));
+    }
+
+    public List<TodoResponseDto> getUserTodo(Integer userId) {
+        List<Todo> todos = todoRepository.findAllByTodoListUserId(userId);
+        return todos.stream()
+                .map(TodoResponseDto::from)
+                .collect(Collectors.toList());
     }
 }

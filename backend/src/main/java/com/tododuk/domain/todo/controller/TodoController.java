@@ -79,4 +79,25 @@ public class TodoController {
             throw new ServiceException("400-1", "삭제에 실패하였습니다.");
         }
     }
+
+    @PatchMapping(value = "/{todo_id}/complete")
+    @Transactional
+    @Operation(summary = "todo 상태표시")
+    public ResponseEntity<RsData<TodoResponseDto>> isComplete(
+            @PathVariable Integer todo_id
+    )  {
+        TodoResponseDto todoComplete = todoService.isComplete(todo_id);
+        return ResponseEntity.ok(RsData.success("todo 상태변경 성공", todoComplete));
+    }
+
+    // 유저 아이디로 조회하기
+    @GetMapping("/user/{user_id}")
+    @Transactional
+    @Operation(summary = "유저 아이디로 조회하기")
+    public ResponseEntity<RsData<List<TodoResponseDto>>> getUserTodo(
+            @PathVariable Integer user_id
+    ) {
+        List<TodoResponseDto> todos = todoService.getUserTodo(user_id);
+        return ResponseEntity.ok(RsData.success("유저의 todo 조회 성공", todos));
+    }
 }

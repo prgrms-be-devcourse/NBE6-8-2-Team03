@@ -60,4 +60,6 @@ public class Todo extends BaseEntity {
 //        this.todoList = dto.toEntity().getTodoList();
     }
 
+    public boolean isCompleted() {return isCompleted;}
+
 }

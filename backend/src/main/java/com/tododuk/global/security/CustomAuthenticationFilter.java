@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.service.UserService;
 import com.tododuk.global.exception.ServiceException;
+import com.tododuk.global.rq.Rq;
 import com.tododuk.global.rsData.RsData;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,7 +12,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
-
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -26,8 +26,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import com.tododuk.global.rq.Rq;
-
 @Component
 @RequiredArgsConstructor
 @Log
@@ -41,6 +39,14 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         // 로그레벨 디버그인 경우에만 로그 남김
         logger.debug("CustomAuthenticationFilter: processing request for: " + request.getRequestURI());
+
+        String path = request.getRequestURI();
+
+        // 인증이 필요 없는 경로 목록
+        if (path.startsWith("/api/v1/user/register") || path.startsWith("/api/v1/user/login")) {
+            filterChain.doFilter(request, response); // 인증 필터 무시, 바로 다음 필터로 진행
+            return;
+        }
 
         try {
             work(request, response, filterChain);
