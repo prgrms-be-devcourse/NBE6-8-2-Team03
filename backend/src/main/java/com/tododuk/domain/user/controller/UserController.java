@@ -55,7 +55,7 @@ public class UserController {
     ){
         userService.findByUserEmail(reqBody.email)
                 .ifPresent(_user -> {
-                    throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
+                    throw new ServiceException("409-1", "이미 존재하는 이메일입니다.");
                 });
 
         User user = userService.join(
@@ -96,7 +96,7 @@ public class UserController {
 
         System.out.println("로그인 요청: " + reqBody.email + ", " + reqBody.password);
         User user = userService.findByUserEmail(reqBody.email)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
+                .orElseThrow(() -> new ServiceException("404-1","존재하지 않는 이메일입니다."));
 
         // 비밀번호 체크
         userService.checkPassword(user, reqBody.password);
@@ -129,7 +129,7 @@ public class UserController {
         // 현재 로그인한 사용자의 정보를 가져오기
         User actor = rq.getActor();
         User user = userService.findById(actor.getId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> new ServiceException("404-1","존재하지 않는 사용자입니다."));
 
         return new RsData<>(
                 "200-1",
@@ -146,7 +146,7 @@ public class UserController {
         // Authorization 헤더 대신 rq.getActor() 사용 (쿠키 기반 인증)
         User actor = rq.getActor();
         User user = userService.findById(actor.getId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> new ServiceException("404-1","존재하지 않는 사용자입니다."));
 
         userService.updateUserInfo(user, reqBody);
 

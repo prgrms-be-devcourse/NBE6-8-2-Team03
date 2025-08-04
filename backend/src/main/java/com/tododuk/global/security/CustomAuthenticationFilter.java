@@ -19,9 +19,11 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +44,14 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
         // 로그레벨 디버그인 경우에만 로그 남김
         logger.debug("CustomAuthenticationFilter: processing request for: " + request.getRequestURI());
 
+        String path = request.getRequestURI();
+
+        // PERMIT_ALL_PATHS 경로면 인증 로직 건너뛰기
+        if (isPermitAllPath(path)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         try {
             work(request, response, filterChain);
         } catch (ServiceException e) {
@@ -58,6 +68,12 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
 
     }
 
+    // 인증, 인가가 필요 없는 경로인지 확인
+    private boolean isPermitAllPath(String path) {
+        return Arrays.stream(SecurityConfig.PERMIT_ALL_PATHS)
+                .anyMatch(pattern -> new AntPathMatcher().match(pattern, path));
+    }
+
     private void work(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException{
         //api요청이 아니면 패스
         if (!request.getRequestURI().startsWith("/api/")){
@@ -66,11 +82,7 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
         }
 
         // 인증,인가가 필요 없는 요청이면 패스
-        if (List.of(
-                "/api/*/user/register",
-                "/api/*/user/login",
-                "/api/*/user/logout"
-        ).contains(request.getRequestURI())) {
+        if (isPermitAllPath(request.getRequestURI())) {
             filterChain.doFilter(request, response);
             return;
         }

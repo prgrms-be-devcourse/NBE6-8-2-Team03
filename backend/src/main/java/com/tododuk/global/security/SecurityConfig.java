@@ -15,11 +15,19 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final CustomAuthenticationFilter customAuthenticationFilter;
+
+    //인증 인가 필요 없는 API 경로 목록
+    public static final String[] PERMIT_ALL_PATHS = {
+            "/api/v1/user/login",
+            "/api/v1/user/logout",
+            "/api/v1/user/register"
+    };
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -47,9 +55,8 @@ public class SecurityConfig {
                                 .requestMatchers("/favicon.ico").permitAll()
                                 // H2 콘솔 접근 허용
                                 .requestMatchers("/h2-console/**").permitAll()
-                                // 로그인, 로그아웃, 회원가입은 모두 접근 허용
-                                .requestMatchers("/api/*/user/login", "/api/*/user/logout").permitAll()
-                                .requestMatchers("/api/*/user/register").permitAll()
+                                // 접근 허용 목록들 허용 선언
+                                .requestMatchers(PERMIT_ALL_PATHS).permitAll()
                                 // 업로드된 파일 접근 허용
                                 .requestMatchers("/uploads/**").permitAll()
                                 // 위 요청 제외 나머지는 로그인 요구
