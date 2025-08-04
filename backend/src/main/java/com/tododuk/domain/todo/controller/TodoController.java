@@ -48,23 +48,23 @@ public class TodoController {
     @PostMapping
     @Transactional
     @Operation(summary = "새로운 todo 생성")
-    public ResponseEntity<RsData<Todo>> addTodo(
+    public ResponseEntity<RsData<TodoResponseDto>> addTodo(
             @Valid @RequestBody TodoReqDto reqDto
     ) {
         Todo saveTodo = todoService.addTodo(reqDto);
-        return ResponseEntity.ok(RsData.success("새로운 todo 생성 성공", saveTodo));
+        return ResponseEntity.ok(RsData.success("새로운 todo 생성 성공", TodoResponseDto.from(saveTodo)));
     }
 
     @PutMapping(value = "/{todo_id}")
     @Transactional
     @Operation(summary = "todo 수정")
-    public ResponseEntity<RsData<Todo>> updateTodo (
+    public ResponseEntity<RsData<TodoResponseDto>> updateTodo (
             @PathVariable Integer todo_id,
             @Valid @RequestBody TodoReqDto reqDto
     ) {
        try {
            Todo todo = todoService.updateTodo(todo_id, reqDto);
-           return ResponseEntity.ok(RsData.success("todo 수정 성공",todo));
+           return ResponseEntity.ok(RsData.success("todo 수정 성공",TodoResponseDto.from(todo)));
        } catch (Exception e) {
            throw new ServiceException("400-1", "수정에 실패하였습니다.");
        }
@@ -73,7 +73,7 @@ public class TodoController {
     @DeleteMapping(value = "/{todo_id}")
     @Transactional
     @Operation(summary = "todo 삭제")
-    public ResponseEntity<RsData<Todo>> deleteTodo(
+    public ResponseEntity<RsData<Void>> deleteTodo(
             @PathVariable Integer todo_id
     ) {
         try{
