@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -50,13 +51,13 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public RsData<UserDto> join(
+    public ResponseEntity<?> join(
             @Valid @RequestBody UserJoinReqDto reqBody
-    ){
-        userService.findByUserEmail(reqBody.email)
-                .ifPresent(_user -> {
-                    throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
-                });
+    ) {
+        if (userService.findByUserEmail(reqBody.email).isPresent()) {
+            RsData<Void> errorRsData = new RsData<>("409-1", "이미 존재하는 이메일입니다.", null);
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(errorRsData);
+        }
 
         User user = userService.join(
                 reqBody.email(),
@@ -64,11 +65,13 @@ public class UserController {
                 reqBody.nickname()
         );
 
-        return new RsData<>(
-                "200-1",// 생성은 201이지만 기본값이 200이라 추후 수정 필
+        RsData<UserDto> successRsData = new RsData<>(
+                "200-1", // 나중에 201로 수정 가능
                 "%s님 환영합니다. 회원가입이 완료되었습니다.".formatted(user.getNickName()),
                 new UserDto(user)
         );
+
+        return ResponseEntity.ok(successRsData);
     }
 
     record UserLoginReqDto(
@@ -96,7 +99,7 @@ public class UserController {
 
         System.out.println("로그인 요청: " + reqBody.email + ", " + reqBody.password);
         User user = userService.findByUserEmail(reqBody.email)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
+                .orElseThrow(() -> new ServiceException("404-1","존재하지 않는 이메일입니다."));
 
         // 비밀번호 체크
         userService.checkPassword(user, reqBody.password);
@@ -129,7 +132,7 @@ public class UserController {
         // 현재 로그인한 사용자의 정보를 가져오기
         User actor = rq.getActor();
         User user = userService.findById(actor.getId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> new ServiceException("404-1","존재하지 않는 사용자입니다."));
 
         return new RsData<>(
                 "200-1",
@@ -146,7 +149,7 @@ public class UserController {
         // Authorization 헤더 대신 rq.getActor() 사용 (쿠키 기반 인증)
         User actor = rq.getActor();
         User user = userService.findById(actor.getId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> new ServiceException("404-1","존재하지 않는 사용자입니다."));
 
         userService.updateUserInfo(user, reqBody);
 
