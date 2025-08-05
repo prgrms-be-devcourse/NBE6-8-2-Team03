@@ -15,8 +15,7 @@ const LoginPage = () => {
     // 로그아웃으로 온 경우에는 로그인 체크를 더 오래 지연시키고, URL 파라미터 정리
     if (fromLogout) {
       console.log('로그아웃으로 인한 리다이렉트 - 로그인 체크 지연');
-
-
+      
       // URL에서 logout 파라미터 제거
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);

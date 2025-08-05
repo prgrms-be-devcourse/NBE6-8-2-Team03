@@ -141,7 +141,7 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
   const fetchTodoLists = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8080/api/todo-lists', {
+      const response = await fetch('http://localhost:8080/api/todo-lists/me', {
         method: 'GET',
         credentials: 'include',
         headers: {
