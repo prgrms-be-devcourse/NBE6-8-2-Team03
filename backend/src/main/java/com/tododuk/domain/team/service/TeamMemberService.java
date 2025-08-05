@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,6 +30,7 @@ public class TeamMemberService {
     // 1. 팀 생성 시 초기 리더 멤버 추가 (TeamService에서 호출)
     @Transactional
     public TeamMember createLeaderMember(Team team, User leaderUser) {
+        // 새로운 리더 멤버 생성
         TeamMember leaderMember = TeamMember.builder()
                 .user(leaderUser)
                 .team(team)

@@ -16,6 +16,7 @@ import com.tododuk.domain.user.repository.UserRepository;
 import com.tododuk.domain.team.constant.TeamRoleType;
 import com.tododuk.domain.todoList.entity.TodoList;
 import com.tododuk.domain.todoList.repository.TodoListRepository;
+
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
@@ -38,6 +39,7 @@ public class BaseInitData {
     private final TeamMemberRepository teamMemberRepository;
     private final PasswordEncoder passwordEncoder;
     private final TodoListRepository todoListRepository;
+
 
     @PostConstruct
     public void init(){
@@ -75,15 +77,13 @@ public class BaseInitData {
             userRepository.save(user4);
 
             // 팀 생성
-            Team team1 = Team.builder()
-                    .teamName("프론트엔드 개발팀")
-                    .description("React, Next.js를 활용한 웹 프론트엔드 개발팀")
-                    .build();
+            Team team1 = new Team();
+            team1.setTeamName("프론트엔드 개발팀");
+            team1.setDescription("React, Next.js를 활용한 웹 프론트엔드 개발팀");
             
-            Team team2 = Team.builder()
-                    .teamName("백엔드 개발팀")
-                    .description("Spring Boot, JPA를 활용한 백엔드 개발팀")
-                    .build();
+            Team team2 = new Team();
+            team2.setTeamName("백엔드 개발팀");
+            team2.setDescription("Spring Boot, JPA를 활용한 백엔드 개발팀");
 
             teamRepository.save(team1);
             teamRepository.save(team2);

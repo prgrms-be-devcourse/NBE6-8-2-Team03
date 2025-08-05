@@ -1,5 +1,8 @@
 package com.tododuk.domain.team.entity;
 
+import com.tododuk.domain.team.constant.TeamRoleType;
+import com.tododuk.domain.team.entity.TeamMember;
+import com.tododuk.domain.user.entity.User;
 import com.tododuk.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -8,21 +11,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "teams")
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
-@Builder
+@Setter
+@NoArgsConstructor
 public class Team extends BaseEntity {
-
-    @Column(name = "name", nullable = false, length = 255) // DB 컬럼명은 'name'으로 유지하고, 필드명은 'teamName'으로 사용
-    private String teamName; // 필드명 변경: name -> teamName
-
-    @Column(name = "description", columnDefinition = "TEXT")
+    private String teamName;
     private String description;
 
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
     private List<TeamMember> members = new ArrayList<>();
 
     public void updateTeam(String teamName, String description) { // 메서드 파라미터 변경: name -> teamName
