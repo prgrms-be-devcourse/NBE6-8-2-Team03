@@ -38,6 +38,11 @@ const TeamDetailPage: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [showTodoModal, setShowTodoModal] = useState(false);
+  const [showTodoListModal, setShowTodoListModal] = useState(false);
+
+  // 할일 목록 상태
+  const [todoLists, setTodoLists] = useState<any[]>([]);
+  const [selectedTodoList, setSelectedTodoList] = useState<any>(null);
 
   // 폼 상태
   const [editForm, setEditForm] = useState({
@@ -160,12 +165,53 @@ const TeamDetailPage: React.FC = () => {
     }
   }, [teamId]);
 
+  const fetchTodoLists = useCallback(async () => {
+    try {
+      // 팀 도메인의 할일 목록 API 사용 (임시로 하드코딩된 데이터 사용)
+      const mockTodoLists = [
+        {
+          id: 1,
+          name: "프론트엔드 개발팀 할일 목록",
+          description: "팀원들과 함께 관리하는 할일들",
+          todos: [
+            {
+              id: 1,
+              title: "프론트엔드 컴포넌트 개발",
+              description: "React 컴포넌트 라이브러리 구축",
+              isCompleted: false,
+              priority: 3,
+              dueDate: "2025-08-25T18:00:00",
+              assignedMemberId: 1,
+              type: "team"
+            },
+            {
+              id: 2,
+              title: "UI/UX 디자인 검토",
+              description: "새로운 디자인 시스템 검토 및 피드백",
+              isCompleted: false,
+              priority: 2,
+              dueDate: "2025-08-22T18:00:00",
+              assignedMemberId: 2,
+              type: "team"
+            }
+          ]
+        }
+      ];
+      
+      setTodoLists(mockTodoLists);
+    } catch (err) {
+      console.error('할일 목록 가져오기 실패:', err);
+      setTodoLists([]);
+    }
+  }, [teamId]);
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       await Promise.all([
         fetchTeamData(),
-        fetchTodos()
+        fetchTodos(),
+        fetchTodoLists()
       ]);
       setLoading(false);
     };
@@ -173,7 +219,7 @@ const TeamDetailPage: React.FC = () => {
     if (teamId) {
       loadData();
     }
-  }, [teamId, fetchTeamData, fetchTodos]);
+  }, [teamId, fetchTeamData, fetchTodos, fetchTodoLists]);
 
   const handleGoBack = () => {
     router.push('/teams');
@@ -296,6 +342,20 @@ const TeamDetailPage: React.FC = () => {
     } finally {
       setActionLoading(prev => ({ ...prev, inviteMember: false }));
     }
+  };
+
+  const handleSelectTodoList = (todoList: any) => {
+    setSelectedTodoList(todoList);
+  };
+
+  const handleEditTodoList = (todoList: any) => {
+    // TODO: 할일 목록 수정 기능 구현
+    console.log('할일 목록 수정:', todoList);
+  };
+
+  const handleDeleteTodoList = (todoListId: number) => {
+    // TODO: 할일 목록 삭제 기능 구현
+    console.log('할일 목록 삭제:', todoListId);
   };
 
   const handleAddTodo = async () => {
@@ -435,34 +495,34 @@ const TeamDetailPage: React.FC = () => {
     <TodoListTemplate>
       <div className="flex h-full">
         {/* 왼쪽 패널 - 팀 정보 및 멤버 */}
-        <div className="w-1/2 p-12 border-r border-gray-200 overflow-y-auto">
+        <div className="w-1/3 p-8 border-r border-gray-200 overflow-y-auto">
           {/* 팀 헤더 */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">{team.teamName}</h1>
-                <p className="text-xl text-gray-600">{team.description}</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">{team.teamName}</h1>
+                <p className="text-lg text-gray-600">{team.description}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
                     setEditForm({ teamName: team.teamName, description: team.description });
                     setShowEditModal(true);
                   }}
-                  className="px-6 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-lg"
+                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                 >
                   팀 수정
                 </button>
                 <button
                   onClick={() => setShowMemberModal(true)}
-                  className="px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-lg"
+                  className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
                 >
                   멤버 초대
                 </button>
               </div>
             </div>
             
-            <div className="flex items-center gap-6 text-lg text-gray-500">
+            <div className="flex items-center gap-4 text-sm text-gray-500">
               <span>생성일: {formatDate(team.createDate)}</span>
               <span>멤버: {team.members.length}명</span>
             </div>
@@ -470,17 +530,17 @@ const TeamDetailPage: React.FC = () => {
 
           {/* 멤버 목록 */}
           <div className="mb-8">
-            <h2 className="text-3xl font-semibold text-gray-900 mb-6">팀 멤버</h2>
-            <div className="space-y-4">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">팀 멤버</h2>
+            <div className="space-y-3">
               {team.members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                <div key={member.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
                       {member.userNickname.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div className="font-semibold text-lg">{member.userNickname}</div>
-                      <div className="text-sm text-gray-500">
+                      <div className="font-semibold text-sm">{member.userNickname}</div>
+                      <div className="text-xs text-gray-500">
                         {member.role === 'LEADER' ? '리더' : '멤버'} • {formatDate(member.joinedAt)} 가입
                       </div>
                     </div>
@@ -491,72 +551,145 @@ const TeamDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 오른쪽 패널 - 할일 목록 */}
-        <div className="w-1/2 p-12 overflow-y-auto">
-          <div className="flex items-center justify-between mb-8">
+        {/* 중앙 패널 - 할일 목록 관리 */}
+        <div className="w-1/3 p-8 border-r border-gray-200 overflow-y-auto">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-3xl font-semibold text-gray-900">
-                {teamId === 0 ? '개인 할일 목록' : '팀 할일 목록'}
+              <h2 className="text-2xl font-semibold text-gray-900">
+                할일 목록 관리
               </h2>
               <p className="text-sm text-gray-500 mt-1">
-                {teamId === 0 ? '개인적으로 관리하는 할일들입니다.' : '팀원들과 함께 관리하는 할일들입니다.'}
+                팀의 할일 목록들을 관리합니다.
               </p>
             </div>
             <button
-              onClick={() => setShowTodoModal(true)}
-              className="px-6 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-lg flex items-center gap-2"
+              onClick={() => setShowTodoListModal(true)}
+              className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm flex items-center gap-2"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              할일 추가
+              목록 추가
             </button>
           </div>
 
-          <div className="space-y-4">
-            {todos.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-gray-500 text-lg mb-4">아직 할일이 없습니다.</div>
-                <p className="text-gray-400">할일 추가 버튼을 눌러서 첫 번째 할일을 만들어보세요!</p>
+          <div className="space-y-3">
+            {todoLists.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500 text-sm mb-2">아직 할일 목록이 없습니다.</div>
+                <p className="text-gray-400 text-xs">목록 추가 버튼을 눌러서 첫 번째 할일 목록을 만들어보세요!</p>
               </div>
             ) : (
-              todos.map((todo) => (
-                <div key={todo.id} className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-4">
+              todoLists.map((todoList) => (
+                <div key={todoList.id} className="p-4 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900">{todoList.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">
+                        {todoList.todos?.length || 0}개 할일
+                      </span>
+                      <button
+                        onClick={() => handleSelectTodoList(todoList)}
+                        className="px-2 py-1 bg-blue-100 text-blue-600 rounded text-xs hover:bg-blue-200"
+                      >
+                        선택
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">{todoList.description}</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleEditTodoList(todoList)}
+                      className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"
+                    >
+                      수정
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTodoList(todoList.id)}
+                      className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs hover:bg-red-200"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* 오른쪽 패널 - 선택된 할일 목록의 할일들 */}
+        <div className="w-1/3 p-8 overflow-y-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900">
+                {selectedTodoList ? selectedTodoList.name : '할일 목록 선택'}
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {selectedTodoList ? `${selectedTodoList.todos?.length || 0}개의 할일이 있습니다.` : '왼쪽에서 할일 목록을 선택해주세요.'}
+              </p>
+            </div>
+            {selectedTodoList && (
+              <button
+                onClick={() => setShowTodoModal(true)}
+                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                할일 추가
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {!selectedTodoList ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500 text-sm mb-2">할일 목록을 선택해주세요</div>
+                <p className="text-gray-400 text-xs">중앙 패널에서 할일 목록을 선택하면 할일들을 볼 수 있습니다.</p>
+              </div>
+            ) : selectedTodoList.todos?.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500 text-sm mb-2">아직 할일이 없습니다.</div>
+                <p className="text-gray-400 text-xs">할일 추가 버튼을 눌러서 첫 번째 할일을 만들어보세요!</p>
+              </div>
+            ) : (
+                             selectedTodoList.todos?.map((todo: any) => (
+                <div key={todo.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       checked={todo.isCompleted}
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                       readOnly
                     />
                     <div>
-                      <div className={`font-semibold text-lg ${todo.isCompleted ? 'line-through text-gray-500' : ''}`}>
+                      <div className={`font-semibold text-sm ${todo.isCompleted ? 'line-through text-gray-500' : ''}`}>
                         {todo.title}
                       </div>
                       {todo.description && (
-                        <div className="text-sm text-gray-500 mt-1">{todo.description}</div>
+                        <div className="text-xs text-gray-500 mt-1">{todo.description}</div>
                       )}
                       {todo.dueDate && (
                         <div className="text-xs text-gray-400 mt-1">
                           마감일: {formatDate(todo.dueDate)}
                         </div>
                       )}
-                      {teamId !== 0 && todo.assignedMemberId && (
+                      {todo.assignedMemberId && (
                         <div className="text-xs text-blue-600 mt-1">
                           담당: {team?.members.find(m => m.userId === todo.assignedMemberId)?.userNickname || '알 수 없음'}
                         </div>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
+                  <div className="flex items-center gap-1">
+                    <span className={`px-1 py-0.5 text-xs rounded-full ${
                       todo.priority === 1 ? 'bg-red-100 text-red-800' :
                       todo.priority === 2 ? 'bg-yellow-100 text-yellow-800' :
                       'bg-green-100 text-green-800'
                     }`}>
                       {todo.priority === 1 ? '높음' : todo.priority === 2 ? '보통' : '낮음'}
                     </span>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
+                    <span className={`px-1 py-0.5 text-xs rounded-full ${
                       todo.type === 'personal' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
                     }`}>
                       {todo.type === 'personal' ? '개인' : '팀'}
