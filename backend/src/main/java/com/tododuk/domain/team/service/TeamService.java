@@ -389,6 +389,8 @@ public class TeamService {
                     map.put("todoListId", todo.getTodoList().getId());
                     map.put("createdAt", todo.getCreateDate());
                     map.put("updatedAt", todo.getModifyDate());
+                    map.put("startDate", todo.getStartDate());
+                    map.put("dueDate", todo.getDueDate());
                     return map;
                 })
                 .collect(Collectors.toList());
@@ -417,6 +419,19 @@ public class TeamService {
         todo.setPriority((Integer) todoRequest.get("priority"));
         todo.setCompleted(false);
         todo.setTodoList(todoList);
+        todo.setStartDate(LocalDateTime.now()); // 시작일을 현재 시간으로 설정
+        
+        // 마감기한 설정
+        if (todoRequest.get("dueDate") != null && !((String) todoRequest.get("dueDate")).isEmpty()) {
+            try {
+                LocalDateTime dueDate = LocalDateTime.parse(((String) todoRequest.get("dueDate")).replace("Z", ""));
+                todo.setDueDate(dueDate);
+            } catch (Exception e) {
+                // 날짜 파싱 실패 시 null로 설정
+                todo.setDueDate(null);
+            }
+        }
+        
         todoRepository.save(todo);
 
         Map<String, Object> response = new HashMap<>();
@@ -428,6 +443,8 @@ public class TeamService {
         response.put("todoListId", todo.getTodoList().getId());
         response.put("createdAt", todo.getCreateDate());
         response.put("updatedAt", todo.getModifyDate());
+        response.put("startDate", todo.getStartDate());
+        response.put("dueDate", todo.getDueDate());
 
         return RsData.success("할일이 성공적으로 추가되었습니다.", response);
     }
@@ -450,6 +467,20 @@ public class TeamService {
         todo.setTitle((String) todoRequest.get("title"));
         todo.setDescription((String) todoRequest.get("description"));
         todo.setPriority((Integer) todoRequest.get("priority"));
+        
+        // 마감기한 설정
+        if (todoRequest.get("dueDate") != null && !((String) todoRequest.get("dueDate")).isEmpty()) {
+            try {
+                LocalDateTime dueDate = LocalDateTime.parse(((String) todoRequest.get("dueDate")).replace("Z", ""));
+                todo.setDueDate(dueDate);
+            } catch (Exception e) {
+                // 날짜 파싱 실패 시 null로 설정
+                todo.setDueDate(null);
+            }
+        } else {
+            todo.setDueDate(null);
+        }
+        
         todoRepository.save(todo);
 
         Map<String, Object> response = new HashMap<>();
@@ -461,6 +492,8 @@ public class TeamService {
         response.put("todoListId", todo.getTodoList().getId());
         response.put("createdAt", todo.getCreateDate());
         response.put("updatedAt", todo.getModifyDate());
+        response.put("startDate", todo.getStartDate());
+        response.put("dueDate", todo.getDueDate());
 
         return RsData.success("할일이 성공적으로 수정되었습니다.", response);
     }
