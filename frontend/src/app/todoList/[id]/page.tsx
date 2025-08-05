@@ -1,14 +1,13 @@
 'use client';
-
+import TodoEmptyState from './components/TodoEmptyState';
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import TodoListTemplate from '../../_components/TodoList/TodoListTemplate';
 import TodoListInfoComponent from './components/TodoListInfo';
 import TodoListItems from './components/TodoListItems';
 import TodoCreateForm from './components/TodoCreateForm';
-import TodoEditForm from './components/TodoEditForm';
 import TodoDetailView from './components/TodoDetailView';
-import TodoEmptyState from './components/TodoEmptyState';
+import TodoEditForm from './components/TodoEditForm';
 
 interface Todo {
   id: number;
@@ -43,7 +42,7 @@ export default function TodoListPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
-  const [showEditForm, setShowEditForm] = useState<boolean>(false);
+  const [showEditForm, setShowEditForm] = useState<boolean>(false); // 수정 폼 상태 추가
   
   // 새 TODO 폼 상태
   const [newTodo, setNewTodo] = useState({
@@ -53,8 +52,7 @@ export default function TodoListPage() {
     startDate: '',
     dueDate: ''
   });
-
-  // 수정 TODO 폼 상태
+  // 수정 TODO 폼 상태 추가
   const [editTodo, setEditTodo] = useState({
     title: '',
     description: '',
@@ -62,7 +60,6 @@ export default function TodoListPage() {
     startDate: '',
     dueDate: ''
   });
-
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
 
   // TodoList 정보와 Todos 데이터 가져오기
@@ -121,12 +118,12 @@ export default function TodoListPage() {
   const handleTodoClick = (todo: Todo) => {
     setSelectedTodo(todo);
     setShowCreateForm(false);
-    setShowEditForm(false);
+    setShowEditForm(false); // 수정 폼도 숨기기
   };
 
   const handleCheckboxChange = async (todoId: number) => {
     try {
-      // 실제 API 호출로 완료 상태 토글
+      // 실제 API 호출로 완료 상태 토글 - 서버 API에 맞게 수정
       const response = await fetch(`http://localhost:8080/api/todo/${todoId}/complete`, {
         method: 'PATCH',
         credentials: 'include',
@@ -140,11 +137,14 @@ export default function TodoListPage() {
       }
 
       const result = await response.json();
-      console.log('Toggle API Response:', result);
+      console.log('Toggle API Response:', result); // 디버깅용
       
+      // 서버 응답에 따른 성공 처리
       if (result.resultCode === 'S-1' || result.resultCode === 'SUCCESS' || response.ok) {
+        // 서버에서 받은 업데이트된 TODO 데이터 사용
         const updatedTodo = result.data;
         
+        // 로컬 상태 업데이트
         setTodos(prevTodos => 
           prevTodos.map(todo => 
             todo.id === todoId 
@@ -157,6 +157,7 @@ export default function TodoListPage() {
           )
         );
         
+        // 선택된 todo도 업데이트
         if (selectedTodo?.id === todoId) {
           setSelectedTodo(prev => prev ? { 
             ...prev, 
@@ -166,12 +167,16 @@ export default function TodoListPage() {
         }
         
         console.log(`✅ 할 일 ${todoId} 상태가 변경되었습니다.`);
+        
+        // 목록 새로고침 (서버 데이터와 동기화) - 선택사항
+        // await fetchTodoListData();
       } else {
         throw new Error(result.msg || result.message || 'Failed to toggle todo status');
       }
     } catch (error) {
       console.error('Failed to toggle todo:', error);
       
+      // 구체적인 에러 메시지
       let errorMessage = '할 일 상태 변경에 실패했습니다.';
       if (error instanceof Error) {
         if (error.message.includes('404')) {
@@ -184,53 +189,45 @@ export default function TodoListPage() {
       }
       
       alert(errorMessage);
+      
+      // 에러 발생 시 원래 상태로 복구 (옵션)
+      // await fetchTodoListData();
     }
   };
 
   const handleEdit = () => {
     if (selectedTodo) {
-      // 날짜 포맷 함수 (datetime-local 형식)
+      // datetime-local 형식으로 날짜 변환 (YYYY-MM-DDTHH:mm)
       const formatDateForInput = (dateString: string) => {
         if (!dateString) return '';
-        try {
-          const date = new Date(dateString);
-          // YYYY-MM-DDTHH:mm 형식으로 변환
-          return date.toISOString().slice(0, 16);
-        } catch (error) {
-          console.error('Date formatting error:', error);
-          return '';
-        }
+        const date = new Date(dateString);
+        return date.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm 형식
       };
 
-      // 기본값 설정 (값이 없으면 현재 시간)
-      const now = new Date();
-      const currentDateTime = now.toISOString().slice(0, 16);
-      
-      // 기존 투두 데이터로 수정 폼 초기화
-      const initialEditData = {
+      // 선택된 todo의 정보를 editTodo에 설정
+      setEditTodo({
         title: selectedTodo.title,
         description: selectedTodo.description,
         priority: selectedTodo.priority,
-        startDate: selectedTodo.startDate ? formatDateForInput(selectedTodo.startDate) : currentDateTime,
-        dueDate: selectedTodo.dueDate ? formatDateForInput(selectedTodo.dueDate) : currentDateTime
-      };
-      
-      setEditTodo(initialEditData);
-      setShowEditForm(true);
+        startDate: formatDateForInput(selectedTodo.startDate),
+        dueDate: formatDateForInput(selectedTodo.dueDate)
+      });
+      setShowEditForm(true); // 수정 폼 표시
       setShowCreateForm(false);
-      setFormErrors({}); // 에러 초기화
-      
-      console.log(`Edit todo ${selectedTodo.id} with initial data:`, initialEditData);
+      setFormErrors({});
+      console.log(`Edit todo ${selectedTodo.id}`);
     }
   };
 
   const handleDelete = async () => {
     if (selectedTodo) {
+      // 삭제 확인 다이얼로그 추가
       if (!confirm(`"${selectedTodo.title}" 할 일을 삭제하시겠습니까?`)) {
         return;
       }
 
       try {
+        // CSRF 토큰을 먼저 가져오기 (필요한 경우)
         let csrfToken = null;
         try {
           const metaCsrf = document.querySelector('meta[name="_csrf"]');
@@ -245,30 +242,41 @@ export default function TodoListPage() {
           console.log('CSRF token not found in meta tags');
         }
 
+        // 헤더 설정
         const headers = {
           'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
+          'X-Requested-With': 'XMLHttpRequest' // AJAX 요청임을 명시
         };
 
+        // CSRF 토큰이 있으면 헤더에 추가
         if (csrfToken) {
           headers[csrfToken.header] = csrfToken.token;
         }
 
+        // 실제 API 호출로 삭제 - 서버 API에 맞게 수정
         const response = await fetch(`http://localhost:8080/api/todo/${selectedTodo.id}`, {
           method: 'DELETE',
           credentials: 'include',
           headers: headers
         });
 
-        console.log('Delete API Response Status:', response.status);
+        console.log('Delete API Response Status:', response.status); // 디버깅용
+        console.log('Delete API Headers sent:', headers); // 헤더 확인
 
+        // 401 오류 특별 처리
         if (response.status === 401) {
           console.error('401 Unauthorized - 인증 문제 발생');
+          console.log('Request headers:', headers);
+          
+          // 추가 디버깅 정보
+          console.log('Cookies:', document.cookie);
+          
           alert('인증에 실패했습니다. CSRF 토큰이나 세션 문제일 수 있습니다.');
           return;
         }
 
         if (!response.ok) {
+          // 응답 본문도 확인 (오류 상세 정보)
           let errorText = '';
           try {
             const errorBody = await response.text();
@@ -282,22 +290,29 @@ export default function TodoListPage() {
         }
 
         const result = await response.json();
-        console.log('Delete API Response:', result);
+        console.log('Delete API Response:', result); // 디버깅용
 
+        // 서버 응답에 따른 성공 처리
         if (result.resultCode === 'S-1' || result.resultCode === 'SUCCESS' || response.ok) {
+          // 성공 시 로컬 상태에서 제거
           setTodos(prevTodos => prevTodos.filter(todo => todo.id !== selectedTodo.id));
           setSelectedTodo(null);
-          setShowEditForm(false);
           
           console.log(`✅ 할 일 "${selectedTodo.title}"가 삭제되었습니다.`);
           
+          // 목록 새로고침 (서버 데이터와 동기화)
           await refreshTodoList();
         } else {
           throw new Error(result.msg || result.message || 'Failed to delete todo');
         }
       } catch (error) {
         console.error('Failed to delete todo:', error);
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
         
+        // 구체적인 에러 메시지
         let errorMessage = '할 일 삭제에 실패했습니다.';
         if (error instanceof Error) {
           if (error.message.includes('401')) {
@@ -317,6 +332,7 @@ export default function TodoListPage() {
         
         alert(errorMessage + '\n\n개발자 도구의 Console과 Network 탭을 확인해보세요.');
         
+        // 데이터 새로고침으로 일관성 유지
         try {
           await refreshTodoList();
         } catch (refreshError) {
@@ -328,9 +344,9 @@ export default function TodoListPage() {
 
   const handleCreateTodo = () => {
     setShowCreateForm(true);
-    setShowEditForm(false);
+    setShowEditForm(false); // 수정 폼 숨기기
     setSelectedTodo(null);
-    
+    // 현재 날짜를 기본값으로 설정
     const now = new Date();
     const today = now.toISOString().slice(0, 16);
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
@@ -346,34 +362,33 @@ export default function TodoListPage() {
   };
 
   const handleFormChange = (field: string, value: string | number) => {
-    if (showCreateForm) {
-      setNewTodo(prev => ({ ...prev, [field]: value }));
-    } else if (showEditForm) {
+    if (showEditForm) {
       setEditTodo(prev => ({ ...prev, [field]: value }));
+    } else {
+      setNewTodo(prev => ({ ...prev, [field]: value }));
     }
-    
-    // 에러 메시지 클리어
     if (formErrors[field]) {
       setFormErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  const validateForm = (todoData: typeof newTodo) => {
+  const validateForm = () => {
     const errors: {[key: string]: string} = {};
+    const currentTodo = showEditForm ? editTodo : newTodo;
     
-    if (!todoData.title.trim()) {
+    if (!currentTodo.title.trim()) {
       errors.title = '제목은 필수입니다.';
     }
     
-    if (!todoData.startDate) {
+    if (!currentTodo.startDate) {
       errors.startDate = '시작일은 필수입니다.';
     }
     
-    if (!todoData.dueDate) {
+    if (!currentTodo.dueDate) {
       errors.dueDate = '마감일은 필수입니다.';
     }
     
-    if (todoData.startDate && todoData.dueDate && new Date(todoData.startDate) > new Date(todoData.dueDate)) {
+    if (currentTodo.startDate && currentTodo.dueDate && new Date(currentTodo.startDate) > new Date(currentTodo.dueDate)) {
       errors.dueDate = '마감일은 시작일보다 늦어야 합니다.';
     }
     
@@ -382,23 +397,32 @@ export default function TodoListPage() {
   };
 
   const handleSubmitTodo = async () => {
-    if (!validateForm(newTodo)) return;
+    if (!validateForm()) return;
+    
+    const currentTodo = showEditForm ? editTodo : newTodo;
     
     try {
       const todoData = {
-        title: newTodo.title.trim(),
-        description: newTodo.description.trim(),
-        priority: newTodo.priority,
-        isCompleted: false,
+        title: currentTodo.title.trim(),
+        description: currentTodo.description.trim(),
+        priority: currentTodo.priority,
+        isCompleted: selectedTodo?.completed || false, // 수정시 기존 완료 상태 유지
         todoListId: parseInt(todoListId),
-        startDate: newTodo.startDate,
-        dueDate: newTodo.dueDate,
-        createdAt: new Date().toISOString(),
+        startDate: currentTodo.startDate,
+        dueDate: currentTodo.dueDate,
+        createdAt: selectedTodo?.createdAt || new Date().toISOString(),
         modifyedAt: new Date().toISOString()
       };
 
-      const response = await fetch('http://localhost:8080/api/todo', {
-        method: 'POST',
+      // 수정인지 생성인지 구분
+      const isEdit = showEditForm && selectedTodo;
+      const url = isEdit 
+        ? `http://localhost:8080/api/todo/${selectedTodo.id}` 
+        : 'http://localhost:8080/api/todo';
+      const method = isEdit ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -411,120 +435,65 @@ export default function TodoListPage() {
       }
 
       const result = await response.json();
-      console.log('Create API Response:', result);
+      console.log('API Response:', result); // 디버깅용
       
+      // 다양한 성공 응답 형태 처리
       if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS' || response.ok) {
-        const newTodoItem: Todo = {
-          id: result.data?.id || result.id || Date.now(),
-          title: result.data?.title || todoData.title,
-          description: result.data?.description || todoData.description,
-          completed: result.data?.completed || result.data?.isCompleted || false,
-          priority: result.data?.priority || todoData.priority,
-          startDate: result.data?.startDate || todoData.startDate,
-          dueDate: result.data?.dueDate || todoData.dueDate,
-          todoList: result.data?.todoList || result.data?.todoListId || parseInt(todoListId),
-          createdAt: result.data?.createdAt || todoData.createdAt,
-          updatedAt: result.data?.updatedAt || result.data?.modifyedAt || todoData.modifyedAt
-        };
-        
-        setTodos(prev => [...prev, newTodoItem]);
-        setShowCreateForm(false);
-        setSelectedTodo(newTodoItem);
-        
-        console.log('✅ 할 일이 성공적으로 추가되었습니다!');
-        
-        await refreshTodoList();
-        
-      } else {
-        throw new Error(result.message || result.msg || 'Failed to create todo');
-      }
-    } catch (error) {
-      console.error('Failed to create todo:', error);
-      
-      let errorMessage = '할 일 생성에 실패했습니다.';
-      if (error instanceof Error) {
-        if (error.message.includes('Failed to fetch')) {
-          errorMessage = '서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.';
-        } else if (error.message.includes('400')) {
-          errorMessage = '입력 데이터에 문제가 있습니다. 다시 확인해주세요.';
-        } else if (error.message.includes('401')) {
-          errorMessage = '로그인이 필요합니다.';
-        } else if (error.message.includes('500')) {
-          errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
-        }
-      }
-      
-      alert(errorMessage);
-    }
-  };
-
-  // 수정 제출 핸들러
-  const handleSubmitEdit = async () => {
-    if (!validateForm(editTodo) || !selectedTodo) return;
-    
-    try {
-      const todoData = {
-        title: editTodo.title.trim(),
-        description: editTodo.description.trim(),
-        priority: editTodo.priority,
-        startDate: editTodo.startDate,
-        dueDate: editTodo.dueDate,
-        isCompleted: selectedTodo.completed, // 기존 완료 상태 유지
-        todoListId: parseInt(todoListId)
-      };
-
-      const response = await fetch(`http://localhost:8080/api/todo/${selectedTodo.id}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(todoData)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('Update API Response:', result);
-      
-      if (result.resultCode === 'S-1' || result.resultCode === 'SUCCESS' || response.ok) {
-        const updatedTodoData = result.data;
-        
-        // 업데이트된 TODO 정보
-        const updatedTodo: Todo = {
-          ...selectedTodo,
-          title: updatedTodoData?.title || editTodo.title,
-          description: updatedTodoData?.description || editTodo.description,
-          priority: updatedTodoData?.priority || editTodo.priority,
-          startDate: updatedTodoData?.startDate || editTodo.startDate,
-          dueDate: updatedTodoData?.dueDate || editTodo.dueDate,
-          updatedAt: updatedTodoData?.updatedAt || new Date().toISOString()
-        };
-        
-        // 상태 업데이트
-        setTodos(prev => 
-          prev.map(todo => 
+        if (isEdit) {
+          // 수정의 경우 - 기존 할 일 업데이트
+          const updatedTodo: Todo = {
+            ...selectedTodo,
+            title: result.data?.title || todoData.title,
+            description: result.data?.description || todoData.description,
+            priority: result.data?.priority || todoData.priority,
+            startDate: result.data?.startDate || todoData.startDate,
+            dueDate: result.data?.dueDate || todoData.dueDate,
+            updatedAt: result.data?.updatedAt || todoData.modifyedAt
+          };
+          
+          // 목록에서 해당 할 일 업데이트
+          setTodos(prev => prev.map(todo => 
             todo.id === selectedTodo.id ? updatedTodo : todo
-          )
-        );
+          ));
+          setSelectedTodo(updatedTodo);
+          setShowEditForm(false);
+          
+          console.log('✅ 할 일이 성공적으로 수정되었습니다!');
+        } else {
+          // 생성의 경우 - 새 할 일 추가
+          const newTodoItem: Todo = {
+            id: result.data?.id || result.id || Date.now(),
+            title: result.data?.title || todoData.title,
+            description: result.data?.description || todoData.description,
+            completed: result.data?.completed || result.data?.isCompleted || false,
+            priority: result.data?.priority || todoData.priority,
+            startDate: result.data?.startDate || todoData.startDate,
+            dueDate: result.data?.dueDate || todoData.dueDate,
+            todoList: result.data?.todoList || result.data?.todoListId || parseInt(todoListId),
+            createdAt: result.data?.createdAt || todoData.createdAt,
+            updatedAt: result.data?.updatedAt || result.data?.modifyedAt || todoData.modifyedAt
+          };
+          
+          // 성공 시 목록에 추가
+          setTodos(prev => [...prev, newTodoItem]);
+          setShowCreateForm(false);
+          setSelectedTodo(newTodoItem);
+          
+          console.log('✅ 할 일이 성공적으로 추가되었습니다!');
+        }
         
-        setSelectedTodo(updatedTodo);
-        setShowEditForm(false);
-        
-        console.log('✅ 할 일이 성공적으로 수정되었습니다!');
-        
-        // 목록 새로고침으로 서버 데이터와 동기화
+        // 목록 새로고침 (서버 데이터와 동기화)
         await refreshTodoList();
         
       } else {
-        throw new Error(result.message || result.msg || 'Failed to update todo');
+        throw new Error(result.message || result.msg || `Failed to ${isEdit ? 'update' : 'create'} todo`);
       }
     } catch (error) {
-      console.error('Failed to update todo:', error);
+      console.error(`Failed to ${showEditForm ? 'update' : 'create'} todo:`, error);
       
-      let errorMessage = '할 일 수정에 실패했습니다.';
+      // 더 구체적인 에러 메시지
+      const action = showEditForm ? '수정' : '생성';
+      let errorMessage = `할 일 ${action}에 실패했습니다.`;
       if (error instanceof Error) {
         if (error.message.includes('Failed to fetch')) {
           errorMessage = '서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.';
@@ -532,8 +501,6 @@ export default function TodoListPage() {
           errorMessage = '입력 데이터에 문제가 있습니다. 다시 확인해주세요.';
         } else if (error.message.includes('401')) {
           errorMessage = '로그인이 필요합니다.';
-        } else if (error.message.includes('404')) {
-          errorMessage = '해당 할 일을 찾을 수 없습니다.';
         } else if (error.message.includes('500')) {
           errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
         }
@@ -577,22 +544,16 @@ export default function TodoListPage() {
         }
         
         setTodos(result.data || []);
-        
-        // 선택된 투두가 있다면 업데이트된 데이터로 갱신
-        if (selectedTodo) {
-          const updatedSelectedTodo = result.data?.find((todo: Todo) => todo.id === selectedTodo.id);
-          if (updatedSelectedTodo) {
-            setSelectedTodo(updatedSelectedTodo);
-          }
-        }
       }
     } catch (err) {
       console.error('Failed to refresh todo list:', err);
+      // 새로고침 실패는 조용히 처리 (기존 데이터 유지)
     }
   };
 
   const handleCancelCreate = () => {
     setShowCreateForm(false);
+    setShowEditForm(false); // 수정 폼도 숨기기
     setNewTodo({
       title: '',
       description: '',
@@ -600,11 +561,6 @@ export default function TodoListPage() {
       startDate: '',
       dueDate: ''
     });
-    setFormErrors({});
-  };
-
-  const handleCancelEdit = () => {
-    setShowEditForm(false);
     setEditTodo({
       title: '',
       description: '',
@@ -690,71 +646,104 @@ export default function TodoListPage() {
 
   return (
     <TodoListTemplate>
+      {/* CSS 강제 오버라이드 - 적당한 크기로 조정 */}
+      <style jsx global>{`
+        .content {
+          max-width: none !important;
+          width: 100% !important;
+          align-items: stretch !important;
+          justify-content: flex-start !important;
+          text-align: left !important;
+          padding: 1rem !important;
+        }
+        .todo-list-template {
+          max-width: none !important;
+          width: 100% !important;
+        }
+        .main-container {
+          max-width: none !important;
+          width: 100% !important;
+        }
+      `}</style>
+      
+      {/* 전체 컨테이너 - 적당한 크기로 조정 */}
       <div style={{ 
-        display: 'flex', 
-        width: '100%', 
-        height: 'calc(100vh - 120px)',
-        margin: 0,
-        padding: 0,
-        overflow: 'hidden',
-        gap: '2rem'
+        width: '95%', // 100vw -> 95%로 줄임
+        maxWidth: '2000px', // 최대 너비 제한 추가
+        margin: '0 auto', // 가운데 정렬
+        padding: '0 2rem', // 좌우 패딩 추가
+        display: 'flex',
+        alignItems: 'stretch',
+        justifyContent: 'flex-start',
+        textAlign: 'left',
+        height: '100%'
       }}>
-        {/* 왼쪽: 투두리스트 + 투두목록 */}
         <div style={{ 
-          width: '50%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem'
+          display: 'flex', 
+          width: '100%', 
+          height: 'calc(100vh - 120px)',
+          margin: 0,
+          padding: 0,
+          overflow: 'hidden',
+          gap: '2rem'
         }}>
-          <TodoListInfoComponent 
-            todoListInfo={todoListInfo}
-            todoListId={todoListId}
-            todos={todos}
-          />
-          <TodoListItems 
-            todos={todos}
-            selectedTodo={selectedTodo}
-            onTodoClick={handleTodoClick}
-            onCheckboxChange={handleCheckboxChange}
-            onCreateTodo={handleCreateTodo}
-          />
-        </div>
-
-        {/* 오른쪽: 선택된 Todo 상세 정보, 수정 폼, 또는 새 TODO 생성 폼 */}
-        <div style={{ 
-          width: '50%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          {showEditForm && selectedTodo ? (
-            <TodoEditForm 
-              todo={selectedTodo}
-              editTodo={editTodo}
-              formErrors={formErrors}
-              onFormChange={handleFormChange}
-              onSubmit={handleSubmitEdit}
-              onCancel={handleCancelEdit}
+          {/* 왼쪽: 투두리스트 + 투두목록 - 20% 줄임 */}
+          <div style={{ 
+            width: '40%', // 50% -> 40%로 20% 줄임
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.5rem'
+          }}>
+            <TodoListInfoComponent 
+              todoListInfo={todoListInfo}
+              todoListId={todoListId}
+              todos={todos}
             />
-          ) : showCreateForm ? (
-            <TodoCreateForm 
-              newTodo={newTodo}
-              formErrors={formErrors}
-              onFormChange={handleFormChange}
-              onSubmit={handleSubmitTodo}
-              onCancel={handleCancelCreate}
-            />
-          ) : selectedTodo ? (
-            <TodoDetailView 
-              todo={selectedTodo}
+            <TodoListItems 
+              todos={todos}
+              selectedTodo={selectedTodo}
+              onTodoClick={handleTodoClick}
               onCheckboxChange={handleCheckboxChange}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
+              onCreateTodo={handleCreateTodo}
             />
-          ) : (
-            <TodoEmptyState />
-          )}
+          </div>
+
+          {/* 오른쪽: 선택된 Todo 상세 정보 또는 새 TODO 생성 폼 - 20% 줄임 */}
+          <div style={{ 
+            width: '40%', // 50% -> 40%로 20% 줄임
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {showCreateForm ? (
+              <TodoCreateForm 
+                newTodo={newTodo}
+                formErrors={formErrors}
+                onFormChange={handleFormChange}
+                onSubmit={handleSubmitTodo}
+                onCancel={handleCancelCreate}
+              />
+            ) : showEditForm && selectedTodo ? (
+              <TodoEditForm 
+                todo={selectedTodo}
+                editTodo={editTodo}
+                formErrors={formErrors}
+                onFormChange={handleFormChange}
+                onSubmit={handleSubmitTodo}
+                onCancel={handleCancelCreate}
+              />
+            ) : selectedTodo ? (
+              <TodoDetailView 
+                todo={selectedTodo}
+                onCheckboxChange={handleCheckboxChange}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ) : (
+              <TodoEmptyState />
+            )}
+          </div>
         </div>
       </div>
     </TodoListTemplate>

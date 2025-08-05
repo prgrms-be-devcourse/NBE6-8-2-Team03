@@ -1,3 +1,5 @@
+'use client'; // 이 줄을 파일 맨 위로 이동
+
 import React, { useState, useEffect } from 'react';
 
 interface Todo {
@@ -12,7 +14,6 @@ interface Todo {
   createdAt: string;
   updatedAt: string;
 }
-
 interface EditTodo {
   title: string;
   description: string;
