@@ -119,6 +119,16 @@ const CalendarPage: React.FC = () => {
     }
   };
 
+  // 우선순위를 숫자로 변환 (정렬용)
+  const getPriorityNumber = (priority: 'high' | 'medium' | 'low'): number => {
+    switch (priority) {
+      case 'high': return 1;
+      case 'medium': return 2;
+      case 'low': return 3;
+      default: return 2;
+    }
+  };
+
   // API 호출 함수들
   const fetchTodoLists = async (userId: number): Promise<TodoListResponseDto[]> => {
     try {
@@ -319,16 +329,30 @@ const CalendarPage: React.FC = () => {
     return isSameDay(date, today);
   };
 
-  // 특정 날짜의 할일 가져오기 (startDate 기준)
+  // 특정 날짜의 할일 가져오기 (startDate 기준) - 우선순위 순으로 정렬
   const getTodosForDate = (date: Date) => {
     const targetDateStr = formatDate(date);
     
     return todoLists.map(list => ({
       ...list,
-      todos: list.todos.filter(todo => {
-        const todoStartDate = formatDate(todo.startDate);
-        return todoStartDate === targetDateStr;
-      })
+      todos: list.todos
+        .filter(todo => {
+          const todoStartDate = formatDate(todo.startDate);
+          return todoStartDate === targetDateStr;
+        })
+        .sort((a, b) => {
+          // 우선순위 순으로 정렬 (높은 우선순위가 먼저)
+          const priorityDiff = getPriorityNumber(a.priority) - getPriorityNumber(b.priority);
+          if (priorityDiff !== 0) return priorityDiff;
+          
+          // 우선순위가 같으면 완료되지 않은 것이 먼저
+          if (a.completed !== b.completed) {
+            return a.completed ? 1 : -1;
+          }
+          
+          // 그 외에는 제목 알파벳 순
+          return a.title.localeCompare(b.title);
+        })
     })).filter(list => list.todos.length > 0);
   };
 
