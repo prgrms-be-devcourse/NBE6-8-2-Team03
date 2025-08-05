@@ -86,4 +86,14 @@ public class TodoService {
                 .map(TodoResponseDto::from)
                 .collect(Collectors.toList());
     }
+
+
+    public List<TodoResponseDto> getTodoByTodoListId(Integer id) {
+        List<Todo> todos = todoRepository.findAllByTodoListId(id);
+        return todos.stream()
+                .map(TodoResponseDto::from)
+                .collect(Collectors.toList());
+
+    }
+
 }

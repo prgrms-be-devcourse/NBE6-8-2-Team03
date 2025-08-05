@@ -24,6 +24,7 @@ public class TodoListResponseDto {
     private List<TodoResponseDto> todo;  // 투두 리스트 안에 포함된 투두들
 
     public static TodoListResponseDto from(TodoList todoList) {
+
         List<TodoResponseDto> todos = todoList.getTodo()
                 .stream()
                 .map(TodoResponseDto::from)
@@ -40,4 +41,5 @@ public class TodoListResponseDto {
                 todos
         );
     }
+
 }

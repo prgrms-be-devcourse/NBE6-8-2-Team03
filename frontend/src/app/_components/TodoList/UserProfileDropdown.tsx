@@ -16,6 +16,7 @@ interface UserProfileDropdownProps {
   userInfo?: UserInfo;
 }
 
+
 // 유저 프로필 버튼 컴포넌트 (드롭다운이 닫혀있을 때 사용)
 const UserProfileButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   return (

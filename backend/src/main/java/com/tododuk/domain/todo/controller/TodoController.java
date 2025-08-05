@@ -4,6 +4,10 @@ import com.tododuk.domain.todo.dto.TodoReqDto;
 import com.tododuk.domain.todo.dto.TodoResponseDto;
 import com.tododuk.domain.todo.entity.Todo;
 import com.tododuk.domain.todo.service.TodoService;
+import com.tododuk.domain.todoList.dto.TodoListResponseDto;
+import com.tododuk.domain.todoList.entity.TodoList;
+import com.tododuk.domain.todoList.service.TodoListService;
+
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.service.UserService;
 import com.tododuk.global.exception.ServiceException;
@@ -28,6 +32,7 @@ public class TodoController {
 
     private final TodoService todoService;
     private final UserService userService;
+  private final TodoListService todoListService;
 
     @GetMapping // 메인에서 todo버튼 클릭시 이동하는 처음 화면
     @Transactional
@@ -126,4 +131,20 @@ public class TodoController {
             throw new ServiceException("400-1", "todo가 존재하지 않습니다.");
         }
     }
+//충돌의 위험있으므로 주
+    @GetMapping("/list/{id}")
+    @Transactional
+    @Operation(summary = "리스트 기반 투두 조회")
+    public ResponseEntity<RsData<List<TodoResponseDto>>> getMyTodo(
+            @PathVariable Integer id
+    )
+    {
+        try {
+            List<TodoResponseDto> todos = todoService.getTodoByTodoListId(id);
+            return ResponseEntity.ok(RsData.success("리스트 기반 투두 조회 성공", todos));
+        } catch (Exception e) {
+            throw new ServiceException("400-1", "해당 리스트의 투두가 존재하지 않습니다.");
+        }
+    }
+
 }
