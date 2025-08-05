@@ -7,7 +7,6 @@ import java.util.List;
 
 public interface TodoRepository extends JpaRepository <Todo, Integer> {
     List<Todo> findAllByTodoListUserId(Integer userId);
-<<<<<<< HEAD
 
     List<Todo> findAllByTodoListId(Integer id);
 <<<<<<< HEAD
@@ -17,6 +16,7 @@ public interface TodoRepository extends JpaRepository <Todo, Integer> {
 }
 =======
 
+<<<<<<< HEAD
 =======
     
     // TodoList ID로 할일 목록 조회 (생성일 순으로 정렬)
@@ -24,3 +24,6 @@ public interface TodoRepository extends JpaRepository <Todo, Integer> {
 >>>>>>> ca82fbd (backup(fe): 팀 투두 서비스 철폐)
 }
 >>>>>>> 9b69a65 (backup(fe): 팀 투두 서비스 철폐)
+=======
+}
+>>>>>>> cad2c1e (fix(fe): 깃헙 리베이스 충돌 문제 해결)
