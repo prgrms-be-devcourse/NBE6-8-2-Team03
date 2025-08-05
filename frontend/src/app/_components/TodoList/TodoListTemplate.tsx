@@ -416,7 +416,7 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
     <div className="todo-app" onClick={handleOutsideClick}>
       {/* 헤더 */}
       <header className="header">
-        <Link href="/" className="logo" style={{ textDecoration: 'none', color: 'inherit' }}>
+        <Link href="/" className="logo" style={{ textDecoration: 'none', color: 'var(--text-primary)' }}>
           tododuk
         </Link>
         <div className="header-actions">
@@ -463,7 +463,7 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
               <Link 
                 href="/calendar"
                 className="nav-item"
-                style={{ textDecoration: 'none', color: 'inherit' }}
+                style={{ textDecoration: 'none', color: 'var(--text-primary)'}}
               >
                 <div className="item-left">
                   <span>📅</span>
@@ -579,7 +579,7 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
                     key={todo.id}
                     href={`/todoList/${todo.id}`}
                     className={`nav-item ${isCurrentPage(todo.id, false) ? 'active' : ''}`}
-                    style={{ textDecoration: 'none', color: 'inherit' }}
+                    style={{ textDecoration: 'none', color: 'var(--text-primary)' }}
                   >
                     <div className="item-left">
                       <span>{getTodoListIcon(todo.name, false)}</span>
@@ -640,9 +640,9 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
                     return (
                       <Link 
                         key={team.id}
-                        href={`/team/${team.id}`}
+                        href={`/teams/${team.id}`}
                         className={`project-item ${isTeamPage(team.id) ? 'active-project' : ''}`}
-                        style={{ textDecoration: 'none', color: 'inherit' }}
+                        style={{ textDecoration: 'none', color: 'var(--text-primary)' }}
                         title={`${team.teamName} - ${team.description || '설명 없음'}`}
                       >
                         <div className="project-info">

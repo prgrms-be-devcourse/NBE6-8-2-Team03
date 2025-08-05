@@ -24,12 +24,10 @@
   --text-secondary: #64748b;
   --text-light: #94a3b8;
   --text-white: #ffffff;
-
-
-
+  
   /* UI Element Colors */
   --count-bg: #f1f5f9;
-  --count-text: #64748b;
+  --count-text: #ffffff;
   --count-active-bg: #4f46e5;
   --count-active-text: #ffffff;
   
