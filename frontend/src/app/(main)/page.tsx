@@ -84,7 +84,7 @@ export default function MainPage() {
     setError(null);
     try {
       const res = await fetch('http://localhost:8080/api/todo-lists/me', {
-        credentials: 'include', // 쿠키 포함
+        credentials: 'include', // 쿠키
       });
 
       if (res.status === 401) {
