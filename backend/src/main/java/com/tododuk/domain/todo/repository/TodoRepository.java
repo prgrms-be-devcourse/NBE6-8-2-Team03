@@ -10,6 +10,7 @@ public interface TodoRepository extends JpaRepository <Todo, Integer> {
 
     List<Todo> findAllByTodoListId(Integer id);
 <<<<<<< HEAD
+<<<<<<< HEAD
     
     // 할일 목록 ID로 할일 조회
     List<Todo> findByTodoListId(Integer todoListId);
@@ -27,3 +28,9 @@ public interface TodoRepository extends JpaRepository <Todo, Integer> {
 =======
 }
 >>>>>>> cad2c1e (fix(fe): 깃헙 리베이스 충돌 문제 해결)
+=======
+    
+    // 할일 목록 ID로 할일 조회
+    List<Todo> findByTodoListId(Integer todoListId);
+}
+>>>>>>> 206ebe6 (fix(fe): 팀 상세 페이지 구현)
