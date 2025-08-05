@@ -40,8 +40,8 @@ public class TodoListController {
     @GetMapping("/{list_id}")
     @Transactional
     @Operation(summary = "개별 todoList 조회")
-    public ResponseEntity<RsData<TodoListResponseDto>> getTodoListById(@PathVariable Integer todoList_id){
-        TodoListResponseDto list = todoListService.getTodoList(todoList_id);
+    public ResponseEntity<RsData<TodoListResponseDto>> getTodoListById(@PathVariable Integer list_id){
+        TodoListResponseDto list = todoListService.getTodoList(list_id);
         return ResponseEntity.ok(RsData.success("todolist 조회 성공", list));
     }
 
