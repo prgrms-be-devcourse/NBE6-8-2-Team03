@@ -171,4 +171,112 @@ public class TeamController {
         User authenticatedUser = getAuthenticatedUser();
         return teamService.addTeamTodo(teamId, authenticatedUser.getId(), todoRequest);
     }
+
+    // 팀별 할일 목록 조회
+    @GetMapping("/{teamId}/todo-lists")
+    @Operation(summary = "팀 할일 목록 조회",
+            description = "지정된 팀의 할일 목록들을 조회합니다. (팀 멤버만 가능)")
+    public RsData<List<Map<String, Object>>> getTeamTodoLists(@PathVariable int teamId) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.getTeamTodoLists(teamId, authenticatedUser.getId());
+    }
+
+    // 팀 할일 목록 생성
+    @PostMapping("/{teamId}/todo-lists")
+    @Operation(summary = "팀 할일 목록 생성",
+            description = "지정된 팀에 새로운 할일 목록을 생성합니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> createTeamTodoList(
+            @PathVariable int teamId,
+            @RequestBody Map<String, Object> todoListRequest
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.createTeamTodoList(teamId, todoListRequest, authenticatedUser.getId());
+    }
+
+    // 팀 할일 목록 수정
+    @PutMapping("/{teamId}/todo-lists/{todoListId}")
+    @Operation(summary = "팀 할일 목록 수정",
+            description = "지정된 팀의 할일 목록을 수정합니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> updateTeamTodoList(
+            @PathVariable int teamId,
+            @PathVariable int todoListId,
+            @RequestBody Map<String, Object> todoListRequest
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.updateTeamTodoList(teamId, todoListId, todoListRequest, authenticatedUser.getId());
+    }
+
+    // 팀 할일 목록 삭제
+    @DeleteMapping("/{teamId}/todo-lists/{todoListId}")
+    @Operation(summary = "팀 할일 목록 삭제",
+            description = "지정된 팀의 할일 목록을 삭제합니다. (팀 멤버만 가능)")
+    public RsData<Void> deleteTeamTodoList(
+            @PathVariable int teamId,
+            @PathVariable int todoListId
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.deleteTeamTodoList(teamId, todoListId, authenticatedUser.getId());
+    }
+
+    // 팀 할일 목록별 할일 조회
+    @GetMapping("/{teamId}/todo-lists/{todoListId}/todos")
+    @Operation(summary = "팀 할일 목록별 할일 조회",
+            description = "지정된 팀의 특정 할일 목록에 속한 할일들을 조회합니다. (팀 멤버만 가능)")
+    public RsData<List<Map<String, Object>>> getTeamTodosByList(
+            @PathVariable int teamId,
+            @PathVariable int todoListId
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.getTeamTodosByList(teamId, todoListId, authenticatedUser.getId());
+    }
+
+    // 팀 할일 목록에 할일 추가
+    @PostMapping("/{teamId}/todo-lists/{todoListId}/todos")
+    @Operation(summary = "팀 할일 목록에 할일 추가",
+            description = "지정된 팀의 특정 할일 목록에 새로운 할일을 추가합니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> addTodoToTeamList(
+            @PathVariable int teamId,
+            @PathVariable int todoListId,
+            @RequestBody Map<String, Object> todoRequest
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.addTodoToTeamList(teamId, todoListId, todoRequest, authenticatedUser.getId());
+    }
+
+    // 팀 할일 수정
+    @PutMapping("/{teamId}/todos/{todoId}")
+    @Operation(summary = "팀 할일 수정",
+            description = "지정된 팀의 할일을 수정합니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> updateTeamTodo(
+            @PathVariable int teamId,
+            @PathVariable int todoId,
+            @RequestBody Map<String, Object> todoRequest
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.updateTeamTodo(teamId, todoId, todoRequest, authenticatedUser.getId());
+    }
+
+    // 팀 할일 삭제
+    @DeleteMapping("/{teamId}/todos/{todoId}")
+    @Operation(summary = "팀 할일 삭제",
+            description = "지정된 팀의 할일을 삭제합니다. (팀 멤버만 가능)")
+    public RsData<Void> deleteTeamTodo(
+            @PathVariable int teamId,
+            @PathVariable int todoId
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.deleteTeamTodo(teamId, todoId, authenticatedUser.getId());
+    }
+
+    // 팀 할일 완료 상태 토글
+    @PatchMapping("/{teamId}/todos/{todoId}/toggle")
+    @Operation(summary = "팀 할일 완료 상태 토글",
+            description = "지정된 팀의 할일 완료 상태를 토글합니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> toggleTeamTodoComplete(
+            @PathVariable int teamId,
+            @PathVariable int todoId
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.toggleTeamTodoComplete(teamId, todoId, authenticatedUser.getId());
+    }
 }
