@@ -42,13 +42,13 @@ public class Todo extends BaseEntity {
         this.dueDate = null; // 기본값은 null로 설정
     }
 
-    public Todo(String title, String description, int priority, boolean isCompleted, int todoListId){
+    public Todo(String title, String description, int priority, boolean isCompleted, int todoListId, LocalDateTime startDate, LocalDateTime dueDate){
         this.title = title;
         this.description = description;
         this.isCompleted = isCompleted;
         this.priority = priority;
-        this.startDate = LocalDateTime.now();
-        this.dueDate = null;
+        this.startDate = startDate;
+        this.dueDate = dueDate;
     }
 
     public void update(TodoReqDto dto){
