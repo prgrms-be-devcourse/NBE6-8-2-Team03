@@ -66,8 +66,6 @@ interface CurrentUser {
 
 const TeamsPage: React.FC = () => {
   const router = useRouter();
-  // const { showToast } = useToast();
-  // const { currentUser } = useAuth();
   
   // 임시 Toast 함수 (useCallback으로 감싸기)
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info') => {
@@ -93,110 +91,71 @@ const TeamsPage: React.FC = () => {
       console.log('사용자 정보 가져오기 실패, 기본값 사용');
     }
   };
-  
-  // 사용자 변경 함수
-  const changeUser = (userId: number, nickname: string) => {
-    setCurrentUser({ id: userId, nickname });
-    console.log('사용자 변경:', userId, nickname);
-  };
-  
+
+  // 상태 관리
   const [teams, setTeams] = useState<Team[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<SortType>('modified');
+  
+  // 검색 및 필터링 상태
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterBy, setFilterBy] = useState<FilterType>('all');
+  const [sortBy, setSortBy] = useState<SortType>('modified');
+  
+  // 모달 상태
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [newTeam, setNewTeam] = useState({
     teamName: '',
     description: ''
   });
-  const [createLoading, setCreateLoading] = useState(false);
-  // 선택된 팀 상태 추가
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [createLoading, setCreateLoading] = useState<boolean>(false);
 
-  // 백엔드 API 응답을 프론트엔드 형식으로 변환
-  const convertBackendTeamToFrontend = (backendTeam: TeamResponseDto): Team => {
-    return {
-      id: backendTeam.id,
-      teamName: backendTeam.teamName,
-      description: backendTeam.description || '',
-      createDate: backendTeam.createDate,
-      modifyDate: backendTeam.modifyDate,
-      isStarred: false, // 백엔드에서 즐겨찾기 기능이 없으므로 기본값
-      members: backendTeam.members,
-      todoStats: {
-        total: 0, // 백엔드에서 todo 통계가 없으므로 기본값
-        completed: 0,
-        overdue: 0
-      },
-      lastActivity: backendTeam.modifyDate // 최근 활동은 수정일로 대체
-    };
-  };
-
-  // 팀 목록 불러오기
+  // 팀 목록 가져오기
   const fetchTeams = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
     try {
-      setIsLoading(true);
-      setError(null);
-
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-
-      console.log('팀 목록 요청 전 쿠키:', document.cookie);
-      console.log('현재 URL:', window.location.href);
-      console.log('요청 URL:', 'http://localhost:8080/api/v1/teams/my');
-      console.log('요청 헤더:', headers);
-
       const response = await fetch('http://localhost:8080/api/v1/teams/my', {
         method: 'GET',
         credentials: 'include',
-        headers,
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
-      console.log('팀 목록 응답 상태:', response.status);
-      console.log('팀 목록 응답 헤더:', response.headers);
-
       if (!response.ok) {
-        // 401 에러인 경우 로그인 페이지로 리다이렉트
-        if (response.status === 401) {
-          console.log('인증 실패, 로그인 페이지로 리다이렉트');
-          console.log('현재 쿠키:', document.cookie);
-          const responseText = await response.text();
-          console.log('응답 본문:', responseText);
-          router.push('/login');
-          return;
-        }
-        // 403 에러인 경우 권한 없음
-        if (response.status === 403) {
-          showToast('팀 목록을 조회할 권한이 없습니다.', 'error');
-          return;
-        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result: ApiResponse<TeamResponseDto[]> = await response.json();
+      const result = await response.json();
       
-      if (result.resultCode === '200-OK') {
-        const convertedTeams = result.data.map(convertBackendTeamToFrontend);
-        setTeams(convertedTeams);
-        console.log('팀 목록 로드 성공:', convertedTeams.length, '개 팀');
+      if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS') {
+        const teamsData = result.data.map((team: TeamResponseDto) => ({
+          ...team,
+          isStarred: false, // 기본값
+          todoStats: {
+            total: 0,
+            completed: 0,
+            overdue: 0
+          },
+          lastActivity: team.modifyDate
+        }));
+        setTeams(teamsData);
       } else {
-        throw new Error(result.msg || '팀 목록을 불러오는데 실패했습니다.');
+        throw new Error(result.msg || 'Failed to fetch teams');
       }
-    } catch (err) {
-      console.error('팀 목록 불러오기 실패:', err);
-      const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
-      setError(errorMessage);
-      showToast(errorMessage, 'error');
+    } catch (error) {
+      console.error('팀 목록 가져오기 실패:', error);
+      setError('팀 목록을 가져오는데 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
-  }, [showToast, router]);
+  }, []);
 
   // 팀 생성
-  const handleCreateTeam = async (e: React.FormEvent) => {
+  const handleCreateTeam = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!newTeam.teamName.trim()) {
@@ -204,132 +163,118 @@ const TeamsPage: React.FC = () => {
       return;
     }
 
+    setCreateLoading(true);
+
     try {
-      setCreateLoading(true);
-
-      console.log('팀 생성 요청 전 쿠키:', document.cookie);
-      console.log('팀 생성 요청 데이터:', {
-        teamName: newTeam.teamName.trim(),
-        description: newTeam.description.trim() || null
-      });
-
       const response = await fetch('http://localhost:8080/api/v1/teams', {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          teamName: newTeam.teamName.trim(),
-          description: newTeam.description.trim() || null
+          teamName: newTeam.teamName,
+          description: newTeam.description
         })
       });
 
-      console.log('팀 생성 응답 상태:', response.status);
-
       if (!response.ok) {
-        // 401 에러인 경우 로그인 페이지로 리다이렉트
-        if (response.status === 401) {
-          console.log('인증 실패, 로그인 페이지로 리다이렉트');
-          console.log('현재 쿠키:', document.cookie);
-          const responseText = await response.text();
-          console.log('응답 본문:', responseText);
-          router.push('/login');
-          return;
-        }
-        // 403 에러인 경우 권한 없음
-        if (response.status === 403) {
-          showToast('팀을 생성할 권한이 없습니다.', 'error');
-          return;
-        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result: ApiResponse<TeamResponseDto> = await response.json();
-      
-      if (result.resultCode === '200-OK') {
-        showToast('팀이 성공적으로 생성되었습니다!', 'success');
-        setShowCreateModal(false);
+      const result = await response.json();
+
+      if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS') {
+        showToast('팀이 성공적으로 생성되었습니다.', 'success');
         setNewTeam({ teamName: '', description: '' });
+        setShowCreateModal(false);
         fetchTeams(); // 팀 목록 새로고침
       } else {
-        throw new Error(result.msg || '팀 생성에 실패했습니다.');
+        throw new Error(result.msg || 'Failed to create team');
       }
-    } catch (err) {
-      console.error('팀 생성 실패:', err);
-      const errorMessage = err instanceof Error ? err.message : '팀 생성에 실패했습니다.';
-      showToast(errorMessage, 'error');
+    } catch (error) {
+      console.error('팀 생성 실패:', error);
+      showToast('팀 생성에 실패했습니다.', 'error');
     } finally {
       setCreateLoading(false);
     }
-  };
+  }, [newTeam, showToast, fetchTeams]);
 
-  // 팀 즐겨찾기 토글 (백엔드에 즐겨찾기 API가 없으므로 프론트엔드에서만 처리)
-  const handleToggleStar = async (teamId: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
+  // 팀 클릭 핸들러 - 최신 정보 가져오기
+  const handleTeamClick = useCallback(async (team: Team) => {
     try {
-      const team = teams.find((t: Team) => t.id === teamId);
-      if (!team) return;
+      // 선택된 팀의 최신 정보 가져오기
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${team.id}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
 
-      // 프론트엔드에서만 즐겨찾기 상태 변경
-      setTeams((prev: Team[]) => prev.map((t: Team) => 
-        t.id === teamId ? { ...t, isStarred: !t.isStarred } : t
-      ));
-
-      showToast(
-        team.isStarred ? '즐겨찾기에서 제거되었습니다.' : '즐겨찾기에 추가되었습니다.',
-        'success'
-      );
-    } catch (err) {
-      console.error('즐겨찾기 토글 실패:', err);
-      showToast('즐겨찾기 설정에 실패했습니다.', 'error');
-    }
-  };
-
-  // 팀 클릭 핸들러 수정
-  const handleTeamClick = (team: Team) => {
-    setSelectedTeam(team);
-  };
-
-  // 팀 상세 페이지로 이동하는 함수
-  const handleGoToTeamDetail = (teamId: number) => {
-    router.push(`/teams/${teamId}`);
-  };
-
-  // 컴포넌트 마운트 시 사용자 정보 가져오기 및 팀 목록 불러오기
-  useEffect(() => {
-    getCurrentUser();
-    fetchTeams();
-  }, [fetchTeams]);
-
-  // 사용자 변경 시 팀 목록 새로고침
-  useEffect(() => {
-    fetchTeams();
-  }, [currentUser.id, fetchTeams]);
-
-  // 검색 및 필터링
-  const filteredAndSortedTeams = teams
-    .filter((team: Team) => {
-      // 검색 필터
-      const matchesSearch = team.teamName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        team.description.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      if (!matchesSearch) return false;
-
-      // 타입 필터
-      switch (filterBy) {
-        case 'leader':
-          return team.members.some((m: TeamMemberResponseDto) => m.userId === currentUser?.id && m.role === 'LEADER');
-        case 'member':
-          return team.members.some((m: TeamMemberResponseDto) => m.userId === currentUser?.id && m.role === 'MEMBER');
-        case 'starred':
-          return team.isStarred;
-        default:
-          return true;
+      if (!response.ok) {
+        throw new Error('팀 정보를 가져올 수 없습니다.');
       }
-    })
-    .sort((a: Team, b: Team) => {
+
+      const result = await response.json();
+      
+      if (result.resultCode === '200-OK') {
+        // 최신 팀 정보로 업데이트
+        const updatedTeam: Team = {
+          ...team,
+          teamName: result.data.teamName,
+          description: result.data.description,
+          members: result.data.members,
+          createDate: result.data.createDate,
+          modifyDate: result.data.modifyDate,
+          lastActivity: result.data.modifyDate
+        };
+        
+        setSelectedTeam(updatedTeam);
+        
+        // 팀 목록도 업데이트
+        setTeams(prev => prev.map(t => 
+          t.id === team.id ? updatedTeam : t
+        ));
+      } else {
+        throw new Error(result.msg || '팀 정보를 가져올 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('팀 정보 가져오기 실패:', error);
+      // 에러가 발생해도 기존 팀 정보로 선택
+      setSelectedTeam(team);
+    }
+  }, []);
+
+  // 팀 즐겨찾기 토글
+  const handleToggleStar = useCallback((teamId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTeams(prev => prev.map(team => 
+      team.id === teamId 
+        ? { ...team, isStarred: !team.isStarred }
+        : team
+    ));
+  }, []);
+
+  // 팀 상세 페이지로 이동
+  const handleGoToTeamDetail = useCallback((teamId: number) => {
+    router.push(`/teams/${teamId}`);
+  }, [router]);
+
+  // 검색된 팀 필터링
+  const filteredAndSortedTeams = useCallback(() => {
+    let filtered = teams.filter(team => {
+      const matchesSearch = team.teamName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           team.description.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesFilter = filterBy === 'all' || 
+                           (filterBy === 'leader' && team.members.some(m => m.role === 'LEADER' && m.userId === currentUser.id)) ||
+                           (filterBy === 'member' && team.members.some(m => m.userId === currentUser.id)) ||
+                           (filterBy === 'starred' && team.isStarred);
+      
+      return matchesSearch && matchesFilter;
+    });
+
+    // 정렬
+    filtered.sort((a, b) => {
       switch (sortBy) {
         case 'name':
           return a.teamName.localeCompare(b.teamName);
@@ -346,46 +291,66 @@ const TeamsPage: React.FC = () => {
       }
     });
 
-  // 사용자 역할 확인
-  const getUserRole = (team: Team): 'LEADER' | 'MEMBER' | null => {
-    const member = team.members.find((m: TeamMemberResponseDto) => m.userId === currentUser?.id);
-    return member?.role || null;
-  };
+    return filtered;
+  }, [teams, searchTerm, filterBy, sortBy, currentUser.id]);
 
   // 날짜 포맷팅
-  const formatDate = (dateString: string): string => {
+  const formatDate = useCallback((dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ko-KR', {
       year: 'numeric',
-      month: 'long',  
+      month: 'short',
       day: 'numeric'
     });
-  };
+  }, []);
 
-  const formatRelativeTime = (dateString: string): string => {
+  // 상대 시간 포맷팅
+  const formatRelativeTime = useCallback((dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
     
     if (diffInHours < 1) return '방금 전';
     if (diffInHours < 24) return `${diffInHours}시간 전`;
     
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays}일 전`;
-    
+
     return formatDate(dateString);
-  };
+  }, [formatDate]);
 
   // 검색어 초기화
-  const clearSearch = () => {
+  const clearSearch = useCallback(() => {
     setSearchTerm('');
-  };
+  }, []);
+
+  // 사용자 역할 가져오기
+  const getUserRole = useCallback((team: Team): 'LEADER' | 'MEMBER' | null => {
+    const member = team.members.find(m => m.userId === currentUser.id);
+    return member ? member.role : null;
+  }, [currentUser.id]);
+
+  useEffect(() => {
+    getCurrentUser();
+    fetchTeams();
+  }, [fetchTeams]);
+
+  // 페이지 포커스 시 팀 목록 새로고침
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchTeams();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchTeams]);
 
   return (
     <TodoListTemplate>
-      <div style={{ 
-        display: 'flex', 
-        width: '100%', 
+      <div style={{
+        display: 'flex',
+        width: '100%',
         height: 'calc(100vh - 120px)',
         gap: '2rem',
         paddingTop: '0',
@@ -393,7 +358,7 @@ const TeamsPage: React.FC = () => {
         overflow: 'hidden'
       }}>
         {/* 왼쪽: 팀 목록 - 정확히 50% */}
-        <div style={{ 
+        <div style={{
           width: '50%',
           minWidth: '50%',
           maxWidth: '50%',
@@ -414,10 +379,10 @@ const TeamsPage: React.FC = () => {
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <h1 style={{ 
-                  fontSize: '1.75rem', 
-                  fontWeight: '700', 
-                  color: 'var(--text-primary)', 
+                <h1 style={{
+                  fontSize: '1.75rem',
+                  fontWeight: '700',
+                  color: 'var(--text-primary)',
                   marginBottom: '0.5rem',
                   display: 'flex',
                   alignItems: 'center',
@@ -425,27 +390,32 @@ const TeamsPage: React.FC = () => {
                 }}>
                   👥 내 팀 목록
                   {teams.length > 0 && (
-                    <span style={{ 
-                      fontSize: '1.25rem', 
-                      color: 'var(--text-secondary)', 
-                      fontWeight: '400' 
+                    <span style={{
+                      fontSize: '1.25rem',
+                      color: 'var(--text-secondary)',
+                      fontWeight: '400'
                     }}>
                       ({teams.length})
                     </span>
                   )}
                 </h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>
-                  참여하고 있는 팀들을 관리하고 새로운 팀을 만들어보세요
+                <p style={{color: 'var(--text-secondary)', fontSize: '1rem' }}>
+                  팀을 관리하고 새로운 팀을 만들어보세요
                 </p>
               </div>
 
-              {/* 컨트롤 영역 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {/* 검색바 */}
-                <div style={{ position: 'relative' }}>
+              {/* 검색 및 필터 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1rem',
+                flexWrap: 'wrap'
+              }}>
+                {/* 검색 */}
+                <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
                   <input
                     type="text"
-                    placeholder="팀 이름 또는 설명 검색..."
+                    placeholder="팀 이름 또는 설명으로 검색..."
                     value={searchTerm}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                     style={{
@@ -486,54 +456,59 @@ const TeamsPage: React.FC = () => {
                         background: 'none',
                         border: 'none',
                         cursor: 'pointer',
-                        color: 'var(--text-light)',
-                        padding: '0.25rem'
+                        padding: '0.25rem',
+                        borderRadius: '4px',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--bg-main)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
                       }}
                     >
-                      <X style={{ width: '1rem', height: '1rem' }} />
+                      <X style={{ width: '1rem', height: '1rem', color: 'var(--text-light)' }} />
                     </button>
                   )}
                 </div>
 
-                {/* 필터 및 정렬 */}
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <select
-                    value={filterBy}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterBy(e.target.value as FilterType)}
-                    style={{
-                      padding: '0.75rem',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: '8px',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                      background: 'white'
-                    }}
-                  >
-                    <option value="all">전체</option>
-                    <option value="leader">내가 리더인 팀</option>
-                    <option value="member">내가 멤버인 팀</option>
-                    <option value="starred">즐겨찾기</option>
-                  </select>
+                {/* 필터 */}
+                <select
+                  value={filterBy}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterBy(e.target.value as FilterType)}
+                  style={{
+                    padding: '0.75rem',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    background: 'white'
+                  }}
+                >
+                  <option value="all">전체</option>
+                  <option value="leader">리더</option>
+                  <option value="member">멤버</option>
+                  <option value="starred">즐겨찾기</option>
+                </select>
 
-                  <select
-                    value={sortBy}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value as SortType)}
-                    style={{
-                      padding: '0.75rem',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: '8px',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                      background: 'white'
-                    }}
-                  >
-                    <option value="modified">최근 수정</option>
-                    <option value="created">생성일</option>
-                    <option value="name">이름순</option>
-                    <option value="members">멤버수</option>
-                    <option value="activity">최근 활동</option>
-                  </select>
-                </div>
+                <select
+                  value={sortBy}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value as SortType)}
+                  style={{
+                    padding: '0.75rem',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    background: 'white'
+                  }}
+                >
+                  <option value="modified">최근 수정</option>
+                  <option value="created">생성일</option>
+                  <option value="name">이름순</option>
+                  <option value="members">멤버수</option>
+                  <option value="activity">최근 활동</option>
+                </select>
 
                 {/* 팀 생성 버튼 */}
                 <button
@@ -570,12 +545,12 @@ const TeamsPage: React.FC = () => {
 
               {/* 검색 및 필터 결과 표시 */}
               {(searchTerm || filterBy !== 'all') && (
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '1rem', 
-                  fontSize: '0.875rem', 
-                  color: 'var(--text-secondary)' 
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  fontSize: '0.875rem',
+                  color: 'var(--text-secondary)'
                 }}>
                   {searchTerm && (
                     <span>"{searchTerm}"에 대한 검색 결과</span>
@@ -594,7 +569,7 @@ const TeamsPage: React.FC = () => {
                       {filterBy === 'starred' && '즐겨찾기'}
                     </span>
                   )}
-                  <span style={{ fontWeight: '600' }}>{filteredAndSortedTeams.length}개 팀</span>
+                  <span style={{ fontWeight: '600' }}>{filteredAndSortedTeams().length}개 팀</span>
                 </div>
               )}
             </div>
@@ -624,10 +599,10 @@ const TeamsPage: React.FC = () => {
             }}>
               🏢 팀 목록
             </h2>
-            
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
+
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
               gap: '0.75rem',
               flex: 1,
               overflowY: 'auto',
@@ -705,7 +680,7 @@ const TeamsPage: React.FC = () => {
               {/* 팀 목록 */}
               {!isLoading && !error && (
                 <>
-                  {filteredAndSortedTeams.length === 0 ? (
+                  {filteredAndSortedTeams().length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '2rem' }}>
                       <div style={{
                         background: 'var(--bg-white)',
@@ -769,12 +744,12 @@ const TeamsPage: React.FC = () => {
                       </div>
                     </div>
                   ) : (
-                    filteredAndSortedTeams.map((team: Team) => {
+                    filteredAndSortedTeams().map((team: Team) => {
                       const userRole = getUserRole(team);
-                      const completionRate = team.todoStats.total > 0 
+                      const completionRate = team.todoStats.total > 0
                         ? Math.round((team.todoStats.completed / team.todoStats.total) * 100)
                         : 0;
-                      
+
                       return (
                         <div
                           key={team.id}
@@ -784,8 +759,8 @@ const TeamsPage: React.FC = () => {
                             padding: '1rem',
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
-                            border: selectedTeam?.id === team.id 
-                              ? '2px solid var(--primary-color)' 
+                            border: selectedTeam?.id === team.id
+                              ? '2px solid var(--primary-color)'
                               : '1px solid var(--border-light)',
                             minHeight: '120px',
                             maxHeight: '120px',
@@ -856,7 +831,7 @@ const TeamsPage: React.FC = () => {
                                   </button>
                                 </div>
                               </div>
-                              
+
                               <p style={{
                                 color: 'var(--text-secondary)',
                                 fontSize: '0.875rem',
@@ -872,10 +847,10 @@ const TeamsPage: React.FC = () => {
                               }}>
                                 {team.description || '팀 설명이 없습니다.'}
                               </p>
-                              
-                              <div style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
+
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
                                 justifyContent: 'space-between',
                                 gap: '0.5rem'
                               }}>
@@ -922,7 +897,7 @@ const TeamsPage: React.FC = () => {
         </div>
 
         {/* 오른쪽: 선택된 팀 상세 정보 - 정확히 50% */}
-        <div style={{ 
+        <div style={{
           width: '50%',
           minWidth: '50%',
           maxWidth: '50%',
@@ -1000,9 +975,9 @@ const TeamsPage: React.FC = () => {
               </div>
 
               {/* 상세 내용 */}
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
                 gap: '1.5rem',
                 flex: 1,
                 overflowY: 'auto'
@@ -1018,10 +993,10 @@ const TeamsPage: React.FC = () => {
                   }}>
                     📊 팀 통계
                   </label>
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: '1fr 1fr', 
-                    gap: '1rem' 
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '1rem'
                   }}>
                     <div style={{
                       background: 'var(--bg-main)',
@@ -1065,9 +1040,9 @@ const TeamsPage: React.FC = () => {
                   }}>
                     👥 팀 멤버 ({selectedTeam.members.length}명)
                   </label>
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
                     gap: '0.5rem',
                     maxHeight: '200px',
                     overflowY: 'auto'
@@ -1127,17 +1102,17 @@ const TeamsPage: React.FC = () => {
                   }}>
                     📅 최근 활동
                   </label>
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: '1fr 1fr', 
-                    gap: '1rem' 
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '1rem'
                   }}>
                     <div>
                       <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
                         생성일
                       </div>
-                      <div style={{ 
-                        color: 'var(--text-primary)', 
+                      <div style={{
+                        color: 'var(--text-primary)',
                         fontSize: '0.9rem',
                         background: 'var(--bg-main)',
                         padding: '0.75rem',
@@ -1151,8 +1126,8 @@ const TeamsPage: React.FC = () => {
                       <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
                         최근 수정
                       </div>
-                      <div style={{ 
-                        color: 'var(--text-primary)', 
+                      <div style={{
+                        color: 'var(--text-primary)',
                         fontSize: '0.9rem',
                         background: 'var(--bg-main)',
                         padding: '0.75rem',
@@ -1180,9 +1155,9 @@ const TeamsPage: React.FC = () => {
             }}>
               <div style={{ textAlign: 'center', color: 'var(--text-light)' }}>
                 <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>👥</div>
-                <h3 style={{ 
-                  fontSize: '1.25rem', 
-                  fontWeight: '600', 
+                <h3 style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '600',
                   marginBottom: '0.5rem',
                   color: 'var(--text-secondary)'
                 }}>
@@ -1191,7 +1166,7 @@ const TeamsPage: React.FC = () => {
                 <p style={{ fontSize: '1rem' }}>
                   왼쪽에서 팀을 클릭하면 상세 정보가 표시됩니다.
                 </p>
-              </div>  
+              </div>
             </div>
           )}
         </div>

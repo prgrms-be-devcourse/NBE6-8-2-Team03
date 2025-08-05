@@ -7,6 +7,7 @@ import TodoListTemplate from '../../_components/TodoList/TodoListTemplate';
 interface TeamMemberResponseDto {
   id: number;
   userId: number;
+  userEmail: string; // 백엔드와 일치하도록 추가
   userNickname: string;
   teamId: number;
   role: 'LEADER' | 'MEMBER';
@@ -96,6 +97,7 @@ const TeamDetailPage: React.FC = () => {
 
   // 모달 내부 경고 메시지 상태
   const [modalError, setModalError] = useState<string | null>(null);
+  const [memberModalError, setMemberModalError] = useState<string | null>(null);
 
   const fetchTeamData = useCallback(async () => {
     try {
@@ -277,48 +279,36 @@ const TeamDetailPage: React.FC = () => {
 
   const handleInviteMember = async () => {
     if (!memberForm.email.trim()) {
-      showToast('이메일을 입력해주세요.', 'error');
+      setMemberModalError('이메일을 입력해주세요.');
       return;
     }
 
+    setMemberModalError(null); // 에러 메시지 초기화
     setActionLoading(prev => ({ ...prev, inviteMember: true }));
 
     try {
-      // 임시: 백엔드에 사용자 조회 API가 없으므로 테스트 데이터 사용
-      const testUserId = Date.now();
-      const testUserNickname = memberForm.email.split('@')[0];
-
-      // 2. 팀 멤버 추가
+      console.log('팀 멤버 초대 요청:', { teamId, email: memberForm.email, role: memberForm.role });
+      
+      // 이메일로 팀 멤버 추가
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/members`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          userId: testUserId,
+          email: memberForm.email,
           role: memberForm.role
         })
       });
 
-      if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error('팀 멤버를 추가할 권한이 없습니다.');
-        }
-        if (response.status === 404) {
-          throw new Error('팀을 찾을 수 없습니다.');
-        }
-        if (response.status === 409) {
-          throw new Error('이미 해당 팀의 멤버입니다.');
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       const result = await response.json();
+      console.log('백엔드 응답:', result);
 
       if (result.resultCode === '200-OK') {
         const newMember: TeamMemberResponseDto = {
           id: result.data.id,
-          userId: testUserId,
-          userNickname: testUserNickname,
+          userId: result.data.userId,
+          userEmail: result.data.userEmail,
+          userNickname: result.data.userNickname,
           teamId: teamId,
           role: memberForm.role,
           joinedAt: result.data.joinedAt,
@@ -334,11 +324,17 @@ const TeamDetailPage: React.FC = () => {
         setShowMemberModal(false);
         showToast('멤버가 성공적으로 초대되었습니다.', 'success');
       } else {
-        throw new Error(result.msg || '멤버 초대에 실패했습니다.');
+        // 백엔드에서 보낸 구체적인 에러 메시지 사용
+        console.log('백엔드 에러 코드:', result.resultCode);
+        console.log('백엔드 에러 메시지:', result.msg);
+        const errorMessage = result.msg || '멤버 초대에 실패했습니다.';
+        throw new Error(errorMessage);
       }
     } catch (err) {
       console.error('멤버 초대 실패:', err);
-      showToast(err instanceof Error ? err.message : '멤버 초대에 실패했습니다.', 'error');
+      const errorMessage = err instanceof Error ? err.message : '멤버 초대에 실패했습니다.';
+      setMemberModalError(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setActionLoading(prev => ({ ...prev, inviteMember: false }));
     }
@@ -753,6 +749,23 @@ const TeamDetailPage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 w-full max-w-md">
             <h3 className="text-2xl font-semibold mb-6">멤버 초대</h3>
+            
+            {/* 에러 메시지 표시 */}
+            {memberModalError && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700 font-medium">{memberModalError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">이메일</label>
@@ -778,7 +791,10 @@ const TeamDetailPage: React.FC = () => {
             </div>
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setShowMemberModal(false)}
+                onClick={() => {
+                  setShowMemberModal(false);
+                  setMemberModalError(null);
+                }}
                 className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 취소
