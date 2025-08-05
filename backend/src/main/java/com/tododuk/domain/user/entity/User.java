@@ -37,10 +37,10 @@ public class User extends BaseEntity {
     @Column(unique = true)
     private String apiKey;
 
-    @OneToMany
+    @OneToMany(mappedBy = "user")
     private List<TodoList> todoLists;
 
-    @OneToMany
+    @OneToMany(mappedBy = "user")
     private List<TeamMember> teamMember;
 
     @OneToMany
