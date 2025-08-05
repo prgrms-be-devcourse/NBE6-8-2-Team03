@@ -134,7 +134,11 @@ const TeamDetailPage: React.FC = () => {
     title: '', 
     description: '', 
     priority: 2,
+<<<<<<< HEAD
     assignedMemberId: null as number | null,
+=======
+    assignedMemberId: null,
+>>>>>>> 9b44c88 (feat(fe): 팀 상세페이지 투두 마감기한 설정 기능 추가)
     dueDate: ''
   });
   
@@ -1469,13 +1473,29 @@ const TeamDetailPage: React.FC = () => {
                               }}>
                                 {getPriorityString(todo.priority)}
                               </span>
-                              <span style={{
-                                fontSize: '0.75rem',
-                                color: 'var(--text-light)',
-                                fontWeight: '500'
-                              }}>
-                                📅 {formatDate(todo.createdAt)}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                {todo.assignedMemberId && (
+                                  <span style={{
+                                    fontSize: '0.75rem',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '12px',
+                                    fontWeight: '600',
+                                    background: '#e0f2fe',
+                                    color: '#0284c7'
+                                  }}>
+                                    👤 {team?.members.find(m => m.userId === todo.assignedMemberId)?.userNickname || '담당자'}
+                                  </span>
+                                )}
+                                {todo.dueDate && (
+                                  <span style={{
+                                    fontSize: '0.75rem',
+                                    color: 'var(--text-light)',
+                                    fontWeight: '500'
+                                  }}>
+                                    📅 {formatDate(todo.dueDate)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
