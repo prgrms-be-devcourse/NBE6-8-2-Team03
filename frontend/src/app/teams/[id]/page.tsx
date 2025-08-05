@@ -1707,6 +1707,7 @@ const TeamDetailPage: React.FC = () => {
                   }}>
                     목록 이름 *
                   </label>
+<<<<<<< HEAD
                   <input
                     type="text"
                     value={editingTodoList ? editingTodoList.name : newTodoList.name}
@@ -1727,6 +1728,20 @@ const TeamDetailPage: React.FC = () => {
                       fontSize: '0.95rem'
                     }}
                   />
+=======
+                  <select
+                    value={todoForm.assignedMemberId}
+                    onChange={(e) => setTodoForm(prev => ({ ...prev, assignedMemberId: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">담당자 선택 (필수)</option>
+                    {team?.members.map((member) => (
+                      <option key={member.id} value={member.userId.toString()}>
+                        {member.userNickname} ({member.role === 'LEADER' ? '리더' : '멤버'})
+                      </option>
+                    ))}
+                  </select>
+>>>>>>> d0cddd5 (팀 투두리스트, 팀 투두 엔티티 및 관련 서비스 만들어서 백업)
                 </div>
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{

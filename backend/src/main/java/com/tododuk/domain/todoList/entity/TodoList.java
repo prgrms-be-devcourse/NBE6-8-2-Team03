@@ -26,8 +26,6 @@ public class TodoList extends BaseEntity {
 
     private String name;
     private String description;
-    private Integer userId; // 사용자 ID
-    private Integer teamId; // 팀 ID (null이면 개인 할일 목록)
 
     @ManyToOne
     @JoinColumn(name = "user_id")
