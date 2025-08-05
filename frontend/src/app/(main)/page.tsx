@@ -108,9 +108,9 @@ export default function MainPage() {
   // 우선순위 관련 함수들 (캘린더 페이지와 동일)
   const getPriorityString = (priority: number): 'high' | 'medium' | 'low' => {
     switch (priority) {
-      case 1: return 'high';
+      case 1: return 'low';
       case 2: return 'medium';
-      case 3: return 'low';
+      case 3: return 'high';
       default: return 'medium';
     }
   };
@@ -325,16 +325,28 @@ export default function MainPage() {
     return isSameDay(date, today);
   };
 
-  // 특정 날짜의 할일 가져오기 (캘린더 페이지와 동일)
+  // 특정 날짜의 할일 가져오기 (시작일부터 마감일까지의 기간 포함)
   const getTodosForDate = (date: Date) => {
     const targetDateStr = formatDate(date);
+    const targetDate = new Date(date);
     
     return todoLists.map(list => ({
       ...list,
       todos: list.todos
         .filter(todo => {
-          const todoStartDate = formatDate(todo.startDate);
-          return todoStartDate === targetDateStr;
+          const startDate = new Date(todo.startDate);
+          startDate.setHours(0, 0, 0, 0);
+          
+          // dueDate가 있는 경우: 시작일부터 마감일까지의 기간에 포함되는지 확인
+          if (todo.dueDate) {
+            const dueDate = new Date(todo.dueDate);
+            dueDate.setHours(23, 59, 59, 999); // 마감일 끝까지 포함
+            
+            return targetDate >= startDate && targetDate <= dueDate;
+          } else {
+            // dueDate가 없는 경우: 시작일에만 표시
+            return formatDate(startDate) === targetDateStr;
+          }
         })
         .sort((a, b) => {
           const priorityDiff = getPriorityNumber(a.priority) - getPriorityNumber(b.priority);

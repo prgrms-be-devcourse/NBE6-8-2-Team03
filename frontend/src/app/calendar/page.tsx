@@ -102,9 +102,9 @@ const CalendarPage: React.FC = () => {
   // 우선순위를 문자열로 변환
   const getPriorityString = (priority: number): 'high' | 'medium' | 'low' => {
     switch (priority) {
-      case 1: return 'high';
+      case 1: return 'low';
       case 2: return 'medium';
-      case 3: return 'low';
+      case 3: return 'high';
       default: return 'medium';
     }
   };
