@@ -50,7 +50,7 @@ const TodoListInfoComponent: React.FC<TodoListInfoProps> = ({
         color: 'var(--text-primary)', 
         marginBottom: '0.5rem' 
       }}>
-        📋 {todoListInfo?.name || `TodoList ${todoListId}`}
+        📋 {todoListInfo?.title || `TodoList ${todoListId}`}
       </h1>
       <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '1rem' }}>
         {todoListInfo?.description || `TodoList ID ${todoListId}의 할일을 관리합니다.`}

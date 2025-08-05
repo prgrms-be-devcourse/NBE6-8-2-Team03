@@ -16,7 +16,14 @@ interface TodoListItem {
   modifyDate: string;
 }
 
-
+interface TeamResponseDto {
+  id: number;
+  teamName: string;
+  description: string;
+  createDate: string;
+  modifyDate: string;
+  members: any[];
+}
 
 interface ContentItem {
   title: string;
@@ -36,7 +43,9 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
 
   // 상태 관리
   const [todoLists, setTodoLists] = useState<TodoListItem[]>([]);
+  const [teams, setTeams] = useState<TeamResponseDto[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [teamsLoading, setTeamsLoading] = useState<boolean>(true);
   const [isCreatingPersonal, setIsCreatingPersonal] = useState<boolean>(false);
   const [isCreatingTeam, setIsCreatingTeam] = useState<boolean>(false);
   const [newTodoName, setNewTodoName] = useState<string>('');
@@ -160,6 +169,45 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
     }
   };
 
+  // 팀 목록 데이터 가져오기
+  const fetchTeams = async () => {
+    try {
+      setTeamsLoading(true);
+      console.log('팀 목록 API 호출 시작...');
+      
+      const response = await fetch('http://localhost:8080/api/v1/teams', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('팀 목록 API 응답 상태:', response.status);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('팀 목록 API 응답 데이터:', result);
+        
+        if (result.resultCode === '200-1' || result.resultCode === '200-OK') {
+          console.log('팀 목록 설정:', result.data);
+          setTeams(result.data || []);
+        } else {
+          console.warn('팀 목록 데이터 가져오기 실패:', result);
+          setTeams([]);
+        }
+      } else {
+        console.warn('팀 목록 API 응답 실패:', response.status, response.statusText);
+        setTeams([]);
+      }
+    } catch (error) {
+      console.error('팀 목록 가져오기 실패:', error);
+      setTeams([]);
+    } finally {
+      setTeamsLoading(false);
+    }
+  };
+
   // 읽지 않은 알림 개수 업데이트
   const updateUnreadCount = async () => {
     try {
@@ -255,11 +303,19 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
     const timer = setTimeout(() => {
       fetchCurrentUser();
       fetchTodoLists();
+      fetchTeams();
       updateUnreadCount();
     }, 1000);
 
     return () => clearTimeout(timer);
   }, []);
+
+  // 팀 데이터 디버깅용 useEffect
+  useEffect(() => {
+    console.log('Teams 상태 변경됨:', teams);
+    console.log('Teams 길이:', teams.length);
+    console.log('Teams 로딩 상태:', teamsLoading);
+  }, [teams, teamsLoading]);
 
   // 개인 투두리스트와 팀 투두리스트 분리
   const personalTodoLists = todoLists.filter(todo => todo.teamId === 1);
@@ -272,6 +328,11 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
     } else {
       return pathname === `/todoList/${todoId}`;
     }
+  };
+
+  // 현재 경로가 팀 관련 페이지인지 확인
+  const isTeamPage = (teamId: number) => {
+    return pathname === `/team/${teamId}`;
   };
 
   const toggleDropdown = (dropdownType: 'notification' | 'profile') => {
@@ -310,6 +371,16 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
       if (name.toLowerCase().includes('취미') || name.toLowerCase().includes('활동')) return '⚡';
       return '📝';
     }
+  };
+
+  // 팀 아이콘 선택 함수
+  const getTeamIcon = (teamName: string) => {
+    if (teamName.toLowerCase().includes('개발') || teamName.toLowerCase().includes('dev')) return '💻';
+    if (teamName.toLowerCase().includes('마케팅') || teamName.toLowerCase().includes('marketing')) return '📊';
+    if (teamName.toLowerCase().includes('디자인') || teamName.toLowerCase().includes('design')) return '🎨';
+    if (teamName.toLowerCase().includes('영업') || teamName.toLowerCase().includes('sales')) return '💼';
+    if (teamName.toLowerCase().includes('기획') || teamName.toLowerCase().includes('plan')) return '📋';
+    return '👥';
   };
 
   const getCurrentContent = (): ContentItem => {
@@ -525,124 +596,93 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
             </nav>
           </div>
 
-          {/* 팀 리스트 섹션 */}
+          {/* 팀 섹션 */}
           <div className="sidebar-section">
             <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>팀 리스트</span>
-              <button 
-                className="add-todo-btn"
-                onClick={() => setIsCreatingTeam(true)}
-                disabled={isCreatingPersonal || isCreatingTeam || !currentUser?.teamId || currentUser?.teamId === 1}
+              <span>팀 ({teams.length})</span>
+              <Link 
+                href="/teams"
                 style={{
                   background: 'transparent',
                   border: 'none',
                   color: '#64748b',
-                  cursor: (!currentUser?.teamId || currentUser?.teamId === 1) ? 'not-allowed' : 'pointer',
-                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
                   padding: '0.25rem',
                   borderRadius: '4px',
                   transition: 'all 0.15s ease',
-                  opacity: (isCreatingPersonal || isCreatingTeam || !currentUser?.teamId || currentUser?.teamId === 1) ? 0.5 : 1
+                  textDecoration: 'none'
                 }}
                 onMouseEnter={(e) => {
-                  if (!isCreatingPersonal && !isCreatingTeam && currentUser?.teamId && currentUser?.teamId !== 1) {
-                    e.currentTarget.style.background = '#f1f5f9';
-                    e.currentTarget.style.color = '#1e293b';
-                  }
+                  e.currentTarget.style.background = '#f1f5f9';
+                  e.currentTarget.style.color = '#1e293b';
                 }}
                 onMouseLeave={(e) => {
-                  if (!isCreatingPersonal && !isCreatingTeam && currentUser?.teamId && currentUser?.teamId !== 1) {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = '#64748b';
-                  }
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#64748b';
                 }}
-                title={(!currentUser?.teamId || currentUser?.teamId === 1) ? "팀에 속해있지 않습니다" : "새 팀 투두리스트 추가"}
+                title="팀 목록 보기"
               >
-                +
-              </button>
+                전체보기
+              </Link>
             </div>
             <div className="sidebar-nav">
-              {/* 새 팀 투두리스트 생성 입력 */}
-              {isCreatingTeam && (
-                <div style={{ 
-                  padding: '0.75rem 1.5rem',
-                  borderBottom: '1px solid #e2e8f0',
-                  marginBottom: '0.5rem'
-                }}>
-                  <input
-                    type="text"
-                    value={newTodoName}
-                    onChange={(e) => setNewTodoName(e.target.value)}
-                    onKeyDown={(e) => handleKeyPress(e, false)}
-                    placeholder="팀 투두리스트 이름 입력"
-                    autoFocus
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '4px',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                      marginBottom: '0.5rem'
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                    <button
-                      onClick={() => createTodoList(false)}
-                      disabled={!newTodoName.trim()}
-                      style={{
-                        padding: '0.25rem 0.75rem',
-                        fontSize: '0.8rem',
-                        background: '#4f46e5',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: newTodoName.trim() ? 'pointer' : 'not-allowed',
-                        opacity: newTodoName.trim() ? 1 : 0.5
-                      }}
-                    >
-                      생성
-                    </button>
-                    <button
-                      onClick={cancelCreate}
-                      style={{
-                        padding: '0.25rem 0.75rem',
-                        fontSize: '0.8rem',
-                        background: '#64748b',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      취소
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {loading ? (
+              {console.log('렌더링 시점 - teams:', teams, 'teamsLoading:', teamsLoading)}
+              {teamsLoading ? (
                 <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
-                  로딩 중...
+                  팀 목록 로딩 중...
                 </div>
-              ) : teamTodoLists.length > 0 ? (
-                teamTodoLists.map((todo) => (
-                  <Link 
-                    key={todo.id}
-                    href={`/TeamTodoList/${todo.id}`}
-                    className={`project-item ${isCurrentPage(todo.id, true) ? 'active-project' : ''}`}
-                    style={{ textDecoration: 'none', color: 'inherit' }}
-                  >
-                    <div className="project-info">
-                      <span className="project-icon">{getTodoListIcon(todo.name, true)}</span>
-                      <span className="project-name">{todo.name}</span>
-                    </div>
-                    <span className="project-count">-</span>
-                  </Link>
-                ))
+              ) : teams && teams.length > 0 ? (
+                <>
+                  {console.log('팀 목록 렌더링:', teams)}
+                  {teams.slice(0, 5).map((team) => {
+                    console.log('개별 팀 렌더링:', team);
+                    return (
+                      <Link 
+                        key={team.id}
+                        href={`/team/${team.id}`}
+                        className={`project-item ${isTeamPage(team.id) ? 'active-project' : ''}`}
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                        title={`${team.teamName} - ${team.description || '설명 없음'}`}
+                      >
+                        <div className="project-info">
+                          <span className="project-icon">{getTeamIcon(team.teamName)}</span>
+                          <span className="project-name">{team.teamName}</span>
+                        </div>
+                        <span className="project-count">{team.members ? team.members.length : 0}</span>
+                      </Link>
+                    );
+                  })}
+                  
+                  {teams.length > 5 && (
+                    <Link 
+                      href="/teams"
+                      className="nav-item"
+                      style={{ 
+                        textDecoration: 'none', 
+                        color: 'inherit',
+                        fontStyle: 'italic',
+                        opacity: 0.8
+                      }}
+                    >
+                      <div className="item-left">
+                        <span>➕</span>
+                        <span>더 많은 팀 보기 (+{teams.length - 5})</span>
+                      </div>
+                    </Link>
+                  )}
+                </>
               ) : (
                 <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
-                  팀 투두리스트가 없습니다
+                  소속된 팀이 없습니다
+                  <br />
+                  <small style={{ fontSize: '0.8rem', opacity: 0.7 }}>
+                    (디버그: teams = {JSON.stringify(teams)})
+                  </small>
+                  <br />
+                  <small style={{ fontSize: '0.8rem', opacity: 0.7 }}>
+                    (디버그: teamsLoading = {String(teamsLoading)})
+                  </small>
                 </div>
               )}
             </div>
