@@ -63,51 +63,7 @@ interface ApiResponse<T> {
 const TeamDetailPage: React.FC = () => {
   const router = useRouter();
   const params = useParams();
-<<<<<<< HEAD
   const teamId = parseInt(params.id as string);
-=======
-  const teamId = Number(params.id);
-
-  const [team, setTeam] = useState<TeamResponseDto | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [todos, setTodos] = useState<any[]>([]);
-
-  // 모달 상태
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showMemberModal, setShowMemberModal] = useState(false);
-  const [showTodoModal, setShowTodoModal] = useState(false);
-  const [showTodoListModal, setShowTodoListModal] = useState(false);
-
-  // 할일 목록 상태
-  const [todoLists, setTodoLists] = useState<any[]>([]);
-  const [selectedTodoList, setSelectedTodoList] = useState<any>(null);
-
-  // 폼 상태
-  const [editForm, setEditForm] = useState({
-    teamName: '',
-    description: ''
-  });
-
-  const [memberForm, setMemberForm] = useState({
-    email: '',
-    role: 'MEMBER' as 'LEADER' | 'MEMBER'
-  });
-
-  const [todoForm, setTodoForm] = useState({
-    title: '',
-    description: '',
-    dueDate: '',
-    assignedMemberId: ''
-  });
-
-  // 로딩 상태
-  const [actionLoading, setActionLoading] = useState({
-    editTeam: false,
-    inviteMember: false,
-    addTodo: false
-  });
->>>>>>> 9b69a65 (backup(fe): 팀 투두 서비스 철폐)
 
   // 임시 Toast 함수
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -134,7 +90,7 @@ const TeamDetailPage: React.FC = () => {
     title: '', 
     description: '', 
     priority: 2,
-    assignedMemberId: null,
+    assignedMemberId: null as number | null,
     dueDate: ''
   });
   
@@ -231,69 +187,6 @@ const TeamDetailPage: React.FC = () => {
       console.error('할일 가져오기 실패:', error);
       setError('할일을 가져오는데 실패했습니다.');
     }
-<<<<<<< HEAD
-=======
-  }, [teamId]);
-
-  const fetchTodoLists = useCallback(async () => {
-    try {
-      // 팀 도메인의 할일 목록 API 사용 (임시로 하드코딩된 데이터 사용)
-      const mockTodoLists = [
-        {
-          id: 1,
-          name: "프론트엔드 개발팀 할일 목록",
-          description: "팀원들과 함께 관리하는 할일들",
-          todos: [
-            {
-              id: 1,
-              title: "프론트엔드 컴포넌트 개발",
-              description: "React 컴포넌트 라이브러리 구축",
-              isCompleted: false,
-              priority: 3,
-              dueDate: "2025-08-25T18:00:00",
-              assignedMemberId: 1,
-              type: "team"
-            },
-            {
-              id: 2,
-              title: "UI/UX 디자인 검토",
-              description: "새로운 디자인 시스템 검토 및 피드백",
-              isCompleted: false,
-              priority: 2,
-              dueDate: "2025-08-22T18:00:00",
-              assignedMemberId: 2,
-              type: "team"
-            }
-          ]
-        }
-      ];
-      
-      setTodoLists(mockTodoLists);
-    } catch (err) {
-      console.error('할일 목록 가져오기 실패:', err);
-      setTodoLists([]);
-    }
-  }, [teamId]);
-
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([
-        fetchTeamData(),
-        fetchTodos(),
-        fetchTodoLists()
-      ]);
-      setLoading(false);
-    };
-
-    if (teamId) {
-      loadData();
-    }
-  }, [teamId, fetchTeamData, fetchTodos, fetchTodoLists]);
-
-  const handleGoBack = () => {
-    router.push('/teams');
->>>>>>> 9b69a65 (backup(fe): 팀 투두 서비스 철폐)
   };
 
   // 할일 목록 생성
@@ -377,37 +270,9 @@ const TeamDetailPage: React.FC = () => {
     }
   };
 
-<<<<<<< HEAD
   // 할일 목록 삭제
   const handleDeleteTodoList = async (todoListId: number) => {
     if (!confirm('정말로 이 할일 목록을 삭제하시겠습니까?')) {
-=======
-  const handleSelectTodoList = (todoList: any) => {
-    setSelectedTodoList(todoList);
-  };
-
-  const handleEditTodoList = (todoList: any) => {
-    // TODO: 할일 목록 수정 기능 구현
-    console.log('할일 목록 수정:', todoList);
-  };
-
-  const handleDeleteTodoList = (todoListId: number) => {
-    // TODO: 할일 목록 삭제 기능 구현
-    console.log('할일 목록 삭제:', todoListId);
-  };
-
-  const handleAddTodo = async () => {
-    console.log('할일 추가 시작');
-    console.log('teamId:', teamId);
-    console.log('todoForm:', todoForm);
-    
-    // 모달 내부 경고 메시지 초기화
-    setModalError(null);
-    
-    if (!todoForm.title.trim()) {
-      console.log('제목이 비어있음');
-      setModalError('할일 제목을 입력해주세요.');
->>>>>>> 9b69a65 (backup(fe): 팀 투두 서비스 철폐)
       return;
     }
 
@@ -456,7 +321,10 @@ const TeamDetailPage: React.FC = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(newTodo)
+        body: JSON.stringify({
+          ...newTodo,
+          dueDate: newTodo.dueDate ? new Date(newTodo.dueDate).toISOString() : null
+        })
       });
 
       if (!response.ok) {
@@ -797,7 +665,6 @@ const TeamDetailPage: React.FC = () => {
 
   return (
     <TodoListTemplate>
-<<<<<<< HEAD
       <div style={{ 
         display: 'flex', 
         width: '100%', 
@@ -958,57 +825,6 @@ const TeamDetailPage: React.FC = () => {
                         color: 'var(--text-secondary)'
                       }}>
                         {member.userEmail}
-=======
-      <div className="flex h-full">
-        {/* 왼쪽 패널 - 팀 정보 및 멤버 */}
-        <div className="w-1/3 p-8 border-r border-gray-200 overflow-y-auto">
-          {/* 팀 헤더 */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{team.teamName}</h1>
-                <p className="text-lg text-gray-600">{team.description}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setEditForm({ teamName: team.teamName, description: team.description });
-                    setShowEditModal(true);
-                  }}
-                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                >
-                  팀 수정
-                </button>
-                <button
-                  onClick={() => setShowMemberModal(true)}
-                  className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-                >
-                  멤버 초대
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4 text-sm text-gray-500">
-              <span>생성일: {formatDate(team.createDate)}</span>
-              <span>멤버: {team.members.length}명</span>
-            </div>
-          </div>
-
-          {/* 멤버 목록 */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">팀 멤버</h2>
-            <div className="space-y-3">
-              {team.members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                      {member.userNickname.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-sm">{member.userNickname}</div>
-                      <div className="text-xs text-gray-500">
-                        {member.role === 'LEADER' ? '리더' : '멤버'} • {formatDate(member.joinedAt)} 가입
->>>>>>> 9b69a65 (backup(fe): 팀 투두 서비스 철폐)
                       </div>
                     </div>
                     {member.role === 'LEADER' && (
@@ -1042,7 +858,6 @@ const TeamDetailPage: React.FC = () => {
           </div>
         </div>
 
-<<<<<<< HEAD
         {/* 중간: TodoList 목록들 */}
         <div style={{ 
           width: '37.5%',
@@ -1466,29 +1281,13 @@ const TeamDetailPage: React.FC = () => {
                               }}>
                                 {getPriorityString(todo.priority)}
                               </span>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                {todo.assignedMemberId && (
-                                  <span style={{
-                                    fontSize: '0.75rem',
-                                    padding: '0.25rem 0.5rem',
-                                    borderRadius: '12px',
-                                    fontWeight: '600',
-                                    background: '#e0f2fe',
-                                    color: '#0284c7'
-                                  }}>
-                                    👤 {team?.members.find(m => m.userId === todo.assignedMemberId)?.userNickname || '담당자'}
-                                  </span>
-                                )}
-                                {todo.dueDate && (
-                                  <span style={{
-                                    fontSize: '0.75rem',
-                                    color: 'var(--text-light)',
-                                    fontWeight: '500'
-                                  }}>
-                                    📅 {formatDate(todo.dueDate)}
-                                  </span>
-                                )}
-                              </div>
+                              <span style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--text-light)',
+                                fontWeight: '500'
+                              }}>
+                                📅 {formatDate(todo.createdAt)}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -1731,150 +1530,6 @@ const TeamDetailPage: React.FC = () => {
                       color: selectedTodo.completed ? '#16a34a' : '#eab308'
                     }}>
                       {selectedTodo.completed ? '✅ 완료' : '⏳ 진행중'}
-=======
-        {/* 중앙 패널 - 할일 목록 관리 */}
-        <div className="w-1/3 p-8 border-r border-gray-200 overflow-y-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900">
-                할일 목록 관리
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                팀의 할일 목록들을 관리합니다.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowTodoListModal(true)}
-              className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              목록 추가
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {todoLists.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-gray-500 text-sm mb-2">아직 할일 목록이 없습니다.</div>
-                <p className="text-gray-400 text-xs">목록 추가 버튼을 눌러서 첫 번째 할일 목록을 만들어보세요!</p>
-              </div>
-            ) : (
-              todoLists.map((todoList) => (
-                <div key={todoList.id} className="p-4 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-gray-900">{todoList.name}</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">
-                        {todoList.todos?.length || 0}개 할일
-                      </span>
-                      <button
-                        onClick={() => handleSelectTodoList(todoList)}
-                        className="px-2 py-1 bg-blue-100 text-blue-600 rounded text-xs hover:bg-blue-200"
-                      >
-                        선택
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-3">{todoList.description}</p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleEditTodoList(todoList)}
-                      className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"
-                    >
-                      수정
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTodoList(todoList.id)}
-                      className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs hover:bg-red-200"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* 오른쪽 패널 - 선택된 할일 목록의 할일들 */}
-        <div className="w-1/3 p-8 overflow-y-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900">
-                {selectedTodoList ? selectedTodoList.name : '할일 목록 선택'}
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {selectedTodoList ? `${selectedTodoList.todos?.length || 0}개의 할일이 있습니다.` : '왼쪽에서 할일 목록을 선택해주세요.'}
-              </p>
-            </div>
-            {selectedTodoList && (
-              <button
-                onClick={() => setShowTodoModal(true)}
-                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                할일 추가
-              </button>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            {!selectedTodoList ? (
-              <div className="text-center py-8">
-                <div className="text-gray-500 text-sm mb-2">할일 목록을 선택해주세요</div>
-                <p className="text-gray-400 text-xs">중앙 패널에서 할일 목록을 선택하면 할일들을 볼 수 있습니다.</p>
-              </div>
-            ) : selectedTodoList.todos?.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-gray-500 text-sm mb-2">아직 할일이 없습니다.</div>
-                <p className="text-gray-400 text-xs">할일 추가 버튼을 눌러서 첫 번째 할일을 만들어보세요!</p>
-              </div>
-            ) : (
-                             selectedTodoList.todos?.map((todo: any) => (
-                <div key={todo.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={todo.isCompleted}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                      readOnly
-                    />
-                    <div>
-                      <div className={`font-semibold text-sm ${todo.isCompleted ? 'line-through text-gray-500' : ''}`}>
-                        {todo.title}
-                      </div>
-                      {todo.description && (
-                        <div className="text-xs text-gray-500 mt-1">{todo.description}</div>
-                      )}
-                      {todo.dueDate && (
-                        <div className="text-xs text-gray-400 mt-1">
-                          마감일: {formatDate(todo.dueDate)}
-                        </div>
-                      )}
-                      {todo.assignedMemberId && (
-                        <div className="text-xs text-blue-600 mt-1">
-                          담당: {team?.members.find(m => m.userId === todo.assignedMemberId)?.userNickname || '알 수 없음'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className={`px-1 py-0.5 text-xs rounded-full ${
-                      todo.priority === 1 ? 'bg-red-100 text-red-800' :
-                      todo.priority === 2 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
-                      {todo.priority === 1 ? '높음' : todo.priority === 2 ? '보통' : '낮음'}
-                    </span>
-                    <span className={`px-1 py-0.5 text-xs rounded-full ${
-                      todo.type === 'personal' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {todo.type === 'personal' ? '개인' : '팀'}
->>>>>>> 9b69a65 (backup(fe): 팀 투두 서비스 철폐)
                     </span>
                   </div>
                 </div>
@@ -2052,7 +1707,6 @@ const TeamDetailPage: React.FC = () => {
                   }}>
                     목록 이름 *
                   </label>
-<<<<<<< HEAD
                   <input
                     type="text"
                     value={editingTodoList ? editingTodoList.name : newTodoList.name}
@@ -2073,20 +1727,6 @@ const TeamDetailPage: React.FC = () => {
                       fontSize: '0.95rem'
                     }}
                   />
-=======
-                  <select
-                    value={todoForm.assignedMemberId}
-                    onChange={(e) => setTodoForm(prev => ({ ...prev, assignedMemberId: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">담당자 선택 (필수)</option>
-                    {team?.members.map((member) => (
-                      <option key={member.id} value={member.userId.toString()}>
-                        {member.userNickname} ({member.role === 'LEADER' ? '리더' : '멤버'})
-                      </option>
-                    ))}
-                  </select>
->>>>>>> d0cddd5 (팀 투두리스트, 팀 투두 엔티티 및 관련 서비스 만들어서 백업)
                 </div>
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{
