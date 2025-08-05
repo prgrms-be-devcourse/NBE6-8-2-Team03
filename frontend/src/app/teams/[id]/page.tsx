@@ -85,6 +85,8 @@ const TeamDetailPage: React.FC = () => {
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [newTodoList, setNewTodoList] = useState({ name: '', description: '' });
   const [newTodo, setNewTodo] = useState({ title: '', description: '', priority: 2 });
+  
+
 
   // 사용자 정보 가져오기
   const getCurrentUser = async () => {
@@ -762,19 +764,7 @@ const TeamDetailPage: React.FC = () => {
               }}>
                 📋 할일목록 {todoLists.length}개
               </span>
-              {selectedTodoList && (
-                <span style={{
-                  background: '#fefce8',
-                  color: '#eab308',
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: '8px',
-                  fontSize: '0.875rem',
-                  fontWeight: '600',
-                  textAlign: 'center'
-                }}>
-                  📝 할일 {todos.length}개
-                </span>
-              )}
+              
             </div>
 
             {/* 팀 멤버 목록 */}
@@ -880,16 +870,16 @@ const TeamDetailPage: React.FC = () => {
               justifyContent: 'space-between',
               marginBottom: '1rem'
             }}>
-              <h2 style={{
-                fontSize: '1.25rem',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
-                📋 할일 목록
-              </h2>
+                               <h2 style={{
+                   fontSize: '1.25rem',
+                   fontWeight: '600',
+                   color: 'var(--text-primary)',
+                   display: 'flex',
+                   alignItems: 'center',
+                   gap: '0.5rem'
+                 }}>
+                   📋 할일 목록 (TodoList)
+                 </h2>
               <button
                 onClick={() => {
                   setEditingTodoList(null);
@@ -927,8 +917,8 @@ const TeamDetailPage: React.FC = () => {
                 borderRadius: '8px'
               }}>
                 <div style={{ fontSize: '3rem' }}>📋</div>
-                <p style={{ fontSize: '1.1rem' }}>등록된 할일 목록이 없습니다.</p>
-                <p style={{ fontSize: '0.9rem', textAlign: 'center' }}>새로운 할일 목록을 만들어보세요!</p>
+                                   <p style={{ fontSize: '1.1rem' }}>등록된 할일 목록 (TodoList)이 없습니다.</p>
+                   <p style={{ fontSize: '0.9rem', textAlign: 'center' }}>새로운 할일 목록 (TodoList)을 만들어보세요!</p>
               </div>
             ) : (
               <div style={{ 
@@ -1032,13 +1022,13 @@ const TeamDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 오른쪽: 선택된 TodoList의 할일들 또는 할일 상세 */}
-        <div style={{ 
-          width: '37.5%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
+                 {/* 오른쪽: 선택된 TodoList의 할일들 */}
+         <div style={{ 
+           width: '37.5%',
+           height: '100%',
+           display: 'flex',
+           flexDirection: 'column'
+         }}>
           {!selectedTodoList ? (
             // TodoList가 선택되지 않았을 때
             <div style={{
@@ -1054,21 +1044,316 @@ const TeamDetailPage: React.FC = () => {
             }}>
               <div style={{ textAlign: 'center', color: 'var(--text-light)' }}>
                 <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>📋</div>
-                <h3 style={{ 
-                  fontSize: '1.25rem', 
-                  fontWeight: '600', 
-                  marginBottom: '0.5rem',
-                  color: 'var(--text-secondary)'
-                }}>
-                  할일 목록을 선택해주세요
-                </h3>
-                <p style={{ fontSize: '1rem' }}>
-                  중간에서 할일 목록을 선택하면<br />할일들을 관리할 수 있습니다.
-                </p>
+                                 <h3 style={{ 
+                   fontSize: '1.25rem', 
+                   fontWeight: '600', 
+                   marginBottom: '0.5rem',
+                   color: 'var(--text-secondary)'
+                 }}>
+                   할일 목록 (TodoList)을 선택해주세요
+                 </h3>
+                                   <p style={{ fontSize: '1rem' }}>
+                     중간에서 할일 목록 (TodoList)을 선택하면<br />할일 (Todo)들을 관리할 수 있습니다.
+                   </p>
               </div>  
             </div>
-          ) : selectedTodo ? (
-            // 특정 할일이 선택되었을 때 - 할일 상세 보기
+                     ) : (
+             // TodoList는 선택했지만 특정 할일은 선택하지 않았을 때 - 개인 투두리스트와 동일한 레이아웃
+               <div style={{
+                 background: 'var(--bg-white)',
+                 borderRadius: '12px',
+                 padding: '1.5rem',
+                 boxShadow: '0 4px 12px var(--shadow-md)',
+                 border: '1px solid var(--border-light)',
+                 height: '100%',
+                 display: 'flex',
+                 flexDirection: 'column',
+                 overflow: 'hidden'
+               }}>
+              {/* TodoList 정보 헤더 */}
+              <div style={{
+                marginBottom: '1rem',
+                paddingBottom: '1rem',
+                borderBottom: '1px solid var(--border-light)'
+              }}>
+                                 <h1 style={{ 
+                   fontSize: '1.75rem', 
+                   fontWeight: '700', 
+                   color: 'var(--text-primary)', 
+                   marginBottom: '0.5rem' 
+                 }}>
+                   📝 {selectedTodoList.name}
+                 </h1>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '1rem' }}>
+                  {selectedTodoList.description || '설명이 없습니다.'}
+                </p>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '1rem', 
+                  flexWrap: 'wrap'
+                }}>
+                  <span style={{
+                    background: 'var(--primary-light)',
+                    color: 'var(--primary-color)',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '20px',
+                    fontSize: '0.875rem',
+                    fontWeight: '600'
+                  }}>
+                    총 {todos.length}개
+                  </span>
+                  <span style={{
+                    background: '#f0fdf4',
+                    color: '#16a34a',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '20px',
+                    fontSize: '0.875rem',
+                    fontWeight: '600'
+                  }}>
+                    완료 {todos.filter(t => t.completed).length}개
+                  </span>
+                  <span style={{
+                    background: '#fefce8',
+                    color: '#eab308',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '20px',
+                    fontSize: '0.875rem',
+                    fontWeight: '600'
+                  }}>
+                    진행중 {todos.filter(t => !t.completed).length}개
+                  </span>
+                </div>
+                <div style={{ 
+                  fontSize: '0.85rem', 
+                  color: 'var(--text-light)',
+                  display: 'flex',
+                  gap: '1rem',
+                  marginTop: '0.5rem'
+                }}>
+                  <span>생성일: {formatDate(selectedTodoList.createDate)}</span>
+                  <span>수정일: {formatDate(selectedTodoList.modifyDate)}</span>
+                </div>
+              </div>
+
+              {/* 할일 목록 */}
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0
+              }}>
+                                 <h2 style={{
+                   fontSize: '1.25rem',
+                   fontWeight: '600',
+                   color: 'var(--text-primary)',
+                   marginBottom: '1rem',
+                   display: 'flex',
+                   alignItems: 'center',
+                   gap: '0.5rem'
+                 }}>
+                   📝 할 일 목록 (Todo)
+                 </h2>
+                
+                {todos.length === 0 ? (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                    flexDirection: 'column',
+                    gap: '1rem',
+                    color: 'var(--text-light)',
+                    border: '2px dashed var(--border-medium)',
+                    borderRadius: '8px'
+                  }}>
+                    <div style={{ fontSize: '3rem' }}>📝</div>
+                    <p style={{ fontSize: '1.1rem' }}>등록된 할일 (Todo)이 없습니다.</p>
+                  </div>
+                ) : (
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '0.75rem',
+                    flex: 1,
+                    overflowY: 'auto',
+                    paddingRight: '0.5rem',
+                    paddingTop: '0.5rem',
+                    maxHeight: '100%'
+                  }}>
+                    {todos.map((todo) => (
+                      <div
+                        key={todo.id}
+                        style={{
+                          background: (selectedTodo && (selectedTodo as Todo).id === todo.id) ? 'var(--primary-light)' : 'var(--bg-main)',
+                          borderRadius: '8px',
+                          padding: '1rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          borderLeft: `4px solid ${
+                            todo.priority === 1 ? '#dc2626' : 
+                            todo.priority === 2 ? '#eab308' : 
+                            '#2563eb'
+                          }`,
+                          border: (selectedTodo && (selectedTodo as Todo).id === todo.id) 
+                            ? '2px solid var(--primary-color)' 
+                            : '1px solid var(--border-light)',
+                          minHeight: '120px',
+                          maxHeight: '120px',
+                          overflow: 'hidden',
+                          width: '100%'
+                        }}
+                        onClick={() => handleSelectTodo(todo)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={todo.completed}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleToggleTodoComplete(todo.id);
+                            }}
+                            style={{ 
+                              width: '20px', 
+                              height: '20px', 
+                              marginTop: '0.125rem',
+                              accentColor: 'var(--primary-color)'
+                            }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <h3 style={{
+                              fontWeight: '600',
+                              fontSize: '1rem',
+                              color: todo.completed ? 'var(--text-light)' : 'var(--text-primary)',
+                              textDecoration: todo.completed ? 'line-through' : 'none',
+                              marginBottom: '0.5rem',
+                              lineHeight: '1.4',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              maxWidth: '100%'
+                            }}>
+                              {todo.title}
+                            </h3>
+                            <p style={{
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.875rem',
+                              marginBottom: '0.75rem',
+                              lineHeight: '1.4',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              height: '2.4em',
+                              maxHeight: '2.4em'
+                            }}>
+                              {todo.description || '설명이 없습니다.'}
+                            </p>
+                            <div style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between',
+                              gap: '0.5rem'
+                            }}>
+                              <span style={{
+                                fontSize: '0.75rem',
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: '12px',
+                                fontWeight: '600',
+                                background: todo.priority === 1 ? '#fef2f2' : 
+                                          todo.priority === 2 ? '#fefce8' : '#eff6ff',
+                                color: todo.priority === 1 ? '#dc2626' : 
+                                       todo.priority === 2 ? '#eab308' : '#2563eb'
+                              }}>
+                                {getPriorityString(todo.priority)}
+                              </span>
+                              <span style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--text-light)',
+                                fontWeight: '500'
+                              }}>
+                                📅 {formatDate(todo.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                                 {/* 할일 추가 버튼 */}
+                 <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)' }}>
+                   <button
+                     onClick={(e) => {
+                       e.preventDefault();
+                       e.stopPropagation();
+                       setEditingTodo(null);
+                       setShowTodoModal(true);
+                     }}
+                     style={{
+                       width: '100%',
+                       padding: '1rem',
+                       background: 'var(--primary-color)',
+                       color: 'white',
+                       border: 'none',
+                       borderRadius: '8px',
+                       fontSize: '1rem',
+                       fontWeight: '600',
+                       cursor: 'pointer',
+                       transition: 'all 0.2s ease',
+                       display: 'flex',
+                       alignItems: 'center',
+                       justifyContent: 'center',
+                       gap: '0.5rem'
+                     }}
+                   >
+                     ➕ 새 할 일 추가
+                   </button>
+                 </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 맨 오른쪽: 선택된 할일 상세 정보 */}
+        <div style={{ 
+          width: '37.5%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          {!selectedTodo ? (
+            // 할일이 선택되지 않았을 때
+            <div style={{
+              background: 'var(--bg-white)',
+              borderRadius: '12px',
+              padding: '3rem',
+              boxShadow: '0 4px 12px var(--shadow-md)',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '2px dashed var(--border-medium)'
+            }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-light)' }}>
+                <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>📝</div>
+                                 <h3 style={{ 
+                   fontSize: '1.25rem', 
+                   fontWeight: '600', 
+                   marginBottom: '0.5rem',
+                   color: 'var(--text-secondary)'
+                 }}>
+                   할일 (Todo)을 선택해주세요
+                 </h3>
+                                   <p style={{ fontSize: '1rem' }}>
+                     오른쪽에서 할일 (Todo)을 클릭하면<br />상세 정보가 표시됩니다.
+                   </p>
+              </div>  
+            </div>
+          ) : (
+            // 선택된 할일 상세 정보
             <div style={{
               background: 'var(--bg-white)',
               borderRadius: '12px',
@@ -1283,261 +1568,6 @@ const TeamDetailPage: React.FC = () => {
                       {formatDate(selectedTodo.updatedAt)}
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            // TodoList는 선택했지만 특정 할일은 선택하지 않았을 때 - 개인 투두리스트와 동일한 레이아웃
-            <div style={{
-              background: 'var(--bg-white)',
-              borderRadius: '12px',
-              padding: '1.5rem',
-              boxShadow: '0 4px 12px var(--shadow-md)',
-              border: '1px solid var(--border-light)',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden'
-            }}>
-              {/* TodoList 정보 헤더 */}
-              <div style={{
-                marginBottom: '1rem',
-                paddingBottom: '1rem',
-                borderBottom: '1px solid var(--border-light)'
-              }}>
-                <h1 style={{ 
-                  fontSize: '1.75rem', 
-                  fontWeight: '700', 
-                  color: 'var(--text-primary)', 
-                  marginBottom: '0.5rem' 
-                }}>
-                  📋 {selectedTodoList.name}
-                </h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '1rem' }}>
-                  {selectedTodoList.description || '설명이 없습니다.'}
-                </p>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '1rem', 
-                  flexWrap: 'wrap'
-                }}>
-                  <span style={{
-                    background: 'var(--primary-light)',
-                    color: 'var(--primary-color)',
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '20px',
-                    fontSize: '0.875rem',
-                    fontWeight: '600'
-                  }}>
-                    총 {todos.length}개
-                  </span>
-                  <span style={{
-                    background: '#f0fdf4',
-                    color: '#16a34a',
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '20px',
-                    fontSize: '0.875rem',
-                    fontWeight: '600'
-                  }}>
-                    완료 {todos.filter(t => t.completed).length}개
-                  </span>
-                  <span style={{
-                    background: '#fefce8',
-                    color: '#eab308',
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '20px',
-                    fontSize: '0.875rem',
-                    fontWeight: '600'
-                  }}>
-                    진행중 {todos.filter(t => !t.completed).length}개
-                  </span>
-                </div>
-                <div style={{ 
-                  fontSize: '0.85rem', 
-                  color: 'var(--text-light)',
-                  display: 'flex',
-                  gap: '1rem',
-                  marginTop: '0.5rem'
-                }}>
-                  <span>생성일: {formatDate(selectedTodoList.createDate)}</span>
-                  <span>수정일: {formatDate(selectedTodoList.modifyDate)}</span>
-                </div>
-              </div>
-
-              {/* 할일 목록 */}
-              <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: 0
-              }}>
-                <h2 style={{
-                  fontSize: '1.25rem',
-                  fontWeight: '600',
-                  color: 'var(--text-primary)',
-                  marginBottom: '1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
-                  📝 할 일 목록
-                </h2>
-                
-                {todos.length === 0 ? (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    flexDirection: 'column',
-                    gap: '1rem',
-                    color: 'var(--text-light)',
-                    border: '2px dashed var(--border-medium)',
-                    borderRadius: '8px'
-                  }}>
-                    <div style={{ fontSize: '3rem' }}>📝</div>
-                    <p style={{ fontSize: '1.1rem' }}>등록된 할일이 없습니다.</p>
-                  </div>
-                ) : (
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '0.75rem',
-                    flex: 1,
-                    overflowY: 'auto',
-                    paddingRight: '0.5rem',
-                    paddingTop: '0.5rem',
-                    maxHeight: '100%'
-                  }}>
-                    {todos.map((todo) => (
-                      <div
-                        key={todo.id}
-                        style={{
-                          background: (selectedTodo && (selectedTodo as Todo).id === todo.id) ? 'var(--primary-light)' : 'var(--bg-main)',
-                          borderRadius: '8px',
-                          padding: '1rem',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          borderLeft: `4px solid ${
-                            todo.priority === 1 ? '#dc2626' : 
-                            todo.priority === 2 ? '#eab308' : 
-                            '#2563eb'
-                          }`,
-                          border: (selectedTodo && (selectedTodo as Todo).id === todo.id) 
-                            ? '2px solid var(--primary-color)' 
-                            : '1px solid var(--border-light)',
-                          minHeight: '120px',
-                          maxHeight: '120px',
-                          overflow: 'hidden',
-                          width: '100%'
-                        }}
-                        onClick={() => handleSelectTodo(todo)}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                          <input
-                            type="checkbox"
-                            checked={todo.completed}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              handleToggleTodoComplete(todo.id);
-                            }}
-                            style={{ 
-                              width: '20px', 
-                              height: '20px', 
-                              marginTop: '0.125rem',
-                              accentColor: 'var(--primary-color)'
-                            }}
-                          />
-                          <div style={{ flex: 1 }}>
-                            <h3 style={{
-                              fontWeight: '600',
-                              fontSize: '1rem',
-                              color: todo.completed ? 'var(--text-light)' : 'var(--text-primary)',
-                              textDecoration: todo.completed ? 'line-through' : 'none',
-                              marginBottom: '0.5rem',
-                              lineHeight: '1.4',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              maxWidth: '100%'
-                            }}>
-                              {todo.title}
-                            </h3>
-                            <p style={{
-                              color: 'var(--text-secondary)',
-                              fontSize: '0.875rem',
-                              marginBottom: '0.75rem',
-                              lineHeight: '1.4',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              height: '2.4em',
-                              maxHeight: '2.4em'
-                            }}>
-                              {todo.description || '설명이 없습니다.'}
-                            </p>
-                            <div style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'space-between',
-                              gap: '0.5rem'
-                            }}>
-                              <span style={{
-                                fontSize: '0.75rem',
-                                padding: '0.25rem 0.5rem',
-                                borderRadius: '12px',
-                                fontWeight: '600',
-                                background: todo.priority === 1 ? '#fef2f2' : 
-                                          todo.priority === 2 ? '#fefce8' : '#eff6ff',
-                                color: todo.priority === 1 ? '#dc2626' : 
-                                       todo.priority === 2 ? '#eab308' : '#2563eb'
-                              }}>
-                                {getPriorityString(todo.priority)}
-                              </span>
-                              <span style={{
-                                fontSize: '0.75rem',
-                                color: 'var(--text-light)',
-                                fontWeight: '500'
-                              }}>
-                                📅 {formatDate(todo.createdAt)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 할일 추가 버튼 */}
-                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)' }}>
-                  <button
-                    onClick={() => {
-                      setEditingTodo(null);
-                      setShowTodoModal(true);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '1rem',
-                      background: 'var(--primary-color)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '1rem',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.5rem'
-                    }}
-                  >
-                    ➕ 새 할 일 추가
-                  </button>
                 </div>
               </div>
             </div>
