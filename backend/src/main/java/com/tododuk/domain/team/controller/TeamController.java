@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import com.tododuk.domain.team.entity.Team;
 import com.tododuk.domain.user.repository.UserRepository;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/teams")
@@ -148,5 +149,26 @@ public class TeamController {
         User authenticatedUser = getAuthenticatedUser();
         // 서비스로부터 받은 RsData 객체를 그대로 반환
         return teamService.deleteTeam(teamId, authenticatedUser.getId());
+    }
+
+    // 6. 팀 할일 목록 조회
+    @GetMapping("/{teamId}/todos")
+    @Operation(summary = "할일 목록 조회",
+            description = "지정된 팀의 할일 목록을 조회합니다. teamId가 0이면 개인 할일, 1 이상이면 팀 할일입니다. (팀 멤버만 가능)")
+    public RsData<List<Map<String, Object>>> getTeamTodos(@PathVariable int teamId) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.getTeamTodos(teamId, authenticatedUser.getId());
+    }
+
+    // 7. 팀 할일 추가
+    @PostMapping("/{teamId}/todos")
+    @Operation(summary = "할일 추가",
+            description = "지정된 팀에 새로운 할일을 추가합니다. teamId가 0이면 개인 할일, 1 이상이면 팀 할일입니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> addTeamTodo(
+            @PathVariable int teamId,
+            @RequestBody Map<String, Object> todoRequest
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.addTeamTodo(teamId, authenticatedUser.getId(), todoRequest);
     }
 }
