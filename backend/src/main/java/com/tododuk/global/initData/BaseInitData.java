@@ -14,9 +14,12 @@ import com.tododuk.domain.todoLabel.service.TodoLabelService;
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.repository.UserRepository;
 import com.tododuk.domain.team.constant.TeamRoleType;
+import com.tododuk.domain.todoList.entity.TodoList;
+import com.tododuk.domain.todoList.repository.TodoListRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -33,34 +36,43 @@ public class BaseInitData {
     private final UserRepository userRepository;
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final TodoListRepository todoListRepository;
 
     @PostConstruct
     public void init(){
         System.out.println("초기데이터 입력");
 
         if(labelService.countLabels() ==0){
-            // 사용자 생성
+            // 사용자 생성 (비밀번호 암호화)
             User user1 = User.builder()
                     .nickName("김개발")
                     .userEmail("dev@test.com")
-                    .password("password123")
+                    .password(passwordEncoder.encode("password123"))
                     .build();
             
             User user2 = User.builder()
                     .nickName("이코딩")
                     .userEmail("coding@test.com")
-                    .password("password123")
+                    .password(passwordEncoder.encode("password123"))
                     .build();
             
             User user3 = User.builder()
                     .nickName("박서버")
                     .userEmail("server@test.com")
-                    .password("password123")
+                    .password(passwordEncoder.encode("password123"))
+                    .build();
+
+            User user4 = User.builder()
+                    .nickName("다란")
+                    .userEmail("daran2@gmail.com")
+                    .password(passwordEncoder.encode("password123"))
                     .build();
 
             userRepository.save(user1);
             userRepository.save(user2);
             userRepository.save(user3);
+            userRepository.save(user4);
 
             // 팀 생성
             Team team1 = Team.builder()
@@ -142,6 +154,22 @@ public class BaseInitData {
             todoLabelRepository.save(todoLabel1);
             todoLabelRepository.save(todoLabel2);
             todoLabelRepository.save(todoLabel3);
+
+            // 할일 목록 생성
+            TodoList todoList1 = new TodoList(
+                    "기본 할일 목록",
+                    "기본 할일 목록입니다.",
+                    user1,
+                    team1
+            );
+
+            todoListRepository.save(todoList1);
+
+            // 할일을 할일 목록에 연결
+            todo1.setTodoList(todoList1);
+            todo2.setTodoList(todoList1);
+            todoRepository.save(todo1);
+            todoRepository.save(todo2);
         } else{
             System.out.println("초기 데이터가 이미 존재합니다.");
         }
