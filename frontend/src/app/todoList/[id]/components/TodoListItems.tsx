@@ -13,6 +13,7 @@ interface Todo {
   updatedAt: string;
 }
 
+
 interface TodoListItemsProps {
   todos: Todo[];
   selectedTodo: Todo | null;

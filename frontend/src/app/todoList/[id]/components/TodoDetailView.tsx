@@ -20,6 +20,7 @@ interface TodoDetailViewProps {
   onDelete: () => void;
 }
 
+
 const TodoDetailView: React.FC<TodoDetailViewProps> = ({
   todo,
   onCheckboxChange,
