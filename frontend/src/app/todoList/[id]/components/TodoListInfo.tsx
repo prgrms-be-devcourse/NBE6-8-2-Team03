@@ -7,12 +7,11 @@ interface Todo {
   completed: boolean;
   priority: number;
   startDate: string;
-  dueDate: string;
+  dueDate: string | null; // null 타입 추가
   todoList: number;
   createdAt: string;
   updatedAt: string;
 }
-
 
 interface TodoListInfo {
   id: number;
@@ -50,7 +49,7 @@ const TodoListInfoComponent: React.FC<TodoListInfoProps> = ({
         color: 'var(--text-primary)', 
         marginBottom: '0.5rem' 
       }}>
-        📋 {todoListInfo?.title || `TodoList ${todoListId}`}
+        📋 {todoListInfo?.name || `TodoList ${todoListId}`}
       </h1>
       <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '1rem' }}>
         {todoListInfo?.description || `TodoList ID ${todoListId}의 할일을 관리합니다.`}
