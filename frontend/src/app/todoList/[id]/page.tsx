@@ -75,9 +75,6 @@ export default function TodoListPage() {
     if (!todoListId) return;
     
     try {
-      console.log('=== TodoList 정보 조회 API 시작 ===');
-      console.log('TodoList ID:', todoListId);
-
       const response = await fetch(`http://localhost:8080/api/todo-lists/${todoListId}`, {
         method: 'GET',
         credentials: 'include',
@@ -86,37 +83,44 @@ export default function TodoListPage() {
         }
       });
 
-      console.log('TodoList API 응답 상태:', response.status);
-
       if (!response.ok) {
         console.warn(`TodoList info API failed with status: ${response.status}`);
-        // TodoList 정보를 가져오지 못해도 계속 진행 (기본값 사용)
         return;
       }
 
       const result: ApiResponse<TodoListResponseDto> = await response.json();
-      console.log('✅ TodoList API 성공:', result);
       
-      // 캘린더 페이지와 동일한 방식으로 응답 처리
+      // 여러 가능한 필드명 시도
       if (result.data) {
         const todoListData: TodoListInfo = {
           id: result.data.id || parseInt(todoListId),
-          name: result.data.name || `TodoList ${todoListId}`,
-          description: result.data.description || `TodoList ${todoListId}의 할일 목록`,
-          userId: result.data.userId || 0,
-          teamId: result.data.teamId || 0,
-          createDate: result.data.createDate || new Date().toISOString(),
-          modifyDate: result.data.modifyDate || new Date().toISOString()
+          name: result.data.name || result.data.title || result.data.listName || `TodoList ${todoListId}`,
+          description: result.data.description || result.data.desc || `TodoList ${todoListId}의 할일 목록`,
+          userId: result.data.userId || result.data.user_id || 0,
+          teamId: result.data.teamId || result.data.team_id || 0,
+          createDate: result.data.createDate || result.data.createdAt || result.data.created_at || new Date().toISOString(),
+          modifyDate: result.data.modifyDate || result.data.updatedAt || result.data.updated_at || new Date().toISOString()
         };
         
-        console.log('변환된 TodoList 정보:', todoListData);
         setTodoListInfo(todoListData);
       } else {
-        console.warn('TodoList API 응답에 data가 없음');
+        // data가 없는 경우 최상위 레벨에서 직접 찾아보기
+        if (result.id || result.name || result.title) {
+          const todoListData: TodoListInfo = {
+            id: result.id || parseInt(todoListId),
+            name: result.name || result.title || result.listName || `TodoList ${todoListId}`,
+            description: result.description || result.desc || `TodoList ${todoListId}의 할일 목록`,
+            userId: result.userId || result.user_id || 0,
+            teamId: result.teamId || result.team_id || 0,
+            createDate: result.createDate || result.createdAt || result.created_at || new Date().toISOString(),
+            modifyDate: result.modifyDate || result.updatedAt || result.updated_at || new Date().toISOString()
+          };
+          
+          setTodoListInfo(todoListData);
+        }
       }
     } catch (err) {
       console.warn('Failed to fetch todolist info:', err);
-      // TodoList 정보 실패는 조용히 처리 (기본값 사용)
     }
   };
 
@@ -125,8 +129,6 @@ export default function TodoListPage() {
     if (!todoListId) return;
     
     try {
-      console.log('=== Todo 목록 조회 API 시작 ===');
-      
       const response = await fetch(`http://localhost:8080/api/todo/list/${todoListId}`, {
         method: 'GET',
         credentials: 'include',
@@ -135,14 +137,11 @@ export default function TodoListPage() {
         }
       });
 
-      console.log('Todo API 응답 상태:', response.status);
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
-      console.log('✅ Todo API 성공:', result);
       
       if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS' || response.ok) {
         // dueDate null 처리를 위한 데이터 변환
@@ -152,21 +151,6 @@ export default function TodoListPage() {
         }));
         
         setTodos(processedTodos);
-        console.log('변환된 Todos:', processedTodos);
-        
-        // TodoList 정보가 없는 경우에만 첫 번째 todo에서 생성
-        if (!todoListInfo && processedTodos.length > 0) {
-          const firstTodo = processedTodos[0];
-          setTodoListInfo({
-            id: firstTodo.todoList,
-            name: `TodoList ${firstTodo.todoList}`,  // 기본값
-            description: `TodoList ID ${firstTodo.todoList}의 할일 목록`,  // 기본값
-            userId: 0,
-            teamId: 0,
-            createDate: firstTodo.createdAt,
-            modifyDate: firstTodo.updatedAt
-          });
-        }
       } else {
         throw new Error(result.msg || 'Failed to fetch todo list');
       }
@@ -177,45 +161,62 @@ export default function TodoListPage() {
   };
 
   // TodoList 정보와 Todos 데이터 가져오기
-  const fetchTodoListData = async () => {
+  useEffect(() => {
     if (!todoListId) return;
     
-    setLoading(true);
-    setError(null);
+    let cancelled = false;
     
-    try {
-      console.log('=== 데이터 로드 시작 ===');
-      // TodoList 정보와 Todo 목록을 병렬로 가져오기 (캘린더 페이지 방식)
-      await Promise.all([
-        fetchTodoListInfo(), // 실패해도 계속 진행
-        fetchTodos()          // 이것만 필수
-      ]);
-      console.log('=== 데이터 로드 완료 ===');
-    } catch (err) {
-      console.error('Failed to fetch todo list data:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
+    const fetchTodoListData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // 먼저 TodoList 정보를 가져오고
+        await fetchTodoListInfo();
+        
+        // cancelled 체크 후 Todo 목록 가져오기
+        if (!cancelled) {
+          await fetchTodos();
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to fetch todo list data:', err);
+          setError(err instanceof Error ? err.message : 'Unknown error occurred');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+    
     fetchTodoListData();
+    
+    // cleanup function - 다음 effect 실행 전에 이전 요청 취소
+    return () => {
+      cancelled = true;
+    };
   }, [todoListId]);
 
   // 새로고침용 함수 (로딩 상태 없이)
   const refreshTodoList = async () => {
     if (!todoListId) return;
     
+    let cancelled = false;
+    
     try {
-      await Promise.all([
-        fetchTodoListInfo(),
-        fetchTodos()
-      ]);
+      await fetchTodoListInfo();
+      
+      if (!cancelled) {
+        await fetchTodos();
+      }
     } catch (err) {
       console.error('Failed to refresh todo list:', err);
-      // 새로고침 실패는 조용히 처리 (기존 데이터 유지)
     }
+    
+    return () => {
+      cancelled = true;
+    };
   };
 
   // 이벤트 핸들러들
