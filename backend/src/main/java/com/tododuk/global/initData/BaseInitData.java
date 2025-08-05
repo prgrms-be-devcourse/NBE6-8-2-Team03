@@ -16,7 +16,6 @@ import com.tododuk.domain.user.repository.UserRepository;
 import com.tododuk.domain.team.constant.TeamRoleType;
 import com.tododuk.domain.todoList.entity.TodoList;
 import com.tododuk.domain.todoList.repository.TodoListRepository;
-
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
@@ -39,7 +38,6 @@ public class BaseInitData {
     private final TeamMemberRepository teamMemberRepository;
     private final PasswordEncoder passwordEncoder;
     private final TodoListRepository todoListRepository;
-
 
     @PostConstruct
     public void init(){
@@ -77,13 +75,15 @@ public class BaseInitData {
             userRepository.save(user4);
 
             // 팀 생성
-            Team team1 = new Team();
-            team1.setTeamName("프론트엔드 개발팀");
-            team1.setDescription("React, Next.js를 활용한 웹 프론트엔드 개발팀");
+            Team team1 = Team.builder()
+                    .teamName("프론트엔드 개발팀")
+                    .description("React, Next.js를 활용한 웹 프론트엔드 개발팀")
+                    .build();
             
-            Team team2 = new Team();
-            team2.setTeamName("백엔드 개발팀");
-            team2.setDescription("Spring Boot, JPA를 활용한 백엔드 개발팀");
+            Team team2 = Team.builder()
+                    .teamName("백엔드 개발팀")
+                    .description("Spring Boot, JPA를 활용한 백엔드 개발팀")
+                    .build();
 
             teamRepository.save(team1);
             teamRepository.save(team2);
@@ -170,40 +170,6 @@ public class BaseInitData {
             todo2.setTodoList(todoList1);
             todoRepository.save(todo1);
             todoRepository.save(todo2);
-
-            // 팀 할일 목록 생성 (기존 TodoList 사용)
-            TodoList teamTodoList1 = new TodoList(
-                    "프론트엔드 개발팀 할일 목록",
-                    "팀원들과 함께 관리하는 할일들",
-                    user1,
-                    team1
-            );
-
-            todoListRepository.save(teamTodoList1);
-
-            // 팀 할일 생성 (기존 Todo 사용)
-            Todo teamTodo1 = Todo.builder()
-                    .title("프론트엔드 컴포넌트 개발")
-                    .description("React 컴포넌트 라이브러리 구축")
-                    .isCompleted(false)
-                    .priority(3)
-                    .startDate(LocalDateTime.now())
-                    .dueDate(LocalDateTime.of(2025, 8, 25, 18, 0))
-                    .todoList(teamTodoList1)
-                    .build();
-
-            Todo teamTodo2 = Todo.builder()
-                    .title("UI/UX 디자인 검토")
-                    .description("새로운 디자인 시스템 검토 및 피드백")
-                    .isCompleted(false)
-                    .priority(2)
-                    .startDate(LocalDateTime.now())
-                    .dueDate(LocalDateTime.of(2025, 8, 22, 18, 0))
-                    .todoList(teamTodoList1)
-                    .build();
-
-            todoRepository.save(teamTodo1);
-            todoRepository.save(teamTodo2);
         } else{
             System.out.println("초기 데이터가 이미 존재합니다.");
         }
