@@ -170,7 +170,7 @@ public class TeamService {
             });
 
         // DB에서 해당 TodoList의 할일 목록 조회
-        List<Todo> todos = todoRepository.findByTodoListIdOrderByCreateDateDesc(todoList.getId());
+        List<Todo> todos = todoRepository.findAllByTodoListId(todoList.getId());
         
         // Map 형태로 변환
         List<Map<String, Object>> todoMaps = todos.stream()
