@@ -22,7 +22,6 @@ interface Todo {
   updatedAt: string;
 }
 
-
 interface TodoListInfo {
   id: number;
   name: string;
@@ -54,17 +53,50 @@ export default function TodoListPage() {
   });
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
 
-  // TodoList 정보와 Todos 데이터 가져오기
-  useEffect(() => {
-    fetchTodoListData();
-  }, [todoListId]);
-
-  // useEffect에서 사용할 함수를 위로 이동
-  const fetchTodoListData = async () => {
+  // TodoList 정보 가져오기 (별도 API)
+  const fetchTodoListInfo = async () => {
     if (!todoListId) return;
     
-    setLoading(true);
-    setError(null);
+    try {
+      const response = await fetch(`http://localhost:8080/api/todo-lists/${todoListId}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.warn(`TodoList info API failed with status: ${response.status}`);
+        // TodoList 정보를 가져오지 못해도 계속 진행 (기본값 사용)
+        return;
+      }
+
+      const result = await response.json();
+      console.log('TodoList API Response:', result); // 디버깅용
+      
+      if (result.resultCode === 'SUCCESS' || result.msg === 'todolist 조회 성공' || response.ok) {
+        if (result.data) {
+          setTodoListInfo({
+            id: result.data.id || parseInt(todoListId),
+            name: result.data.name || result.data.title || `TodoList ${todoListId}`,
+            description: result.data.description || `TodoList ${todoListId}의 할일 목록`,
+            userId: result.data.userId || 0,
+            teamId: result.data.teamId || 0,
+            createDate: result.data.createDate || result.data.createdAt || new Date().toISOString(),
+            modifyDate: result.data.modifyDate || result.data.updatedAt || new Date().toISOString()
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch todolist info:', err);
+      // TodoList 정보 실패는 조용히 처리 (기본값 사용)
+    }
+  };
+
+  // Todo 목록 가져오기
+  const fetchTodos = async () => {
+    if (!todoListId) return;
     
     try {
       const response = await fetch(`http://localhost:8080/api/todo/list/${todoListId}`, {
@@ -82,28 +114,67 @@ export default function TodoListPage() {
       const result = await response.json();
       
       if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS' || response.ok) {
-        if (result.data && result.data.length > 0) {
+        setTodos(result.data || []);
+        
+        // TodoList 정보가 없는 경우에만 첫 번째 todo에서 생성
+        if (!todoListInfo && result.data && result.data.length > 0) {
           const firstTodo = result.data[0];
           setTodoListInfo({
             id: firstTodo.todoList,
-            name: `TodoList ${firstTodo.todoList}`,
-            description: `TodoList ID ${firstTodo.todoList}의 할일 목록`,
+            name: `TodoList ${firstTodo.todoList}`,  // 기본값
+            description: `TodoList ID ${firstTodo.todoList}의 할일 목록`,  // 기본값
             userId: 0,
             teamId: 0,
             createDate: firstTodo.createdAt,
             modifyDate: firstTodo.updatedAt
           });
         }
-        
-        setTodos(result.data || []);
       } else {
         throw new Error(result.msg || 'Failed to fetch todo list');
       }
     } catch (err) {
-      console.error('Failed to fetch todo list:', err);
+      console.error('Failed to fetch todos:', err);
+      throw err;
+    }
+  };
+
+  // TodoList 정보와 Todos 데이터 가져오기
+  const fetchTodoListData = async () => {
+    if (!todoListId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // TodoList 정보와 Todo 목록을 병렬로 가져오기
+      await Promise.all([
+        fetchTodoListInfo(), // 실패해도 계속 진행
+        fetchTodos()          // 이것만 필수
+      ]);
+    } catch (err) {
+      console.error('Failed to fetch todo list data:', err);
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTodoListData();
+  }, [todoListId]);
+
+  // 새로고침용 함수 (로딩 상태 없이)
+  const refreshTodoList = async () => {
+    if (!todoListId) return;
+    
+    try {
+      await Promise.all([
+        fetchTodoListInfo(),
+        fetchTodos()
+      ]);
+    } catch (err) {
+      console.error('Failed to refresh todo list:', err);
+      // 새로고침 실패는 조용히 처리 (기존 데이터 유지)
     }
   };
 
@@ -115,8 +186,7 @@ export default function TodoListPage() {
 
   const handleCheckboxChange = async (todoId: number) => {
     try {
-      // 실제 API 호출로 완료 상태 토글
-      const response = await fetch(`http://localhost:8080/api/todo/${todoId}/toggle`, {
+      const response = await fetch(`http://localhost:8080/api/todo/${todoId}/complete`, {
         method: 'PATCH',
         credentials: 'include',
         headers: {
@@ -124,31 +194,54 @@ export default function TodoListPage() {
         }
       });
       
-      if (response.ok) {
-        // 성공 시 로컬 상태 업데이트
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.resultCode === 'S-1' || result.resultCode === 'SUCCESS' || response.ok) {
+        const updatedTodo = result.data;
+        
         setTodos(prevTodos => 
           prevTodos.map(todo => 
             todo.id === todoId 
-              ? { ...todo, completed: !todo.completed }
+              ? { 
+                  ...todo, 
+                  completed: updatedTodo?.completed !== undefined ? updatedTodo.completed : !todo.completed,
+                  updatedAt: updatedTodo?.updatedAt || new Date().toISOString()
+                }
               : todo
           )
         );
         
-        // 선택된 todo도 업데이트
         if (selectedTodo?.id === todoId) {
-          setSelectedTodo(prev => prev ? { ...prev, completed: !prev.completed } : null);
+          setSelectedTodo(prev => prev ? { 
+            ...prev, 
+            completed: updatedTodo?.completed !== undefined ? updatedTodo.completed : !prev.completed,
+            updatedAt: updatedTodo?.updatedAt || new Date().toISOString()
+          } : null);
         }
         
         console.log(`✅ 할 일 ${todoId} 상태가 변경되었습니다.`);
-        
-        // 목록 새로고침 (서버 데이터와 동기화)
-        await fetchTodoListData();
       } else {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(result.msg || result.message || 'Failed to toggle todo status');
       }
     } catch (error) {
       console.error('Failed to toggle todo:', error);
-      alert('할 일 상태 변경에 실패했습니다. 다시 시도해주세요.');
+      
+      let errorMessage = '할 일 상태 변경에 실패했습니다.';
+      if (error instanceof Error) {
+        if (error.message.includes('404')) {
+          errorMessage = '해당 할 일을 찾을 수 없습니다.';
+        } else if (error.message.includes('403')) {
+          errorMessage = '할 일을 수정할 권한이 없습니다.';
+        } else if (error.message.includes('500')) {
+          errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+        }
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -160,31 +253,98 @@ export default function TodoListPage() {
 
   const handleDelete = async () => {
     if (selectedTodo) {
+      if (!confirm(`"${selectedTodo.title}" 할 일을 삭제하시겠습니까?`)) {
+        return;
+      }
+
       try {
-        // 실제 API 호출로 삭제
+        let csrfToken = null;
+        try {
+          const metaCsrf = document.querySelector('meta[name="_csrf"]');
+          const metaCsrfHeader = document.querySelector('meta[name="_csrf_header"]');
+          if (metaCsrf && metaCsrfHeader) {
+            csrfToken = {
+              token: metaCsrf.getAttribute('content'),
+              header: metaCsrfHeader.getAttribute('content')
+            };
+          }
+        } catch (e) {
+          console.log('CSRF token not found in meta tags');
+        }
+
+        const headers = {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        };
+
+        if (csrfToken) {
+          headers[csrfToken.header] = csrfToken.token;
+        }
+
         const response = await fetch(`http://localhost:8080/api/todo/${selectedTodo.id}`, {
           method: 'DELETE',
           credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: headers
         });
 
-        if (response.ok) {
-          // 성공 시 로컬 상태에서 제거
+        if (response.status === 401) {
+          console.error('401 Unauthorized - 인증 문제 발생');
+          alert('인증에 실패했습니다. CSRF 토큰이나 세션 문제일 수 있습니다.');
+          return;
+        }
+
+        if (!response.ok) {
+          let errorText = '';
+          try {
+            const errorBody = await response.text();
+            errorText = errorBody;
+            console.log('Error response body:', errorBody);
+          } catch (e) {
+            console.log('Could not read error response body');
+          }
+          
+          throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+        }
+
+        const result = await response.json();
+
+        if (result.resultCode === 'S-1' || result.resultCode === 'SUCCESS' || response.ok) {
           setTodos(prevTodos => prevTodos.filter(todo => todo.id !== selectedTodo.id));
           setSelectedTodo(null);
           
-          console.log(`✅ 할 일 ${selectedTodo.id}가 삭제되었습니다.`);
+          console.log(`✅ 할 일 "${selectedTodo.title}"가 삭제되었습니다.`);
           
-          // 목록 새로고침 (서버 데이터와 동기화)
           await refreshTodoList();
         } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(result.msg || result.message || 'Failed to delete todo');
         }
       } catch (error) {
         console.error('Failed to delete todo:', error);
-        alert('할 일 삭제에 실패했습니다. 다시 시도해주세요.');
+        
+        let errorMessage = '할 일 삭제에 실패했습니다.';
+        if (error instanceof Error) {
+          if (error.message.includes('401')) {
+            errorMessage = '삭제 권한이 없습니다. CSRF 토큰이나 인증 설정을 확인해주세요.';
+          } else if (error.message.includes('404')) {
+            errorMessage = '해당 할 일을 찾을 수 없습니다.';
+          } else if (error.message.includes('403')) {
+            errorMessage = '할 일을 삭제할 권한이 없습니다.';
+          } else if (error.message.includes('400')) {
+            errorMessage = '삭제 요청이 올바르지 않습니다.';
+          } else if (error.message.includes('500')) {
+            errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+          } else if (error.message.includes('Failed to fetch')) {
+            errorMessage = '네트워크 연결을 확인해주세요.';
+          }
+        }
+        
+        alert(errorMessage + '\n\n개발자 도구의 Console과 Network 탭을 확인해보세요.');
+        
+        try {
+          await refreshTodoList();
+        } catch (refreshError) {
+          console.error('Failed to refresh after error:', refreshError);
+        }
       }
     }
   };
@@ -192,7 +352,6 @@ export default function TodoListPage() {
   const handleCreateTodo = () => {
     setShowCreateForm(true);
     setSelectedTodo(null);
-    // 현재 날짜를 기본값으로 설정
     const now = new Date();
     const today = now.toISOString().slice(0, 16);
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
@@ -267,11 +426,8 @@ export default function TodoListPage() {
       }
 
       const result = await response.json();
-      console.log('API Response:', result); // 디버깅용
       
-      // 다양한 성공 응답 형태 처리
       if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS' || response.ok) {
-        // 서버에서 받은 데이터 사용, 없으면 클라이언트 데이터 사용
         const newTodoItem: Todo = {
           id: result.data?.id || result.id || Date.now(),
           title: result.data?.title || todoData.title,
@@ -285,15 +441,12 @@ export default function TodoListPage() {
           updatedAt: result.data?.updatedAt || result.data?.modifyedAt || todoData.modifyedAt
         };
         
-        // 성공 시 목록에 추가
         setTodos(prev => [...prev, newTodoItem]);
         setShowCreateForm(false);
         setSelectedTodo(newTodoItem);
         
-        // 성공 메시지 표시 (선택사항)
         console.log('✅ 할 일이 성공적으로 추가되었습니다!');
         
-        // 목록 새로고침 (서버 데이터와 동기화)
         await refreshTodoList();
         
       } else {
@@ -302,7 +455,6 @@ export default function TodoListPage() {
     } catch (error) {
       console.error('Failed to create todo:', error);
       
-      // 더 구체적인 에러 메시지
       let errorMessage = '할 일 생성에 실패했습니다.';
       if (error instanceof Error) {
         if (error.message.includes('Failed to fetch')) {
@@ -317,47 +469,6 @@ export default function TodoListPage() {
       }
       
       alert(errorMessage);
-    }
-  };
-
-  // 별도의 데이터 새로고침 함수 (로딩 상태 없이)
-  const refreshTodoList = async () => {
-    if (!todoListId) return;
-    
-    try {
-      const response = await fetch(`http://localhost:8080/api/todo/list/${todoListId}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS' || response.ok) {
-        if (result.data && result.data.length > 0) {
-          const firstTodo = result.data[0];
-          setTodoListInfo({
-            id: firstTodo.todoList,
-            name: `TodoList ${firstTodo.todoList}`,
-            description: `TodoList ID ${firstTodo.todoList}의 할일 목록`,
-            userId: 0,
-            teamId: 0,
-            createDate: firstTodo.createdAt,
-            modifyDate: firstTodo.updatedAt
-          });
-        }
-        
-        setTodos(result.data || []);
-      }
-    } catch (err) {
-      console.error('Failed to refresh todo list:', err);
-      // 새로고침 실패는 조용히 처리 (기존 데이터 유지)
     }
   };
 
