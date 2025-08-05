@@ -7,12 +7,11 @@ interface Todo {
   completed: boolean;
   priority: number;
   startDate: string;
-  dueDate: string;
+  dueDate: string | null; // null 타입 추가
   todoList: number;
   createdAt: string;
   updatedAt: string;
 }
-
 
 interface TodoListInfo {
   id: number;

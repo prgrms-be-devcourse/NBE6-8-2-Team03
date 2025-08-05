@@ -7,7 +7,7 @@ interface Todo {
   completed: boolean;
   priority: number;
   startDate: string;
-  dueDate: string;
+  dueDate: string | null; // null 타입 추가
   todoList: number;
   createdAt: string;
   updatedAt: string;
@@ -39,6 +39,14 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
       default:
         return { label: '일반', color: 'bg-gray-100 text-gray-600' };
     }
+  };
+
+  // 날짜 표시 함수 - dueDate가 null이면 startDate 사용
+  const getDisplayDate = (todo: Todo) => {
+    const dateToShow = todo.dueDate || todo.startDate;
+    const dateObj = new Date(dateToShow);
+    const label = todo.dueDate ? '📅' : '🗓️'; // 마감일과 시작일 구분
+    return `${label} ${dateObj.toLocaleDateString()}`;
   };
 
   return (
@@ -177,7 +185,7 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
                       color: 'var(--text-light)',
                       fontWeight: '500'
                     }}>
-                      📅 {new Date(todo.dueDate).toLocaleDateString()}
+                      {getDisplayDate(todo)}
                     </span>
                   </div>
                 </div>
