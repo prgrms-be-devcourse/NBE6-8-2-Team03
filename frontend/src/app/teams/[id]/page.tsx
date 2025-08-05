@@ -719,7 +719,7 @@ const TeamDetailPage: React.FC = () => {
                   >
                     <option value="">담당자 선택 (필수)</option>
                     {team?.members.map((member) => (
-                      <option key={member.id} value={member.userId}>
+                      <option key={member.id} value={member.userId.toString()}>
                         {member.userNickname} ({member.role === 'LEADER' ? '리더' : '멤버'})
                       </option>
                     ))}

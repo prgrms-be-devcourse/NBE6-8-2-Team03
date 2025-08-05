@@ -24,7 +24,6 @@ public class Todo extends BaseEntity {
 
     private LocalDateTime startDate;
     private LocalDateTime dueDate;
-    private Integer assignedMemberId; // 담당 멤버 ID
 
     //initData test를 위해 일시적으로 주석처리
     @ManyToOne
@@ -63,16 +62,4 @@ public class Todo extends BaseEntity {
 
     public boolean isCompleted() {return isCompleted;}
 
-    // 추가된 setter 메서드들
-    public void setIsCompleted(boolean isCompleted) {
-        this.isCompleted = isCompleted;
-    }
-
-    public void setAssignedMemberId(Integer assignedMemberId) {
-        this.assignedMemberId = assignedMemberId;
-    }
-
-    public Integer getAssignedMemberId() {
-        return assignedMemberId;
-    }
 }
