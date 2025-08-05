@@ -16,6 +16,29 @@ public class GlobalExceptionHandler {
                 .status(statusCode)
                 .body(ex.getRsData());
     }
+    // NPE 처리 추가
+    @ExceptionHandler(NullPointerException.class)
+    public ResponseEntity<RsData<Void>> handleNullPointerException(NullPointerException ex) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new RsData<>("500-1", "서버 내부 오류가 발생했습니다.", null));
+    }
+
+    // IllegalArgumentException 처리 추가
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<RsData<Void>> handleIllegalArgumentException(IllegalArgumentException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new RsData<>("400-1", "잘못된 요청입니다: " + ex.getMessage(), null));
+    }
+
+    // 기타 모든 예외 처리
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<RsData<Void>> handleGenericException(Exception ex) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new RsData<>("500-2", "예상치 못한 오류가 발생했습니다.", null));
+    }
 
     // resultCode에서 상태코드 추출 (예: "401-2" → 401)
     private int extractHttpStatus(String resultCode) {

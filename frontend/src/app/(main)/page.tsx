@@ -85,6 +85,7 @@ export default function MainPage() {
     try {
       const res = await fetch('http://localhost:8080/api/todo-lists/me', {
         credentials: 'include', // 쿠키 포함
+
       });
 
       if (res.status === 401) {
@@ -107,7 +108,9 @@ export default function MainPage() {
             completed: item.completed,
             dueDate: formatISOToYMD(item.dueDate),
           };
-          if (list.teamId === 0) {
+
+          if (list.teamId === 1) {
+
             newPersonalTodos.push(common);
           } else  {
             newTeamTodos.push({

@@ -15,7 +15,6 @@ const ProfileEditPage = () => {
   
     const [formData, setFormData] = useState({
       nickname: '',
-      email: '',
       profileImgUrl: ''
     });
   
@@ -179,7 +178,6 @@ const ProfileEditPage = () => {
           setProfileData(profileInfo);
           setFormData({
             nickname: profileInfo.nickname,
-            email: profileInfo.email,
             profileImgUrl: profileInfo.profileImgUrl || '' // 처리된 URL 사용
           });
           setPreviewImage(getDisplayImageUrl(profileInfo.profileImgUrl)); // 표시용 URL 사용
@@ -410,7 +408,6 @@ const ProfileEditPage = () => {
     const handleCancel = () => {
       setFormData({
         nickname: profileData.nickname,
-        email: profileData.email,
         profileImgUrl: profileData.profileImgUrl
       });
       setPreviewImage(getDisplayImageUrl(profileData.profileImgUrl));
@@ -424,17 +421,11 @@ const ProfileEditPage = () => {
           alert('닉네임을 입력해주세요.');
           return;
         }
-        
-        if (!formData.email.trim()) {
-          alert('이메일을 입력해주세요.');
-          return;
-        }
 
         console.log('프로필 업데이트 시작:', formData);
 
         const updateData = {
           nickname: formData.nickname,
-          email: formData.email,
           profileImageUrl: formData.profileImgUrl || null // 빈 문자열인 경우 null로 전송
         };
 
@@ -454,7 +445,6 @@ const ProfileEditPage = () => {
           setProfileData({
             ...profileData,
             nickname: updatedData.nickname || profileData.nickname,
-            email: updatedData.email || profileData.email,
             profileImgUrl: processedImageUrl, // 처리된 URL 사용
             updatedAt: new Date().toLocaleString('ko-KR', {
               year: 'numeric',
@@ -637,20 +627,10 @@ const ProfileEditPage = () => {
               )}
             </div>
   
-            {/* 이메일 */}
+            {/* 이메일 (항상 읽기 전용) */}
             <div style={styles.formGroup}>
               <label style={styles.label}>이메일</label>
-              {isEditing ? (
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  style={styles.input}
-                  placeholder="이메일을 입력하세요"
-                />
-              ) : (
-                <div style={styles.displayValue}>{profileData.email}</div>
-              )}
+              <div style={styles.displayValue}>{profileData.email}</div>
             </div>
   
             {/* 생성일 (읽기 전용) */}

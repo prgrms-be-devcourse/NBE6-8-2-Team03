@@ -36,6 +36,7 @@ public class TodoList extends BaseEntity {
     private Team team;
 
     @OneToMany(mappedBy = "todoList", fetch = LAZY, cascade = REMOVE)
+
     private List<Todo> todo =new ArrayList<>();
 
     public TodoList(String name, String description, User user, Team team){

@@ -1,5 +1,6 @@
 package com.tododuk.global.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -84,35 +85,27 @@ public class SecurityConfig {
                                             response.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
                                             response.setHeader("Access-Control-Allow-Credentials", "true");
 
-                                            response.setStatus(401);
-                                            response.getWriter().write(
-                                                    """
-                                                            {
-                                                                 "resultCode": "401-1",
-                                                                 "msg": "로그인 후 이용해주세요."
-                                                            }
-                                                            """
-                                            );
-                                        }
-                                )
-                                .accessDeniedHandler(
-                                        (request, response, accessDeniedException) -> {
-                                            response.setContentType("application/json;charset=UTF-8");
-                                            // CORS 헤더 추가
-                                            response.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
-                                            response.setHeader("Access-Control-Allow-Credentials", "true");
-
-                                            response.setStatus(403);
-                                            response.getWriter().write(
-                                                    """
-                                                            {
-                                                                 "resultCode": "403-1",
-                                                                 "msg": "권한이 없습니다."
-                                                            }
-                                                            """
-                                            );
-                                        }
-                                )
+                                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                            response.getWriter().write("""
+                                {
+                                     "resultCode": "401-1",
+                                     "msg": "로그인 후 이용해주세요."
+                                }
+                            """);
+                                        })
+                                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                                    // 인가 실패 (403)
+                                    response.setContentType("application/json;charset=UTF-8");
+                                    response.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+                                    response.setHeader("Access-Control-Allow-Credentials", "true");
+                                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                                    response.getWriter().write("""
+                                {
+                                     "resultCode": "403-1",
+                                     "msg": "권한이 없습니다."
+                                }
+                            """);
+                                })
                 );
 
         return http.build();
