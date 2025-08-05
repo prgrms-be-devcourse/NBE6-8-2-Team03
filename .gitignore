@@ -50,7 +50,3 @@ coverage/
 # Temporary folders
 tmp/
 temp/
-
-# API test files
-*.http
-api-test.http
