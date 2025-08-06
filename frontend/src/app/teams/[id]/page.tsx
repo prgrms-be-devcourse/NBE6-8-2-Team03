@@ -51,6 +51,11 @@ interface Todo {
   updatedAt: string;
   assignedMemberId?: number | null;
   dueDate?: string | null;
+  assignedUser?: {
+    id: number;
+    nickname: string;
+    email: string;
+  } | null;
 }
 
 // API 응답 타입
@@ -211,7 +216,7 @@ const TeamDetailPage: React.FC = () => {
     }
   };
 
-  // 할일 목록별 할일 가져오기
+    // 할일 목록별 할일 가져오기
   const fetchTodosByList = async (todoListId: number) => {
     try {
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todo-lists/${todoListId}/todos`, {
@@ -224,9 +229,40 @@ const TeamDetailPage: React.FC = () => {
       }
 
       const result = await response.json();
-      
+
       if (result.resultCode === '200-OK') {
-        setTodos(result.data);
+        // 각 Todo에 담당자 정보 추가
+        const todosWithAssignments = await Promise.all(
+          result.data.map(async (todo: Todo) => {
+            try {
+              const assignResponse = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${todo.id}/assign`, {
+                method: 'GET',
+                credentials: 'include',
+              });
+
+              if (assignResponse.ok) {
+                const assignResult = await assignResponse.json();
+                if (assignResult.resultCode === '200-OK' && assignResult.data.assignedUserId) {
+                  return {
+                    ...todo,
+                    assignedMemberId: assignResult.data.assignedUserId,
+                    assignedUser: {
+                      id: assignResult.data.assignedUserId,
+                      nickname: assignResult.data.assignedUserNickname,
+                      email: assignResult.data.assignedUserEmail
+                    }
+                  };
+                }
+              }
+              return todo;
+            } catch (error) {
+              console.error(`Todo ${todo.id} 담당자 정보 조회 실패:`, error);
+              return todo;
+            }
+          })
+        );
+
+        setTodos(todosWithAssignments);
         setSelectedTodo(null); // 할일 목록 변경 시 선택된 할일 초기화
       } else {
         throw new Error(result.msg || 'Failed to fetch todos');
@@ -444,7 +480,7 @@ const TeamDetailPage: React.FC = () => {
     }
   };
 
-  // 할일 추가
+    // 할일 추가
   const handleAddTodo = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -454,16 +490,21 @@ const TeamDetailPage: React.FC = () => {
     }
 
     try {
+      // 할일 추가 (담당자 정보 제외)
+      const todoData = {
+        title: newTodo.title,
+        description: newTodo.description,
+        priority: newTodo.priority,
+        dueDate: newTodo.dueDate ? new Date(newTodo.dueDate).toISOString() : null
+      };
+
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todo-lists/${selectedTodoList.id}/todos`, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          ...newTodo,
-          dueDate: newTodo.dueDate ? new Date(newTodo.dueDate).toISOString() : null
-        })
+        body: JSON.stringify(todoData)
       });
 
       if (!response.ok) {
@@ -473,7 +514,38 @@ const TeamDetailPage: React.FC = () => {
       const result = await response.json();
 
       if (result.resultCode === '200-OK') {
-        showToast('할일이 성공적으로 추가되었습니다.', 'success');
+        // 담당자가 지정된 경우 별도 API로 담당자 지정
+        if (newTodo.assignedMemberId) {
+          try {
+            const assignResponse = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${result.data.id}/assign`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                assignedUserId: newTodo.assignedMemberId
+              })
+            });
+
+            if (assignResponse.ok) {
+              const assignResult = await assignResponse.json();
+              if (assignResult.resultCode === '200-OK') {
+                showToast('할일과 담당자가 성공적으로 추가되었습니다.', 'success');
+              } else {
+                showToast('할일은 추가되었지만 담당자 지정에 실패했습니다.', 'info');
+              }
+            } else {
+              showToast('할일은 추가되었지만 담당자 지정에 실패했습니다.', 'info');
+            }
+          } catch (assignError) {
+            console.error('담당자 지정 실패:', assignError);
+            showToast('할일은 추가되었지만 담당자 지정에 실패했습니다.', 'info');
+          }
+        } else {
+          showToast('할일이 성공적으로 추가되었습니다.', 'success');
+        }
+
         setNewTodo({ title: '', description: '', priority: 2, assignedMemberId: null, dueDate: '' });
         setShowTodoModal(false);
         fetchTodosByList(selectedTodoList.id);
@@ -496,17 +568,21 @@ const TeamDetailPage: React.FC = () => {
     }
 
     try {
+      // 할일 기본 정보 수정
+      const todoData = {
+        title: editingTodo.title,
+        description: editingTodo.description,
+        priority: editingTodo.priority,
+        dueDate: editingTodo.dueDate ? new Date(editingTodo.dueDate).toISOString() : null
+      };
+
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${editingTodo.id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          title: editingTodo.title,
-          description: editingTodo.description,
-          priority: editingTodo.priority
-        })
+        body: JSON.stringify(todoData)
       });
 
       if (!response.ok) {
@@ -516,7 +592,53 @@ const TeamDetailPage: React.FC = () => {
       const result = await response.json();
 
       if (result.resultCode === '200-OK') {
-        showToast('할일이 성공적으로 수정되었습니다.', 'success');
+        // 담당자가 변경된 경우 별도 API로 담당자 처리
+        if (editingTodo.assignedMemberId !== null) {
+          try {
+            const assignResponse = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${editingTodo.id}/assign`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                assignedUserId: editingTodo.assignedMemberId
+              })
+            });
+
+            if (assignResponse.ok) {
+              const assignResult = await assignResponse.json();
+              if (assignResult.resultCode === '200-OK') {
+                showToast('할일과 담당자가 성공적으로 수정되었습니다.', 'success');
+              } else {
+                showToast('할일은 수정되었지만 담당자 지정에 실패했습니다.', 'info');
+              }
+            } else {
+              showToast('할일은 수정되었지만 담당자 지정에 실패했습니다.', 'info');
+            }
+          } catch (assignError) {
+            console.error('담당자 지정 실패:', assignError);
+            showToast('할일은 수정되었지만 담당자 지정에 실패했습니다.', 'info');
+          }
+        } else {
+          // 담당자가 null인 경우 기존 담당자 해제
+          try {
+            const unassignResponse = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${editingTodo.id}/assign`, {
+              method: 'DELETE',
+              credentials: 'include',
+            });
+
+            if (unassignResponse.ok) {
+              showToast('할일과 담당자가 성공적으로 수정되었습니다.', 'success');
+            } else {
+              showToast('할일은 수정되었지만 담당자 해제에 실패했습니다.', 'info');
+            }
+          } catch (unassignError) {
+            console.error('담당자 해제 실패:', unassignError);
+            showToast('할일은 수정되었지만 담당자 해제에 실패했습니다.', 'info');
+          }
+        }
+
         setEditingTodo(null);
         setShowTodoModal(false);
         if (selectedTodoList) {
@@ -1981,8 +2103,8 @@ const TeamDetailPage: React.FC = () => {
                       border: '1px solid var(--border-light)',
                       fontStyle: selectedTodo.assignedMemberId ? 'normal' : 'italic'
                     }}>
-                      {selectedTodo.assignedMemberId ? 
-                        team?.members.find(m => m.userId === (selectedTodo.assignedMemberId as number))?.userNickname || '담당자' : 
+                      {selectedTodo.assignedUser ? 
+                        selectedTodo.assignedUser.nickname : 
                         '지정되지 않음'}
                     </div>
                   </div>
