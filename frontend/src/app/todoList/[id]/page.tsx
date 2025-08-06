@@ -1,4 +1,5 @@
 'use client';
+import TodoEmptyState from './components/TodoEmptyState';
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -7,7 +8,6 @@ import TodoListInfoComponent from './components/TodoListInfo';
 import TodoListItems from './components/TodoListItems';
 import TodoCreateForm from './components/TodoCreateForm';
 import TodoDetailView from './components/TodoDetailView';
-import TodoEmptyState from './components/TodoEmptyState';
 import TodoEditForm from './components/TodoEditForm';
 
 interface Todo {
@@ -50,7 +50,7 @@ export default function TodoListPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
-  const [showEditForm, setShowEditForm] = useState<boolean>(false);
+  const [showEditForm, setShowEditForm] = useState<boolean>(false); // 수정 폼 상태 추가
   
   // 새 TODO 폼 상태
   const [newTodo, setNewTodo] = useState({
@@ -124,13 +124,13 @@ export default function TodoListPage() {
         if (!todoListData && todosResult.data && todosResult.data.length > 0) {
           const firstTodo = todosResult.data[0];
           setTodoListInfo({
-            id: result.data.id,
-            name: result.data.name,
-            description: result.data.description,
-            userId: result.data.userId,
-            teamId: result.data.teamId,
-            createDate: result.data.createDate,
-            modifyDate: result.data.modifyDate
+            id: firstTodo.todoList,
+            name: `TodoList ${firstTodo.todoList}`,
+            description: `TodoList ID ${firstTodo.todoList}의 할일 목록`,
+            userId: 0,
+            teamId: 0,
+            createDate: firstTodo.createdAt,
+            modifyDate: firstTodo.updatedAt
           });
         }
         
@@ -167,8 +167,6 @@ export default function TodoListPage() {
     } catch (err) {
       console.error('Failed to fetch todo list:', err);
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
-      // 에러 발생 시에도 빈 배열로 설정
-      setTodos([]);
     } finally {
       setLoading(false);
     }
@@ -182,11 +180,12 @@ export default function TodoListPage() {
   const handleTodoClick = (todo: Todo) => {
     setSelectedTodo(todo);
     setShowCreateForm(false);
-    setShowEditForm(false);
+    setShowEditForm(false); // 수정 폼도 숨기기
   };
 
   const handleCheckboxChange = async (todoId: number) => {
     try {
+      // 실제 API 호출로 완료 상태 토글 - 서버 API에 맞게 수정
       const response = await fetch(`http://localhost:8080/api/todo/${todoId}/complete`, {
         method: 'PATCH',
         credentials: 'include',
@@ -200,10 +199,14 @@ export default function TodoListPage() {
       }
 
       const result = await response.json();
+      console.log('Toggle API Response:', result); // 디버깅용
       
+      // 서버 응답에 따른 성공 처리
       if (result.resultCode === 'S-1' || result.resultCode === 'SUCCESS' || response.ok) {
+        // 서버에서 받은 업데이트된 TODO 데이터 사용
         const updatedTodo = result.data;
         
+        // 로컬 상태 업데이트
         setTodos(prevTodos => 
           prevTodos.map(todo => 
             todo.id === todoId 
@@ -216,6 +219,7 @@ export default function TodoListPage() {
           )
         );
         
+        // 선택된 todo도 업데이트
         if (selectedTodo?.id === todoId) {
           setSelectedTodo(prev => prev ? { 
             ...prev, 
@@ -223,23 +227,46 @@ export default function TodoListPage() {
             updatedAt: updatedTodo?.updatedAt || new Date().toISOString()
           } : null);
         }
+        
+        console.log(`✅ 할 일 ${todoId} 상태가 변경되었습니다.`);
+        
+        // 목록 새로고침 (서버 데이터와 동기화) - 선택사항
+        // await fetchTodoListData();
       } else {
         throw new Error(result.msg || result.message || 'Failed to toggle todo status');
       }
     } catch (error) {
       console.error('Failed to toggle todo:', error);
-      alert('할 일 상태 변경에 실패했습니다.');
+      
+      // 구체적인 에러 메시지
+      let errorMessage = '할 일 상태 변경에 실패했습니다.';
+      if (error instanceof Error) {
+        if (error.message.includes('404')) {
+          errorMessage = '해당 할 일을 찾을 수 없습니다.';
+        } else if (error.message.includes('403')) {
+          errorMessage = '할 일을 수정할 권한이 없습니다.';
+        } else if (error.message.includes('500')) {
+          errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+        }
+      }
+      
+      alert(errorMessage);
+      
+      // 에러 발생 시 원래 상태로 복구 (옵션)
+      // await fetchTodoListData();
     }
   };
 
   const handleEdit = () => {
     if (selectedTodo) {
+      // datetime-local 형식으로 날짜 변환 (YYYY-MM-DDTHH:mm)
       const formatDateForInput = (dateString: string) => {
         if (!dateString) return '';
         const date = new Date(dateString);
-        return date.toISOString().slice(0, 16);
+        return date.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm 형식
       };
 
+      // 선택된 todo의 정보를 editTodo에 설정
       setEditTodo({
         title: selectedTodo.title,
         description: selectedTodo.description,
@@ -247,51 +274,141 @@ export default function TodoListPage() {
         startDate: formatDateForInput(selectedTodo.startDate),
         dueDate: formatDateForInput(selectedTodo.dueDate)
       });
-      setShowEditForm(true);
+      setShowEditForm(true); // 수정 폼 표시
       setShowCreateForm(false);
       setFormErrors({});
+      console.log(`Edit todo ${selectedTodo.id}`);
     }
   };
 
   const handleDelete = async () => {
     if (selectedTodo) {
+      // 삭제 확인 다이얼로그 추가
       if (!confirm(`"${selectedTodo.title}" 할 일을 삭제하시겠습니까?`)) {
         return;
       }
 
       try {
+        // CSRF 토큰을 먼저 가져오기 (필요한 경우)
+        let csrfToken = null;
+        try {
+          const metaCsrf = document.querySelector('meta[name="_csrf"]');
+          const metaCsrfHeader = document.querySelector('meta[name="_csrf_header"]');
+          if (metaCsrf && metaCsrfHeader) {
+            csrfToken = {
+              token: metaCsrf.getAttribute('content'),
+              header: metaCsrfHeader.getAttribute('content')
+            };
+          }
+        } catch (e) {
+          console.log('CSRF token not found in meta tags');
+        }
+
+        // 헤더 설정
+        const headers = {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest' // AJAX 요청임을 명시
+        };
+
+        // CSRF 토큰이 있으면 헤더에 추가
+        if (csrfToken) {
+          headers[csrfToken.header] = csrfToken.token;
+        }
+
+        // 실제 API 호출로 삭제 - 서버 API에 맞게 수정
         const response = await fetch(`http://localhost:8080/api/todo/${selectedTodo.id}`, {
           method: 'DELETE',
           credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: headers
         });
 
+        console.log('Delete API Response Status:', response.status); // 디버깅용
+        console.log('Delete API Headers sent:', headers); // 헤더 확인
+
+        // 401 오류 특별 처리
+        if (response.status === 401) {
+          console.error('401 Unauthorized - 인증 문제 발생');
+          console.log('Request headers:', headers);
+          
+          // 추가 디버깅 정보
+          console.log('Cookies:', document.cookie);
+          
+          alert('인증에 실패했습니다. CSRF 토큰이나 세션 문제일 수 있습니다.');
+          return;
+        }
+
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          // 응답 본문도 확인 (오류 상세 정보)
+          let errorText = '';
+          try {
+            const errorBody = await response.text();
+            errorText = errorBody;
+            console.log('Error response body:', errorBody);
+          } catch (e) {
+            console.log('Could not read error response body');
+          }
+          
+          throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
         }
 
         const result = await response.json();
-        
+        console.log('Delete API Response:', result); // 디버깅용
+
+        // 서버 응답에 따른 성공 처리
         if (result.resultCode === 'S-1' || result.resultCode === 'SUCCESS' || response.ok) {
+          // 성공 시 로컬 상태에서 제거
           setTodos(prevTodos => prevTodos.filter(todo => todo.id !== selectedTodo.id));
           setSelectedTodo(null);
+          
+          console.log(`✅ 할 일 "${selectedTodo.title}"가 삭제되었습니다.`);
+          
+          // 목록 새로고침 (서버 데이터와 동기화)
           await refreshTodoList();
         } else {
           throw new Error(result.msg || result.message || 'Failed to delete todo');
         }
       } catch (error) {
         console.error('Failed to delete todo:', error);
-        alert('할 일 삭제에 실패했습니다.');
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+        
+        // 구체적인 에러 메시지
+        let errorMessage = '할 일 삭제에 실패했습니다.';
+        if (error instanceof Error) {
+          if (error.message.includes('401')) {
+            errorMessage = '삭제 권한이 없습니다. CSRF 토큰이나 인증 설정을 확인해주세요.';
+          } else if (error.message.includes('404')) {
+            errorMessage = '해당 할 일을 찾을 수 없습니다.';
+          } else if (error.message.includes('403')) {
+            errorMessage = '할 일을 삭제할 권한이 없습니다.';
+          } else if (error.message.includes('400')) {
+            errorMessage = '삭제 요청이 올바르지 않습니다.';
+          } else if (error.message.includes('500')) {
+            errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+          } else if (error.message.includes('Failed to fetch')) {
+            errorMessage = '네트워크 연결을 확인해주세요.';
+          }
+        }
+        
+        alert(errorMessage + '\n\n개발자 도구의 Console과 Network 탭을 확인해보세요.');
+        
+        // 데이터 새로고침으로 일관성 유지
+        try {
+          await refreshTodoList();
+        } catch (refreshError) {
+          console.error('Failed to refresh after error:', refreshError);
+        }
       }
     }
   };
 
   const handleCreateTodo = () => {
     setShowCreateForm(true);
-    setShowEditForm(false);
+    setShowEditForm(false); // 수정 폼 숨기기
     setSelectedTodo(null);
+    // 현재 날짜를 기본값으로 설정
     const now = new Date();
     const today = now.toISOString().slice(0, 16);
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
@@ -474,6 +591,7 @@ export default function TodoListPage() {
         }
         
         await refreshTodoList();
+        
       } else {
         throw new Error(result.message || result.msg || `Failed to ${isEdit ? 'update' : 'create'} todo`);
       }
@@ -549,13 +667,13 @@ export default function TodoListPage() {
         if (!todoListData && todosResult.data && todosResult.data.length > 0) {
           const firstTodo = todosResult.data[0];
           setTodoListInfo({
-            id: result.data.id,
-            name: result.data.name,
-            description: result.data.description,
-            userId: result.data.userId,
-            teamId: result.data.teamId,
-            createDate: result.data.createDate,
-            modifyDate: result.data.modifyDate
+            id: firstTodo.todoList,
+            name: `TodoList ${firstTodo.todoList}`,
+            description: `TodoList ID ${firstTodo.todoList}의 할일 목록`,
+            userId: 0,
+            teamId: 0,
+            createDate: firstTodo.createdAt,
+            modifyDate: firstTodo.updatedAt
           });
         }
         
@@ -589,8 +707,28 @@ export default function TodoListPage() {
       }
     } catch (err) {
       console.error('Failed to refresh todo list:', err);
-      // 에러 발생 시에도 기존 상태 유지 (빈 배열이든 기존 배열이든)
+      // 새로고침 실패는 조용히 처리 (기존 데이터 유지)
     }
+  };
+
+  const handleCancelCreate = () => {
+    setShowCreateForm(false);
+    setShowEditForm(false); // 수정 폼도 숨기기
+    setNewTodo({
+      title: '',
+      description: '',
+      priority: 2,
+      startDate: '',
+      dueDate: ''
+    });
+    setEditTodo({
+      title: '',
+      description: '',
+      priority: 2,
+      startDate: '',
+      dueDate: ''
+    });
+    setFormErrors({});
   };
 
   // 로딩 및 에러 상태
@@ -667,29 +805,32 @@ export default function TodoListPage() {
   }
 
   return (
-    <TodoListTemplate contentClassName="todo-list-content">
+    <TodoListTemplate>
+      {/* CSS 강제 오버라이드 - 적당한 크기로 조정 */}
       <style jsx global>{`
-        .todo-list-content {
-          padding: 1rem !important;
-          display: flex !important;
+        .content {
+          max-width: none !important;
+          width: 100% !important;
           align-items: stretch !important;
           justify-content: flex-start !important;
           text-align: left !important;
+          padding: 1rem !important;
+        }
+        .todo-list-template {
           max-width: none !important;
           width: 100% !important;
         }
-        .todo-list-content .welcome-message {
-          width: 100% !important;
+        .main-container {
           max-width: none !important;
-          display: flex !important;
-          flex-direction: column !important;
+          width: 100% !important;
         }
       `}</style>
       
+      {/* 전체 컨테이너 - 너비 25% 줄임 + 최소 너비 설정 */}
       <div style={{ 
-        width: '70%',
-        maxWidth: '1500px',
-        minWidth: '800px',
+        width: '70%', // 95% -> 70%로 25% 줄임 (95% - 25% = 70%)
+        maxWidth: '1500px', // 2000px -> 1500px로 줄임
+        minWidth: '800px', // 전체 최소 너비 800px 설정
         margin: '0 auto',
         padding: '0 2rem',
         display: 'flex',
@@ -697,7 +838,7 @@ export default function TodoListPage() {
         justifyContent: 'flex-start',
         textAlign: 'left',
         height: '100%',
-        overflowX: 'auto'
+        overflowX: 'auto' // 가로 스크롤 허용
       }}>
         <div style={{ 
           display: 'flex', 
@@ -709,14 +850,15 @@ export default function TodoListPage() {
           gap: '2rem',
           minWidth: '1100px' // 1000px -> 1100px로 증가
         }}>
+          {/* 왼쪽: 투두리스트 + 투두목록 - 최소 너비 고정 */}
           <div style={{ 
             width: '40%',
-            minWidth: '400px',
+            minWidth: '400px', // 최소 너비 400px 고정
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
             gap: '1.5rem',
-            flexShrink: 0
+            flexShrink: 0 // 축소 방지
           }}>
             <TodoListInfoComponent 
               todoListInfo={todoListInfo}
@@ -732,13 +874,14 @@ export default function TodoListPage() {
             />
           </div>
 
+          {/* 오른쪽: 선택된 Todo 상세 정보 또는 새 TODO 생성 폼 - 최소 너비 고정 */}
           <div style={{ 
             width: '40%',
             minWidth: '450px', // 350px -> 450px로 증가 (약 100px 더 넓게)
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            flexShrink: 0
+            flexShrink: 0 // 축소 방지
           }}>
             {showCreateForm ? (
                 <TodoCreateForm 
