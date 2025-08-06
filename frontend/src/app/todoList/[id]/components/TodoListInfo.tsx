@@ -7,7 +7,7 @@ interface Todo {
   completed: boolean;
   priority: number;
   startDate: string;
-  dueDate: string | null; // null 타입 추가
+  dueDate: string;
   todoList: number;
   createdAt: string;
   updatedAt: string;
@@ -34,6 +34,9 @@ const TodoListInfoComponent: React.FC<TodoListInfoProps> = ({
   todoListId, 
   todos 
 }) => {
+  // todos가 배열인지 확인하고, 아니면 빈 배열로 처리
+  const safeTodos = Array.isArray(todos) ? todos : [];
+  
   return (
     <div style={{
       background: 'var(--bg-white)',
@@ -69,7 +72,7 @@ const TodoListInfoComponent: React.FC<TodoListInfoProps> = ({
           fontSize: '0.875rem',
           fontWeight: '600'
         }}>
-          총 {todos.length}개
+          총 {safeTodos.length}개
         </span>
         <span style={{
           background: '#f0fdf4',
@@ -79,7 +82,7 @@ const TodoListInfoComponent: React.FC<TodoListInfoProps> = ({
           fontSize: '0.875rem',
           fontWeight: '600'
         }}>
-          완료 {todos.filter(t => t.completed).length}개
+          완료 {safeTodos.filter(t => t.completed).length}개
         </span>
         <span style={{
           background: '#fefce8',
@@ -89,7 +92,7 @@ const TodoListInfoComponent: React.FC<TodoListInfoProps> = ({
           fontSize: '0.875rem',
           fontWeight: '600'
         }}>
-          진행중 {todos.filter(t => !t.completed).length}개
+          진행중 {safeTodos.filter(t => !t.completed).length}개
         </span>
       </div>
       {todoListInfo && (
