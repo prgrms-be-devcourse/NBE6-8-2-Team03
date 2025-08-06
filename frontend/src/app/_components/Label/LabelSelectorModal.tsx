@@ -76,12 +76,15 @@ const LabelSelectorModal = ({ todoId }: LabelSelectorModalProps) => {
         }
 
         const todoLabelsData = await todoLabelsResponse.json();
-        const fetchedTodoLabelIds = todoLabelsData.data?.labelIds;
-        if (Array.isArray(fetchedTodoLabelIds)) {
-          setSelectedLabels(fetchedTodoLabelIds);
+        
+        // 🔥 수정: labels 배열에서 id만 추출하도록 변경
+        const fetchedTodoLabels = todoLabelsData.data?.labels;
+        if (Array.isArray(fetchedTodoLabels)) {
+          const labelIds = fetchedTodoLabels.map(label => label.id);
+          setSelectedLabels(labelIds);
         } else {
           console.warn(
-            `API 응답에 'data.labelIds' 배열이 없습니다 (todoId: ${todoId}):`,
+            `API 응답에 'data.labels' 배열이 없습니다 (todoId: ${todoId}):`,
             todoLabelsData
           );
           setSelectedLabels([]);
@@ -135,6 +138,12 @@ const LabelSelectorModal = ({ todoId }: LabelSelectorModalProps) => {
 
       const responseData = await response.json();
       console.log('라벨이 성공적으로 업데이트되었습니다:', responseData);
+      
+      // 🔥 수정: 응답 데이터에서 labels 배열 확인
+      if (responseData.data?.labels) {
+        console.log('연결된 라벨들:', responseData.data.labels);
+      }
+      
       alert('라벨이 성공적으로 업데이트되었습니다!');
     } catch (err: any) {
       console.error('라벨 업데이트 중 오류 발생:', err);
@@ -169,6 +178,11 @@ const LabelSelectorModal = ({ todoId }: LabelSelectorModalProps) => {
       >
         <span className="text-sm">🏷️</span>
         라벨 선택
+        {selectedLabels.length > 0 && (
+          <span className="bg-blue-700 text-white text-xs px-2 py-1 rounded-full">
+            {selectedLabels.length}
+          </span>
+        )}
       </button>
 
       {selectedLabels.length > 0 && (
@@ -178,10 +192,16 @@ const LabelSelectorModal = ({ todoId }: LabelSelectorModalProps) => {
             {currentSelectedLabels.map((label) => (
               <span
                 key={`display-${label.id}`}
-                className="px-2 py-1 text-white text-xs rounded-full"
+                className="px-2 py-1 text-white text-xs rounded-full flex items-center gap-1"
                 style={{ backgroundColor: label.color }}
               >
                 {label.name}
+                <button
+                  onClick={() => handleLabelToggle(label.id)}
+                  className="ml-1 text-white hover:text-gray-200 text-sm"
+                >
+                  ×
+                </button>
               </span>
             ))}
           </div>
@@ -282,7 +302,7 @@ const LabelSelectorModal = ({ todoId }: LabelSelectorModalProps) => {
                 onClick={handleSave}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
               >
-                적용
+                적용 ({selectedLabels.length}개 선택)
               </button>
             </div>
           </div>

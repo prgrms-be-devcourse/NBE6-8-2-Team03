@@ -1,5 +1,11 @@
 import React from 'react';
 
+interface Label {
+  id: number;
+  name: string;
+  color: string;
+}
+
 interface Todo {
   id: number;
   title: string;
@@ -7,10 +13,11 @@ interface Todo {
   completed: boolean;
   priority: number;
   startDate: string;
-  dueDate: string;
+  dueDate: string | null;
   todoList: number;
   createdAt: string;
   updatedAt: string;
+  labels?: Label[]; // 라벨 정보 추가
 }
 
 interface TodoListItemsProps {
@@ -85,7 +92,7 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
         <div style={{ 
           display: 'flex', 
           flexDirection: 'column', 
-          gap: '0.5rem',
+          gap: '1rem',
           flex: 1,
           overflowY: 'auto',
           paddingRight: '0.75rem'
@@ -96,7 +103,7 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
               style={{
                 background: selectedTodo?.id === todo.id ? 'var(--primary-light)' : 'var(--bg-main)',
                 borderRadius: '10px',
-                padding: '1rem',
+                padding: '1.5rem',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 borderLeft: `5px solid ${
@@ -107,7 +114,7 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
                 border: selectedTodo?.id === todo.id 
                   ? '2px solid var(--primary-color)' 
                   : '1px solid var(--border-light)',
-                minHeight: '120px'
+                minHeight: todo.labels && todo.labels.length > 0 ? '170px' : '140px' // 라벨이 있으면 높이 증가
               }}
               onClick={() => onTodoClick(todo)}
             >
@@ -142,26 +149,26 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
                   </h3>
                   <p style={{
                     color: 'var(--text-secondary)',
-                    fontSize: '0.9rem',
-                    marginBottom: '0.5rem',
-                    lineHeight: '1.3',
+                    fontSize: '1rem',
+                    marginBottom: '1rem',
+                    lineHeight: '1.5',
                     display: '-webkit-box',
                     WebkitLineClamp: 1,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    height: '1.3em'
+                    height: '3em'
                   }}>
                     {todo.description || '설명이 없습니다.'}
                   </p>
-                  {/* 우선순위와 날짜를 별도 컨테이너로 분리하여 항상 표시되도록 */}
+
+                  {/* 라벨 표시 섹션을 우선순위 다음으로 이동 */}
                   <div style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'space-between',
                     gap: '0.75rem',
-                    minHeight: '28px',
-                    marginTop: 'auto'
+                    marginBottom: todo.labels && todo.labels.length > 0 ? '0.75rem' : '0' // 라벨이 있으면 간격 추가
                   }}>
                     <span style={{
                       fontSize: '0.85rem',
@@ -187,6 +194,61 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
                       📅 {new Date(todo.dueDate).toLocaleDateString()}
                     </span>
                   </div>
+
+                  {/* 라벨 표시 섹션 - 우선순위 바로 다음 */}
+                  {todo.labels && todo.labels.length > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem'
+                    }}>
+                      {todo.labels.slice(0, 3).map(label => (
+                        <span
+                          key={label.id}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            padding: '0.25rem 0.5rem',
+                            backgroundColor: label.color,
+                            color: 'white',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: '500',
+                            maxWidth: '80px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                              flexShrink: 0
+                            }}
+                          />
+                          {label.name}
+                        </span>
+                      ))}
+                      {todo.labels.length > 3 && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: '#6b7280',
+                          color: 'white',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          fontWeight: '500'
+                        }}>
+                          +{todo.labels.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
