@@ -368,20 +368,17 @@ const CalendarPage: React.FC = () => {
     })).filter(list => list.todos.length > 0);
   };
 
-  // 특정 날짜의 우선순위별 할일 개수 및 색상 정보 가져오기 (완료된 할일 제외)
+  // 특정 날짜의 우선순위별 할일 개수 및 색상 정보 가져오기
   const getTodoColorsForDate = (date: Date) => {
     const todosForDate = getTodosForDate(date);
     const priorityColors: { color: string; count: number }[] = [];
     
-    // 우선순위별로 그룹화 (완료되지 않은 할일만)
+    // 우선순위별로 그룹화
     const priorityCounts = { high: 0, medium: 0, low: 0 };
     
     todosForDate.forEach(list => {
       list.todos.forEach(todo => {
-        // 완료되지 않은 할일만 달력에 표시
-        if (!todo.completed) {
-          priorityCounts[todo.priority]++;
-        }
+        priorityCounts[todo.priority]++;
       });
     });
 
