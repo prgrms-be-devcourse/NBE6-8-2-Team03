@@ -86,7 +86,7 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
   };
 
   const goToProfileEdit = () => {
-    window.location.href = '/profile/edit';
+    window.location.href = '/userProfile';
     onClose();
   };
 
@@ -219,7 +219,7 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
                 </div>
                 <div className="info-item">
                   <span className="info-label">가입일</span>
-                  <span className="info-value">{userProfileData?.createDate ? new Date(userProfileData.createDate).toLocaleDateString('ko-KR') : userInfo.joinDate}</span>
+                  <span className="info-value">{userProfileData?.CreateDate ? new Date(userProfileData.createDate).toLocaleDateString('ko-KR') : userInfo.joinDate}</span>
                 </div>
               </div>
               <div className="profile-actions">

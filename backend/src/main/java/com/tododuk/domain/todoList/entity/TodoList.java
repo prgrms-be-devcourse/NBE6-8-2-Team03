@@ -12,6 +12,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static jakarta.persistence.CascadeType.REMOVE;
@@ -34,8 +35,9 @@ public class TodoList extends BaseEntity {
     @JoinColumn(name = "team_id")
     private Team team;
 
-    @OneToMany(fetch = LAZY, cascade = REMOVE)
-    private List<Todo> todo;
+    @OneToMany(mappedBy = "todoList", fetch = LAZY, cascade = REMOVE)
+
+    private List<Todo> todo =new ArrayList<>();
 
     public TodoList(String name, String description, User user, Team team){
         this.name = name;

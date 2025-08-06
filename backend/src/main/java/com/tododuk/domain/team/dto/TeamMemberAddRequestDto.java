@@ -12,9 +12,8 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TeamMemberAddRequestDto {
-    @NotNull(message = "사용자 ID는 필수입니다.")
-    private int userId; // int 타입으로 변경
-
+    @NotNull(message = "이메일은 필수입니다.")
+    private String email; // 이메일로 사용자 찾기
 
     @NotNull(message = "역할은 필수입니다.")
     private TeamRoleType role; // ex) leader, member

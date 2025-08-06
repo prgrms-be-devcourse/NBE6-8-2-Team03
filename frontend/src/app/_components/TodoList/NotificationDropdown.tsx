@@ -10,6 +10,7 @@ interface NotificationItem {
   isRead: boolean;
 }
 
+
 interface ApiResponse {
   resultCode: string;
   msg: string;

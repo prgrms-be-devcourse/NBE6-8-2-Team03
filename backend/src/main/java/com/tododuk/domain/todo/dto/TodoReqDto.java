@@ -30,6 +30,6 @@ public class TodoReqDto {
     LocalDateTime modifyedAt;
 
     public Todo toEntity() {
-        return new Todo(title, description, priority,isCompleted,todoListId);
+        return new Todo(title, description, priority,isCompleted,todoListId,startDate,dueDate);
     }
 }

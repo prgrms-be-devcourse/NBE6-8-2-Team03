@@ -12,6 +12,7 @@
   --bg-sidebar: #ffffff;
   --bg-content: #ffffff;
 
+
   /* 헤더 배경색 */
   --header-bg: #F9FAFB;
   /* Border Colors */
@@ -23,7 +24,9 @@
   --text-secondary: #64748b;
   --text-light: #94a3b8;
   --text-white: #ffffff;
-  
+
+
+
   /* UI Element Colors */
   --count-bg: #f1f5f9;
   --count-text: #64748b;
@@ -746,5 +749,17 @@
   
   .content.calendar-content {
     padding: 0.5rem !important;
+  }
+  .content.profile-content {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    padding: 0 !important;
+  }
+  
+  .content.profile-content .welcome-message {
+    width: 100%;
+    display: flex;
+    justify-content: center;
   }
 }

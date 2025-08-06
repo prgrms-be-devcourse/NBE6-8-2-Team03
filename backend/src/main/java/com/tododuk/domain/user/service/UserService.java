@@ -3,12 +3,14 @@ package com.tododuk.domain.user.service;
 import com.tododuk.domain.user.dto.UserDto;
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.repository.UserRepository;
+import com.tododuk.global.exception.ServiceException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 
 import java.util.Map;
@@ -16,6 +18,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class UserService {
     private final UserRepository userRepository;
     private final AuthTokenService authTokenService;
@@ -62,7 +65,7 @@ public class UserService {
 
     public void checkPassword(User user,String password) {
         if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+            throw new ServiceException("400-1","비밀번호가 일치하지 않습니다.");
         }
     }
 }

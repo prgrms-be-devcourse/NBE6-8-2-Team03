@@ -14,14 +14,15 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Integer>
 
     List<TeamMember> findByTeam_Id(int teamId);
 
+    // 기존 userId 기반 메서드들 (호환성 유지)
     Optional<TeamMember> findByTeam_IdAndUser_Id(int teamId, int userId);
-
-    // String role 대신 TeamRoleType 사용
-    boolean existsByTeam_IdAndUser_IdAndRole(int teamId, int userId, TeamRoleType role); // 이 메서드는 String으로 유지 (DB 저장 값이 String이므로)
-    // 혹은 오버로딩하여 TeamRoleType을 받는 메서드 추가 가능
-    // boolean existsByTeam_IdAndUser_IdAndRole(int teamId, int userId, TeamRoleType role);
-
+    boolean existsByTeam_IdAndUser_IdAndRole(int teamId, int userId, TeamRoleType role);
     boolean existsByTeam_IdAndUser_Id(int teamId, int userId);
 
-    long countByTeam_IdAndRole(int teamId, TeamRoleType role); // 타입 변경
+    // 이메일 기반 메서드들 (새로 추가)
+    Optional<TeamMember> findByTeam_IdAndUser_UserEmail(int teamId, String userEmail);
+    boolean existsByTeam_IdAndUser_UserEmailAndRole(int teamId, String userEmail, TeamRoleType role);
+    boolean existsByTeam_IdAndUser_UserEmail(int teamId, String userEmail);
+
+    long countByTeam_IdAndRole(int teamId, TeamRoleType role);
 }
