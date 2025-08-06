@@ -4,6 +4,7 @@ import com.tododuk.domain.todo.dto.TodoReqDto;
 import com.tododuk.domain.todo.dto.TodoResponseDto;
 import com.tododuk.domain.todo.entity.Todo;
 import com.tododuk.domain.todo.repository.TodoRepository;
+import com.tododuk.domain.todoLabel.service.TodoLabelService;
 import com.tododuk.domain.todoList.entity.TodoList;
 import com.tododuk.domain.todoList.repository.TodoListRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 public class TodoService {
     private final  TodoRepository todoRepository;
     private final TodoListRepository todoListRepository;
+    private final TodoLabelService todoLabelService;
 
     public Todo save(Todo todo) {
         return todoRepository.save(todo);
@@ -65,9 +67,15 @@ public class TodoService {
     }
 
     @Transactional
-    public void deleteTodo(int id){
-        Todo todo = todoRepository.findById(id)
-                .orElseThrow(()-> new IllegalArgumentException("해당 todo는 존재하지 않습니다."));
+    public void deleteTodo(Integer todoId) {
+        // 1. Todo 존재 확인
+        Todo todo = todoRepository.findById(todoId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 Todo를 찾을 수 없습니다."));
+
+        // 2. 연관된 TodoLabel들 먼저 전체 삭제 (todoLabel 자체를 제거)
+        todoLabelService.deleteAllTodoLabelsByTodoId(todoId);
+
+        // 3. Todo 삭제
         todoRepository.delete(todo);
     }
 
