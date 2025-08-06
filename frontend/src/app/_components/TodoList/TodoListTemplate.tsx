@@ -648,7 +648,7 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
                     return (
                       <Link 
                         key={team.id}
-                        href={`/team/${team.id}`}
+                        href={`/teams/${team.id}`}
                         className={`project-item ${isTeamPage(team.id) ? 'active-project' : ''}`}
                         style={{ textDecoration: 'none', color: 'inherit' }}
                         title={`${team.teamName} - ${team.description || '설명 없음'}`}
@@ -657,7 +657,7 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
                           <span className="project-icon">{getTeamIcon(team.teamName)}</span>
                           <span className="project-name">{team.teamName}</span>
                         </div>
-                        <span className="project-count">{team.members ? team.members.length : 0}</span>
+
                       </Link>
                     );
                   })}
