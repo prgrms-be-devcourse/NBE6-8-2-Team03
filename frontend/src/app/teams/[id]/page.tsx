@@ -39,6 +39,13 @@ interface TodoList {
   todos?: Todo[];
 }
 
+// 라벨 인터페이스
+interface Label {
+  id: number;
+  name: string;
+  color: string;
+}
+
 // 할일 인터페이스
 interface Todo {
   id: number;
@@ -51,6 +58,7 @@ interface Todo {
   updatedAt: string;
   assignedMemberId?: number | null;
   dueDate?: string | null;
+  labels?: Label[];
 }
 
 // API 응답 타입
@@ -98,6 +106,12 @@ const TeamDetailPage: React.FC = () => {
   const [newTodoAssignees, setNewTodoAssignees] = useState<number[]>([]);
   const [editingTodoAssignees, setEditingTodoAssignees] = useState<number[]>([]);
   const [newMemberEmail, setNewMemberEmail] = useState<string>('');
+  
+  // 라벨 관련 상태
+  const [availableLabels, setAvailableLabels] = useState<Label[]>([]);
+  const [selectedLabels, setSelectedLabels] = useState<number[]>([]);
+  const [showLabelModal, setShowLabelModal] = useState(false);
+  const [labelsLoading, setLabelsLoading] = useState(false);
   const [newMemberRole, setNewMemberRole] = useState<'LEADER' | 'MEMBER'>('MEMBER');
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<number[]>([]);
   const [modalError, setModalError] = useState<string>('');
@@ -573,7 +587,7 @@ const TeamDetailPage: React.FC = () => {
   };
 
     // 할일 목록별 할일 가져오기
-  const fetchTodosByList = async (todoListId: number) => {
+  const fetchTodosByList = async (todoListId: number, keepSelectedTodoId?: number) => {
     try {
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todo-lists/${todoListId}/todos`, {
         method: 'GET',
@@ -587,8 +601,46 @@ const TeamDetailPage: React.FC = () => {
       const result = await response.json();
 
       if (result.resultCode === '200-OK') {
-        setTodos(result.data);
-        setSelectedTodo(null); // 할일 목록 변경 시 선택된 할일 초기화
+        // 각 할일의 라벨 정보도 함께 가져오기
+        const todosWithLabels = await Promise.all(
+          (result.data || []).map(async (todo: Todo) => {
+            try {
+              const labelResponse = await fetch(`http://localhost:8080/api/todos/${todo.id}/labels`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                  'Accept': 'application/json',
+                },
+              });
+              
+              if (labelResponse.ok) {
+                const labelResult = await labelResponse.json();
+                const labels = labelResult.data?.labels || [];
+                return { ...todo, labels };
+              } else {
+                return { ...todo, labels: [] };
+              }
+            } catch (error) {
+              console.error(`Todo ${todo.id} 라벨 불러오기 실패:`, error);
+              return { ...todo, labels: [] };
+            }
+          })
+        );
+        
+        setTodos(todosWithLabels);
+        
+        // 선택된 할일 유지 여부 결정
+        if (keepSelectedTodoId) {
+          // 지정된 할일 ID가 새 목록에 있는지 확인
+          const updatedTodo = todosWithLabels.find(todo => todo.id === keepSelectedTodoId);
+          if (updatedTodo) {
+            setSelectedTodo(updatedTodo);
+          } else {
+            setSelectedTodo(null);
+          }
+        } else {
+          setSelectedTodo(null); // 할일 목록 변경 시 선택된 할일 초기화
+        }
       } else {
         throw new Error(result.msg || 'Failed to fetch todos');
       }
@@ -772,10 +824,40 @@ const TeamDetailPage: React.FC = () => {
           showToast('할일이 성공적으로 추가되었습니다.', 'success');
         }
 
+        // 라벨이 선택되었다면 라벨 연결 API 호출
+        if (selectedLabels && selectedLabels.length > 0) {
+          try {
+            const labelResponse = await fetch(`http://localhost:8080/api/todos/${newTodoId}/labels`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                todoId: newTodoId,
+                labelIds: selectedLabels
+              })
+            });
+
+            if (!labelResponse.ok) {
+              console.error('라벨 연결 실패:', labelResponse.status);
+              showToast('할일 생성은 완료되었지만 라벨 연결에 실패했습니다.', 'error');
+            } else {
+              const labelResult = await labelResponse.json();
+              console.log('라벨 연결 성공:', labelResult);
+            }
+          } catch (labelError) {
+            console.error('라벨 연결 실패:', labelError);
+            showToast('할일 생성은 완료되었지만 라벨 연결에 실패했습니다.', 'error');
+          }
+        }
+
         setNewTodo({ title: '', description: '', priority: 2, assignedMemberId: null, dueDate: '' });
         setNewTodoAssignees([]);
+        setSelectedLabels([]);
         setShowTodoModal(false);
-        fetchTodosByList(selectedTodoList.id);
+        // 새로 생성된 할일을 선택된 상태로 유지
+        fetchTodosByList(selectedTodoList.id, newTodoId);
       } else {
         throw new Error(result.msg || 'Failed to add todo');
       }
@@ -839,11 +921,41 @@ const TeamDetailPage: React.FC = () => {
           showToast('할일은 수정되었지만 담당자 업데이트에 실패했습니다.', 'error');
         }
 
+        // 라벨이 선택되었다면 라벨 연결 API 호출
+        if (selectedLabels && selectedLabels.length > 0) {
+          try {
+            const labelResponse = await fetch(`http://localhost:8080/api/todos/${editingTodo.id}/labels`, {
+              method: 'PUT',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                todoId: editingTodo.id,
+                labelIds: selectedLabels
+              })
+            });
+
+            if (!labelResponse.ok) {
+              console.error('라벨 연결 실패:', labelResponse.status);
+              showToast('할일 수정은 완료되었지만 라벨 연결에 실패했습니다.', 'error');
+            } else {
+              const labelResult = await labelResponse.json();
+              console.log('라벨 연결 성공:', labelResult);
+            }
+          } catch (labelError) {
+            console.error('라벨 연결 실패:', labelError);
+            showToast('할일 수정은 완료되었지만 라벨 연결에 실패했습니다.', 'error');
+          }
+        }
+
         setEditingTodo(null);
         setEditingTodoAssignees([]);
+        setSelectedLabels([]);
         setShowTodoModal(false);
         if (selectedTodoList) {
-          fetchTodosByList(selectedTodoList.id);
+          // 수정된 할일의 ID를 전달하여 선택 상태 유지
+          fetchTodosByList(selectedTodoList.id, editingTodo.id);
         }
         
         // 선택된 할일이 있다면 권한 상태 새로고침
@@ -1000,6 +1112,28 @@ const TeamDetailPage: React.FC = () => {
       console.error('담당자 정보 가져오기 실패:', error);
       setEditingTodoAssignees([]);
     }
+
+    // 현재 라벨 정보 가져오기
+    try {
+      const labelResponse = await fetch(`http://localhost:8080/api/todos/${todo.id}/labels`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (labelResponse.ok) {
+        const labelResult = await labelResponse.json();
+        const currentLabelIds = labelResult.data?.labels?.map((label: Label) => label.id) || [];
+        setSelectedLabels(currentLabelIds);
+      } else {
+        setSelectedLabels([]);
+      }
+    } catch (error) {
+      console.error('라벨 정보 가져오기 실패:', error);
+      setSelectedLabels([]);
+    }
     
     setShowTodoModal(true);
   };
@@ -1039,6 +1173,53 @@ const TeamDetailPage: React.FC = () => {
     if (!team || !currentUser) return null;
     const member = team.members.find(m => m.userId === currentUser.id);
     return member ? member.role : null;
+  };
+
+  // 라벨 목록 불러오기
+  const fetchLabels = async () => {
+    try {
+      setLabelsLoading(true);
+      const response = await fetch(`http://localhost:8080/api/labels`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const labels = result.data?.labels || [];
+        setAvailableLabels(labels);
+      } else {
+        console.warn('라벨 목록 불러오기 실패:', response.status);
+      }
+    } catch (error) {
+      console.error('라벨 목록 불러오기 실패:', error);
+    } finally {
+      setLabelsLoading(false);
+    }
+  };
+
+  // 라벨 토글 함수
+  const handleLabelToggle = (labelId: number) => {
+    setSelectedLabels(prev => 
+      prev.includes(labelId) 
+        ? prev.filter(id => id !== labelId)
+        : [...prev, labelId]
+    );
+  };
+
+  // 라벨 모달 저장 함수
+  const handleLabelModalSave = () => {
+    setShowLabelModal(false);
+  };
+
+  // 라벨 모달 오버레이 클릭 함수
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      setShowLabelModal(false);
+    }
   };
 
   // 초기 데이터 로드
@@ -1891,8 +2072,8 @@ const TeamDetailPage: React.FC = () => {
                           border: (selectedTodo && (selectedTodo as Todo).id === todo.id) 
                             ? '2px solid var(--primary-color)' 
                             : '1px solid var(--border-light)',
-                          minHeight: '120px',
-                          maxHeight: '120px',
+                          minHeight: '160px',
+                          maxHeight: '160px',
                           overflow: 'hidden',
                           width: '100%'
                         }}
@@ -1921,61 +2102,111 @@ const TeamDetailPage: React.FC = () => {
                             }}
                           />
                           )}
-                          <div style={{ flex: 1 }}>
-                            <h3 style={{
-                              fontWeight: '600',
-                              fontSize: '1rem',
-                              color: todo.completed ? 'var(--text-light)' : 'var(--text-primary)',
-                              textDecoration: todo.completed ? 'line-through' : 'none',
-                              marginBottom: '0.5rem',
-                              lineHeight: '1.4',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              maxWidth: '100%'
-                            }}>
-                              {todo.title}
-                            </h3>
-                            <p style={{
-                              color: 'var(--text-secondary)',
-                              fontSize: '0.875rem',
-                              marginBottom: '0.75rem',
-                              lineHeight: '1.4',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              height: '2.4em',
-                              maxHeight: '2.4em'
-                            }}>
-                              {todo.description || '설명이 없습니다.'}
-                            </p>
+                                                      <div style={{ flex: 1 }}>
+                              <h3 style={{
+                                fontWeight: '600',
+                                fontSize: '1rem',
+                                color: todo.completed ? 'var(--text-light)' : 'var(--text-primary)',
+                                textDecoration: todo.completed ? 'line-through' : 'none',
+                                marginBottom: '0.25rem',
+                                lineHeight: '1.4',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '100%'
+                              }}>
+                                {todo.title}
+                              </h3>
+                              <p style={{
+                                color: 'var(--text-secondary)',
+                                fontSize: '0.875rem',
+                                marginBottom: '0.75rem',
+                                lineHeight: '1.4',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 1,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                height: '1.2em',
+                                maxHeight: '1.2em'
+                              }}>
+                                {todo.description || '설명이 없습니다.'}
+                              </p>
                             <div style={{ 
                               display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'space-between',
-                              gap: '0.5rem'
+                              flexDirection: 'column',
+                              gap: '0.25rem'
                             }}>
-                              <span style={{
-                                fontSize: '0.75rem',
-                                padding: '0.25rem 0.5rem',
-                                borderRadius: '12px',
-                                fontWeight: '600',
-                                background: todo.priority === 1 ? '#fef2f2' : 
-                                          todo.priority === 2 ? '#fefce8' : '#eff6ff',
-                                color: todo.priority === 1 ? '#dc2626' : 
-                                       todo.priority === 2 ? '#eab308' : '#2563eb'
+                              {todo.labels && todo.labels.length > 0 && (
+                                <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                  {todo.labels.slice(0, 2).map(label => (
+                                    <span
+                                      key={label.id}
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.125rem',
+                                        padding: '0.125rem 0.375rem',
+                                        backgroundColor: label.color,
+                                        color: 'white',
+                                        borderRadius: '8px',
+                                        fontSize: '0.625rem',
+                                        fontWeight: '500',
+                                        maxWidth: '50px',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          width: '4px',
+                                          height: '4px',
+                                          borderRadius: '50%',
+                                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                          flexShrink: 0
+                                        }}
+                                      />
+                                      {label.name}
+                                    </span>
+                                  ))}
+                                  {todo.labels.length > 2 && (
+                                    <span style={{
+                                      fontSize: '0.625rem',
+                                      color: 'var(--text-light)',
+                                      fontWeight: '500'
+                                    }}>
+                                      +{todo.labels.length - 2}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'space-between',
+                                gap: '0.5rem'
                               }}>
-                                {getPriorityString(todo.priority)}
-                              </span>
-                              <span style={{
-                                fontSize: '0.75rem',
-                                color: 'var(--text-light)',
-                                fontWeight: '500'
-                              }}>
-                                📅 {formatDate(todo.createdAt)}
-                              </span>
+                                <span style={{
+                                  fontSize: '0.75rem',
+                                  padding: '0.25rem 0.5rem',
+                                  borderRadius: '12px',
+                                  fontWeight: '600',
+                                  background: todo.priority === 1 ? '#fef2f2' : 
+                                            todo.priority === 2 ? '#fefce8' : '#eff6ff',
+                                  color: todo.priority === 1 ? '#dc2626' : 
+                                         todo.priority === 2 ? '#eab308' : '#2563eb'
+                                }}>
+                                  {getPriorityString(todo.priority)}
+                                </span>
+                                <span style={{
+                                  fontSize: '0.75rem',
+                                  color: 'var(--text-light)',
+                                  fontWeight: '500'
+                                }}>
+                                  📅 {todo.dueDate ? formatDate(todo.dueDate) : '마감기한 없음'}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -2335,6 +2566,66 @@ const TeamDetailPage: React.FC = () => {
                       })()}
               </div>
             </div>
+                </div>
+
+                {/* 라벨 섹션 */}
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    🏷️ 라벨
+                  </label>
+                  <div style={{ 
+                    fontSize: '0.9rem',
+                    background: 'var(--bg-main)',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-light)',
+                    minHeight: '60px'
+                  }}>
+                    {selectedTodo.labels && selectedTodo.labels.length > 0 ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {selectedTodo.labels.map(label => (
+                          <span
+                            key={label.id}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              padding: '0.25rem 0.5rem',
+                              backgroundColor: label.color,
+                              color: 'white',
+                              borderRadius: '12px',
+                              fontSize: '0.75rem',
+                              fontWeight: '500'
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: '5px',
+                                height: '5px',
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                flexShrink: 0
+                              }}
+                            />
+                            {label.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        color: 'var(--text-light)', 
+                        fontStyle: 'italic'
+                      }}>
+                        설정된 라벨이 없습니다.
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* 권한 경고 메시지 */}
@@ -3276,14 +3567,19 @@ const TeamDetailPage: React.FC = () => {
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             width: '100%',
             maxWidth: '500px',
-            margin: '0 1rem'
+            maxHeight: '90vh',
+            margin: '0 1rem',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
           }}>
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
               padding: '1.5rem',
-              borderBottom: '1px solid var(--border-light)'
+              borderBottom: '1px solid var(--border-light)',
+              flexShrink: 0
             }}>
               <h3 style={{
                 fontSize: '1.25rem',
@@ -3312,8 +3608,13 @@ const TeamDetailPage: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={editingTodo ? handleUpdateTodo : handleAddTodo}>
-              <div style={{ padding: '1.5rem' }}>
+            <form onSubmit={editingTodo ? handleUpdateTodo : handleAddTodo} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={{ 
+                padding: '1.5rem',
+                flex: 1,
+                overflowY: 'auto',
+                minHeight: 0
+              }}>
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{
                     display: 'block',
@@ -3514,6 +3815,89 @@ const TeamDetailPage: React.FC = () => {
                     }}
                   />
                 </div>
+
+                {/* 라벨 선택 */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    라벨
+                  </label>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    flexWrap: 'wrap',
+                    minHeight: '2.5rem',
+                    padding: '0.5rem',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: '8px',
+                    background: 'white'
+                  }}>
+                    {selectedLabels.length > 0 ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                        {selectedLabels.map(labelId => {
+                          const label = availableLabels.find(l => l.id === labelId);
+                          return label ? (
+                            <span
+                              key={label.id}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                padding: '0.25rem 0.5rem',
+                                backgroundColor: label.color,
+                                color: 'white',
+                                borderRadius: '12px',
+                                fontSize: '0.75rem',
+                                fontWeight: '500'
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: '4px',
+                                  height: '4px',
+                                  borderRadius: '50%',
+                                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                  flexShrink: 0
+                                }}
+                              />
+                              {label.name}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--text-light)', fontSize: '0.875rem' }}>
+                        선택된 라벨이 없습니다
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        fetchLabels();
+                        setShowLabelModal(true);
+                      }}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: 'var(--primary-color)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        marginLeft: 'auto'
+                      }}
+                    >
+                      라벨 선택
+                    </button>
+                  </div>
+                </div>
               </div>
               <div style={{
                 display: 'flex',
@@ -3522,7 +3906,8 @@ const TeamDetailPage: React.FC = () => {
                 padding: '1.5rem',
                 borderTop: '1px solid var(--border-light)',
                 background: 'var(--bg-main)',
-                borderRadius: '0 0 12px 12px'
+                borderRadius: '0 0 12px 12px',
+                flexShrink: 0
               }}>
                 <button
                   type="button"
@@ -3532,6 +3917,7 @@ const TeamDetailPage: React.FC = () => {
                     setNewTodo({ title: '', description: '', priority: 2, assignedMemberId: null, dueDate: '' });
                     setNewTodoAssignees([]);
                     setEditingTodoAssignees([]);
+                    setSelectedLabels([]);
                   }}
                   style={{
                     padding: '0.5rem 1rem',
@@ -3562,6 +3948,187 @@ const TeamDetailPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 라벨 선택 모달 */}
+      {showLabelModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1001
+          }}
+          onClick={handleOverlayClick}
+        >
+          <div style={{
+            background: 'var(--bg-white)',
+            borderRadius: '12px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            width: '100%',
+            maxWidth: '500px',
+            margin: '0 1rem',
+            maxHeight: '80vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.5rem',
+              borderBottom: '1px solid var(--border-light)'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                color: 'var(--text-primary)'
+              }}>
+                라벨 선택
+              </h3>
+              <button
+                onClick={() => setShowLabelModal(false)}
+                style={{
+                  padding: '0.5rem',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-light)',
+                  cursor: 'pointer',
+                  borderRadius: '6px'
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div style={{
+              padding: '1.5rem',
+              flex: 1,
+              overflowY: 'auto'
+            }}>
+              {labelsLoading ? (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>⏳</div>
+                  <p>라벨을 불러오는 중...</p>
+                </div>
+              ) : availableLabels.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>🏷️</div>
+                  <p>사용 가능한 라벨이 없습니다.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {availableLabels.map(label => (
+                    <label
+                      key={label.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.75rem',
+                        cursor: 'pointer',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-light)',
+                        background: selectedLabels.includes(label.id) ? 'var(--primary-light)' : 'white',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedLabels.includes(label.id)}
+                        onChange={() => handleLabelToggle(label.id)}
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          accentColor: 'var(--primary-color)'
+                        }}
+                      />
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        flex: 1
+                      }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            padding: '0.25rem 0.5rem',
+                            backgroundColor: label.color,
+                            color: 'white',
+                            borderRadius: '12px',
+                            fontSize: '0.875rem',
+                            fontWeight: '500'
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: '5px',
+                              height: '5px',
+                              borderRadius: '50%',
+                              backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                              flexShrink: 0
+                            }}
+                          />
+                          {label.name}
+                        </span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '0.75rem',
+              padding: '1.5rem',
+              borderTop: '1px solid var(--border-light)',
+              background: 'var(--bg-main)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setShowLabelModal(false)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: '1px solid var(--border-light)',
+                  background: 'var(--bg-white)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleLabelModalSave}
+                style={{
+                  padding: '0.5rem 1.5rem',
+                  border: 'none',
+                  background: 'var(--primary-color)',
+                  color: 'white',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                저장
+              </button>
+            </div>
           </div>
         </div>
       )}
