@@ -72,19 +72,19 @@ export default function TodoListPage() {
     
     try {
       const response = await fetch(`http://localhost:8080/api/todo-lists/${todoListId}`, {
-
         method: 'GET',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         }
       });
-
+  
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+  
       const result = await response.json();
+      console.log('API Response:', result); // 디버깅용
       
       if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS' || response.ok) {
         // TodoList 정보 설정
@@ -99,18 +99,19 @@ export default function TodoListPage() {
             modifyDate: result.data.modifyDate
           });
           
-          // Todos 배열 설정
-          setTodos(result.data.todo || []);
-
+          // Todos 배열 안전하게 설정
+          const todosArray = Array.isArray(result.data.todo) ? result.data.todo : [];
+          console.log('Setting todos:', todosArray); // 디버깅용
+          setTodos(todosArray);
         }
-        
-        setTodos(result.data || []);
       } else {
         throw new Error(result.msg || 'Failed to fetch todo list');
       }
     } catch (err) {
       console.error('Failed to fetch todo list:', err);
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      // 에러 발생 시에도 빈 배열로 설정
+      setTodos([]);
     } finally {
       setLoading(false);
     }
@@ -368,28 +369,27 @@ export default function TodoListPage() {
     }
   };
 
+
+
   const refreshTodoList = async () => {
     if (!todoListId) return;
     
     try {
       const response = await fetch(`http://localhost:8080/api/todo-lists/${todoListId}`, {
-
         method: 'GET',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         }
       });
-
+  
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+  
       const result = await response.json();
       
       if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS' || response.ok) {
-
-        // TodoList 정보 설정
         if (result.data) {
           setTodoListInfo({
             id: result.data.id,
@@ -401,34 +401,15 @@ export default function TodoListPage() {
             modifyDate: result.data.modifyDate
           });
           
-          // Todos 배열 설정
-          setTodos(result.data.todo || []);
+          // Todos 배열 안전하게 설정
+          const todosArray = Array.isArray(result.data.todo) ? result.data.todo : [];
+          setTodos(todosArray);
         }
       }
     } catch (err) {
       console.error('Failed to refresh todo list:', err);
-      // 새로고침 실패는 조용히 처리 (기존 데이터 유지)
+      // 에러 발생 시에도 기존 상태 유지 (빈 배열이든 기존 배열이든)
     }
-  };
-
-  const handleCancelCreate = () => {
-    setShowCreateForm(false);
-    setShowEditForm(false);
-    setNewTodo({
-      title: '',
-      description: '',
-      priority: 2,
-      startDate: '',
-      dueDate: ''
-    });
-    setEditTodo({
-      title: '',
-      description: '',
-      priority: 2,
-      startDate: '',
-      dueDate: ''
-    });
-    setFormErrors({});
   };
 
   // 로딩 및 에러 상태
