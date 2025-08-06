@@ -49,6 +49,8 @@ interface Todo {
   todoListId: number;
   createdAt: string;
   updatedAt: string;
+  assignedMemberId?: number | null;
+  dueDate?: string | null;
 }
 
 // API 응답 타입
@@ -84,7 +86,13 @@ const TeamDetailPage: React.FC = () => {
   const [editingTodoList, setEditingTodoList] = useState<TodoList | null>(null);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [newTodoList, setNewTodoList] = useState({ name: '', description: '' });
-  const [newTodo, setNewTodo] = useState({ title: '', description: '', priority: 2 });
+  const [newTodo, setNewTodo] = useState({ 
+    title: '', 
+    description: '', 
+    priority: 2,
+    assignedMemberId: null as number | null,
+    dueDate: ''
+  });
   
 
 
@@ -313,7 +321,10 @@ const TeamDetailPage: React.FC = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(newTodo)
+        body: JSON.stringify({
+          ...newTodo,
+          dueDate: newTodo.dueDate ? new Date(newTodo.dueDate).toISOString() : null
+        })
       });
 
       if (!response.ok) {
@@ -324,7 +335,7 @@ const TeamDetailPage: React.FC = () => {
 
       if (result.resultCode === '200-OK') {
         showToast('할일이 성공적으로 추가되었습니다.', 'success');
-        setNewTodo({ title: '', description: '', priority: 2 });
+        setNewTodo({ title: '', description: '', priority: 2, assignedMemberId: null, dueDate: '' });
         setShowTodoModal(false);
         fetchTodosByList(selectedTodoList.id);
       } else {
@@ -723,7 +734,8 @@ const TeamDetailPage: React.FC = () => {
                     color: '#d97706',
                     borderRadius: '12px',
                     fontSize: '0.75rem',
-                    fontWeight: '600'
+                    fontWeight: '600',
+                    whiteSpace: 'nowrap'
                   }}>
                     <Crown className="w-3 h-3" />
                     리더
@@ -896,7 +908,8 @@ const TeamDetailPage: React.FC = () => {
                   fontWeight: '600',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem'
+                  gap: '0.5rem',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 <Plus className="w-4 h-4" />
@@ -1569,6 +1582,59 @@ const TeamDetailPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr 1fr', 
+                  gap: '1.5rem' 
+                }}>
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      📅 마감기한
+                    </label>
+                    <div style={{ 
+                      color: selectedTodo.dueDate ? 'var(--text-primary)' : 'var(--text-light)', 
+                      fontSize: '0.9rem',
+                      background: 'var(--bg-main)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)',
+                      fontStyle: selectedTodo.dueDate ? 'normal' : 'italic'
+                    }}>
+                      {selectedTodo.dueDate ? formatDate(selectedTodo.dueDate) : '설정되지 않음'}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      👤 담당자
+                    </label>
+                    <div style={{ 
+                      color: selectedTodo.assignedMemberId ? 'var(--text-primary)' : 'var(--text-light)', 
+                      fontSize: '0.9rem',
+                      background: 'var(--bg-main)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)',
+                      fontStyle: selectedTodo.assignedMemberId ? 'normal' : 'italic'
+                    }}>
+                      {selectedTodo.assignedMemberId ? 
+                        team?.members.find(m => m.userId === (selectedTodo.assignedMemberId as number))?.userNickname || '담당자' : 
+                        '지정되지 않음'}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1783,7 +1849,7 @@ const TeamDetailPage: React.FC = () => {
                 onClick={() => {
                   setShowTodoModal(false);
                   setEditingTodo(null);
-                  setNewTodo({ title: '', description: '', priority: 2 });
+                  setNewTodo({ title: '', description: '', priority: 2, assignedMemberId: null, dueDate: '' });
                 }}
                 style={{
                   padding: '0.5rem',
@@ -1895,6 +1961,76 @@ const TeamDetailPage: React.FC = () => {
                     <option value={3}>낮음</option>
                   </select>
                 </div>
+                
+                {/* 담당멤버 선택 */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    담당멤버
+                  </label>
+                  <select
+                    value={editingTodo ? editingTodo.assignedMemberId || '' : newTodo.assignedMemberId || ''}
+                    onChange={(e) => {
+                      const assignedMemberId = e.target.value ? parseInt(e.target.value) : null;
+                      if (editingTodo) {
+                        setEditingTodo({ ...editingTodo, assignedMemberId: assignedMemberId as number | null });
+                      } else {
+                        setNewTodo({ ...newTodo, assignedMemberId: assignedMemberId as number | null });
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      background: 'white'
+                    }}
+                  >
+                    <option value="">담당자 선택</option>
+                    {team?.members.map((member) => (
+                      <option key={member.id} value={member.userId}>
+                        {member.userNickname} ({member.userEmail})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* 마감기한 선택 */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    마감기한
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={editingTodo ? editingTodo.dueDate || '' : newTodo.dueDate || ''}
+                    onChange={(e) => {
+                      if (editingTodo) {
+                        setEditingTodo({ ...editingTodo, dueDate: e.target.value });
+                      } else {
+                        setNewTodo({ ...newTodo, dueDate: e.target.value });
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem'
+                    }}
+                  />
+                </div>
               </div>
               <div style={{
                 display: 'flex',
@@ -1910,7 +2046,7 @@ const TeamDetailPage: React.FC = () => {
                   onClick={() => {
                     setShowTodoModal(false);
                     setEditingTodo(null);
-                    setNewTodo({ title: '', description: '', priority: 2 });
+                    setNewTodo({ title: '', description: '', priority: 2, assignedMemberId: null, dueDate: '' });
                   }}
                   style={{
                     padding: '0.5rem 1rem',
