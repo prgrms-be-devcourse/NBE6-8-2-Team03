@@ -25,4 +25,7 @@ public interface TodoAssignmentRepository extends JpaRepository<TodoAssignment, 
     // 특정 팀에서 특정 사용자가 담당자인 Todo 목록 조회
     List<TodoAssignment> findByTeam_IdAndAssignedUser_IdAndStatusOrderByAssignedAtDesc(
         int teamId, int userId, TodoAssignment.AssignmentStatus status);
+    
+    // 특정 Todo의 모든 담당자 기록 삭제
+    void deleteByTodo_Id(int todoId);
 } 
