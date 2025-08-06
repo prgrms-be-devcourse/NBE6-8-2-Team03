@@ -7,6 +7,7 @@ import com.tododuk.domain.team.entity.Team;
 import com.tododuk.domain.team.entity.TeamMember;
 import com.tododuk.domain.team.repository.TeamMemberRepository;
 import com.tododuk.domain.team.repository.TeamRepository;
+import com.tododuk.domain.team.repository.TodoAssignmentRepository;
 import com.tododuk.domain.user.entity.User;
 import com.tododuk.domain.user.repository.UserRepository;
 import com.tododuk.global.exception.ServiceException;
@@ -26,6 +27,7 @@ public class TeamMemberService {
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
+    private final TodoAssignmentRepository todoAssignmentRepository;
 
     // 1. 팀 생성 시 초기 리더 멤버 추가 (TeamService에서 호출)
     @Transactional
@@ -117,6 +119,18 @@ public class TeamMemberService {
             if (leaderCount == 1) {
                 throw new ServiceException("409-LAST_LEADER_CANNOT_BE_REMOVED", "팀의 마지막 리더는 제거할 수 없습니다.");
             }
+        }
+
+        // 해당 멤버가 담당자로 지정된 모든 할일의 담당자 정보 삭제
+        System.out.println("=== 멤버 제거 시 담당자 정보 삭제 시작 ===");
+        System.out.println("팀 ID: " + teamId + ", 제거할 멤버 User ID: " + memberUserIdToRemove);
+        
+        try {
+            todoAssignmentRepository.deleteByTeam_IdAndAssignedUser_Id(teamId, memberUserIdToRemove);
+            System.out.println("담당자 정보 삭제 완료");
+        } catch (Exception e) {
+            System.out.println("담당자 정보 삭제 실패: " + e.getMessage());
+            e.printStackTrace();
         }
 
         teamMemberRepository.delete(teamMember);

@@ -19,6 +19,8 @@ import com.tododuk.domain.todo.entity.Todo;
 import com.tododuk.domain.todo.repository.TodoRepository;
 import com.tododuk.domain.todoList.entity.TodoList;
 import com.tododuk.domain.todoList.repository.TodoListRepository;
+import com.tododuk.domain.team.entity.TodoAssignment;
+import com.tododuk.domain.team.repository.TodoAssignmentRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,8 +31,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.Optional;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -43,6 +47,7 @@ public class TeamService {
     private final TeamMemberService teamMemberService;
     private final TodoRepository todoRepository;
     private final TodoListRepository todoListRepository;
+    private final TodoAssignmentRepository todoAssignmentRepository;
 
     // 1. 팀 생성
     @Transactional
@@ -74,12 +79,20 @@ public class TeamService {
     // 2. 사용자가 속한 팀 목록 조회
     public RsData<List<TeamResponseDto>> getMyTeams(int userId) {
         List<Team> teams = teamRepository.findTeamsByUserId(userId);
+        
         if (teams.isEmpty()) {
             return RsData.success("속한 팀이 없습니다.", List.of());
         }
+        
+        // 각 팀의 멤버 정보를 명시적으로 로드
         List<TeamResponseDto> teamResponseDtos = teams.stream()
-                .map(TeamResponseDto::from)
+                .map(team -> {
+                    // 팀의 멤버 정보를 명시적으로 로드
+                    Team teamWithMembers = teamRepository.findByIdWithMembers(team.getId()).orElse(team);
+                    return TeamResponseDto.from(teamWithMembers);
+                })
                 .collect(Collectors.toList());
+        
         return RsData.success("팀 목록 조회 성공", teamResponseDtos);
     }
 
@@ -139,7 +152,24 @@ public class TeamService {
             throw new ServiceException("403-NO_PERMISSION", "팀을 삭제할 권한이 없습니다.");
         }
 
+        // 팀과 관련된 모든 TodoAssignment 레코드 삭제
+        todoAssignmentRepository.deleteByTeam_Id(teamId);
+        
+        // 팀과 관련된 모든 TodoList 삭제 (Todo는 cascade로 자동 삭제됨)
+        List<TodoList> teamTodoLists = todoListRepository.findByTeamId(teamId);
+        for (TodoList todoList : teamTodoLists) {
+            // 각 TodoList의 Todo들에 대한 TodoAssignment 레코드들 삭제
+            List<Todo> todos = todoRepository.findByTodoListId(todoList.getId());
+            for (Todo todo : todos) {
+                todoAssignmentRepository.deleteByTodo_Id(todo.getId());
+            }
+            // TodoList 삭제 (Todo는 cascade로 자동 삭제됨)
+            todoListRepository.delete(todoList);
+        }
+        
+        // 팀 삭제 (TeamMember는 cascade로 자동 삭제됨)
         teamRepository.delete(team);
+        
         return RsData.success("팀이 성공적으로 삭제되었습니다.", null);
     }
 
@@ -359,6 +389,12 @@ public class TeamService {
             throw new ServiceException("403-FORBIDDEN", "해당 팀의 할일 목록이 아닙니다.");
         }
 
+        // TodoList 삭제 전에 관련된 모든 Todo의 TodoAssignment 레코드들 삭제
+        List<Todo> todos = todoRepository.findByTodoListId(todoListId);
+        for (Todo todo : todos) {
+            todoAssignmentRepository.deleteByTodo_Id(todo.getId());
+        }
+
         todoListRepository.delete(todoList);
         return RsData.success("할일 목록이 성공적으로 삭제되었습니다.");
     }
@@ -501,20 +537,55 @@ public class TeamService {
     // 팀 할일 삭제
     @Transactional
     public RsData<Void> deleteTeamTodo(int teamId, int todoId, int userId) {
-        // 팀 멤버 확인
-        TeamMember member = teamMemberRepository.findByTeam_IdAndUser_Id(teamId, userId)
-                .orElseThrow(() -> new ServiceException("403-FORBIDDEN", "해당 팀의 멤버가 아닙니다."));
+        try {
+            System.out.println("=== 할일 삭제 시작 ===");
+            System.out.println("teamId: " + teamId + ", todoId: " + todoId + ", userId: " + userId);
+            
+            // 팀 멤버 확인
+            TeamMember member = teamMemberRepository.findByTeam_IdAndUser_Id(teamId, userId)
+                    .orElseThrow(() -> new ServiceException("403-FORBIDDEN", "해당 팀의 멤버가 아닙니다."));
+            System.out.println("팀 멤버 확인 완료: " + member.getUser().getNickName());
 
-        Todo todo = todoRepository.findById(todoId)
-                .orElseThrow(() -> new ServiceException("404-TODO_NOT_FOUND", "할일을 찾을 수 없습니다."));
+            Todo todo = todoRepository.findById(todoId)
+                    .orElseThrow(() -> new ServiceException("404-TODO_NOT_FOUND", "할일을 찾을 수 없습니다."));
+            System.out.println("할일 찾기 완료: " + todo.getTitle());
 
-        // 할일이 해당 팀에 속하는지 확인
-        if (todo.getTodoList().getTeam() == null || todo.getTodoList().getTeam().getId() != teamId) {
-            throw new ServiceException("403-FORBIDDEN", "해당 팀의 할일이 아닙니다.");
+            // TodoList가 null인지 확인
+            if (todo.getTodoList() == null) {
+                System.out.println("ERROR: TodoList가 null입니다.");
+                throw new ServiceException("404-TODO_LIST_NOT_FOUND", "할일 목록을 찾을 수 없습니다.");
+            }
+            System.out.println("TodoList 확인 완료: " + todo.getTodoList().getName());
+
+            // 할일이 해당 팀에 속하는지 확인
+            TodoList todoList = todo.getTodoList();
+            if (todoList.getTeam() == null) {
+                System.out.println("ERROR: TodoList의 Team이 null입니다.");
+                throw new ServiceException("403-FORBIDDEN", "할일 목록이 팀에 속하지 않습니다.");
+            }
+            
+            if (todoList.getTeam().getId() != teamId) {
+                System.out.println("ERROR: 팀 ID 불일치. 요청된 팀: " + teamId + ", 실제 팀: " + todoList.getTeam().getId());
+                throw new ServiceException("403-FORBIDDEN", "해당 팀의 할일이 아닙니다.");
+            }
+            System.out.println("팀 확인 완료: " + todoList.getTeam().getTeamName());
+
+            // 할일 삭제 전에 관련된 TodoAssignment 레코드들 먼저 삭제
+            System.out.println("TodoAssignment 레코드 삭제 시작");
+            todoAssignmentRepository.deleteByTodo_Id(todoId);
+            System.out.println("TodoAssignment 레코드 삭제 완료");
+
+            todoRepository.delete(todo);
+            System.out.println("할일 삭제 완료");
+            return RsData.success("할일이 성공적으로 삭제되었습니다.");
+        } catch (ServiceException e) {
+            System.out.println("ServiceException 발생: " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            System.err.println("할일 삭제 중 예상치 못한 오류 발생: " + e.getMessage());
+            e.printStackTrace();
+            throw new ServiceException("500-2", "할일 삭제 중 오류가 발생했습니다: " + e.getMessage());
         }
-
-        todoRepository.delete(todo);
-        return RsData.success("할일이 성공적으로 삭제되었습니다.");
     }
 
     // 팀 할일 완료 상태 토글
@@ -546,5 +617,373 @@ public class TeamService {
         response.put("updatedAt", todo.getModifyDate());
 
         return RsData.success("할일 완료 상태가 변경되었습니다.", response);
+    }
+
+    // ===== 담당자 관리 메서드들 =====
+
+    // 담당자 지정
+    @Transactional
+    public RsData<Map<String, Object>> assignTodoToMember(int teamId, int todoId, int assignedUserId, int assignerUserId) {
+        // 권한 확인
+        if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, assignerUserId)) {
+            throw new ServiceException("403-FORBIDDEN", "팀 멤버만 접근할 수 있습니다.");
+        }
+
+        // 담당자가 팀 멤버인지 확인
+        if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, assignedUserId)) {
+            throw new ServiceException("403-FORBIDDEN", "담당자는 팀 멤버여야 합니다.");
+        }
+
+        Todo todo = todoRepository.findById(todoId)
+                .orElseThrow(() -> new ServiceException("404-TODO_NOT_FOUND", "할일을 찾을 수 없습니다."));
+
+        // Todo가 해당 팀의 TodoList에 속하는지 확인
+        TodoList todoList = todoListRepository.findById(todo.getTodoList().getId())
+                .orElseThrow(() -> new ServiceException("404-TODO_LIST_NOT_FOUND", "할일 목록을 찾을 수 없습니다."));
+
+        if (todoList.getTeam().getId() != teamId) {
+            throw new ServiceException("403-FORBIDDEN", "해당 팀의 할일이 아닙니다.");
+        }
+
+        User assignedUser = userRepository.findById(assignedUserId)
+                .orElseThrow(() -> new ServiceException("404-USER_NOT_FOUND", "담당자로 지정할 사용자를 찾을 수 없습니다."));
+
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new ServiceException("404-TEAM_NOT_FOUND", "팀을 찾을 수 없습니다."));
+
+        // 기존 활성 담당자 비활성화
+        todoAssignmentRepository.findByTodo_IdAndStatus(todoId, TodoAssignment.AssignmentStatus.ACTIVE)
+                .ifPresent(existingAssignment -> {
+                    existingAssignment.setStatus(TodoAssignment.AssignmentStatus.INACTIVE);
+                    todoAssignmentRepository.save(existingAssignment);
+                });
+
+        // 새로운 담당자 지정
+        TodoAssignment newAssignment = TodoAssignment.builder()
+                .todo(todo)
+                .assignedUser(assignedUser)
+                .team(team)
+                .build();
+
+        todoAssignmentRepository.save(newAssignment);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("todoId", todoId);
+        response.put("assignedUserId", assignedUserId);
+        response.put("assignedUserNickname", assignedUser.getNickName());
+        response.put("assignedAt", newAssignment.getAssignedAt());
+
+        return RsData.success("담당자가 성공적으로 지정되었습니다.", response);
+    }
+
+    // 담당자 해제
+    @Transactional
+    public RsData<Void> unassignTodo(int teamId, int todoId, int unassignerUserId) {
+        // 권한 확인
+        if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, unassignerUserId)) {
+            throw new ServiceException("403-FORBIDDEN", "팀 멤버만 접근할 수 있습니다.");
+        }
+
+        Todo todo = todoRepository.findById(todoId)
+                .orElseThrow(() -> new ServiceException("404-TODO_NOT_FOUND", "할일을 찾을 수 없습니다."));
+
+        // Todo가 해당 팀의 TodoList에 속하는지 확인
+        TodoList todoList = todoListRepository.findById(todo.getTodoList().getId())
+                .orElseThrow(() -> new ServiceException("404-TODO_LIST_NOT_FOUND", "할일 목록을 찾을 수 없습니다."));
+
+        if (todoList.getTeam().getId() != teamId) {
+            throw new ServiceException("403-FORBIDDEN", "해당 팀의 할일이 아닙니다.");
+        }
+
+        // 활성 담당자 비활성화
+        todoAssignmentRepository.findByTodo_IdAndStatus(todoId, TodoAssignment.AssignmentStatus.ACTIVE)
+                .ifPresent(existingAssignment -> {
+                    existingAssignment.setStatus(TodoAssignment.AssignmentStatus.INACTIVE);
+                    todoAssignmentRepository.save(existingAssignment);
+                });
+
+        return RsData.success("담당자가 해제되었습니다.", null);
+    }
+
+    // Todo의 담당자 조회
+    public RsData<Map<String, Object>> getTodoAssignment(int teamId, int todoId, int userId) {
+        // 권한 확인
+        if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, userId)) {
+            throw new ServiceException("403-FORBIDDEN", "팀 멤버만 접근할 수 있습니다.");
+        }
+
+        Todo todo = todoRepository.findById(todoId)
+                .orElseThrow(() -> new ServiceException("404-TODO_NOT_FOUND", "할일을 찾을 수 없습니다."));
+
+        // Todo가 해당 팀의 TodoList에 속하는지 확인
+        TodoList todoList = todoListRepository.findById(todo.getTodoList().getId())
+                .orElseThrow(() -> new ServiceException("404-TODO_LIST_NOT_FOUND", "할일 목록을 찾을 수 없습니다."));
+
+        if (todoList.getTeam().getId() != teamId) {
+            throw new ServiceException("403-FORBIDDEN", "해당 팀의 할일이 아닙니다.");
+        }
+
+        // 활성 담당자 조회
+        Optional<TodoAssignment> assignment = todoAssignmentRepository.findByTodo_IdAndStatus(todoId, TodoAssignment.AssignmentStatus.ACTIVE);
+
+        Map<String, Object> response = new HashMap<>();
+        if (assignment.isPresent()) {
+            TodoAssignment activeAssignment = assignment.get();
+            response.put("assignedUserId", activeAssignment.getAssignedUser().getId());
+            response.put("assignedUserNickname", activeAssignment.getAssignedUser().getNickName());
+            response.put("assignedUserEmail", activeAssignment.getAssignedUser().getUserEmail());
+            response.put("assignedAt", activeAssignment.getAssignedAt());
+        } else {
+            response.put("assignedUserId", null);
+            response.put("assignedUserNickname", null);
+            response.put("assignedUserEmail", null);
+            response.put("assignedAt", null);
+        }
+
+        return RsData.success("담당자 정보 조회 성공", response);
+    }
+
+    // 팀의 모든 담당자 기록 조회
+    public RsData<List<Map<String, Object>>> getTeamAssignments(int teamId, int userId) {
+        // 권한 확인
+        if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, userId)) {
+            throw new ServiceException("403-FORBIDDEN", "팀 멤버만 접근할 수 있습니다.");
+        }
+
+        List<TodoAssignment> assignments = todoAssignmentRepository.findByTeam_IdOrderByAssignedAtDesc(teamId);
+
+        List<Map<String, Object>> response = assignments.stream()
+                .map(assignment -> {
+                    Map<String, Object> assignmentMap = new HashMap<>();
+                    assignmentMap.put("id", assignment.getId());
+                    assignmentMap.put("todoId", assignment.getTodo().getId());
+                    assignmentMap.put("todoTitle", assignment.getTodo().getTitle());
+                    assignmentMap.put("assignedUserId", assignment.getAssignedUser().getId());
+                    assignmentMap.put("assignedUserNickname", assignment.getAssignedUser().getNickName());
+                    assignmentMap.put("assignedUserEmail", assignment.getAssignedUser().getUserEmail());
+                    assignmentMap.put("assignedAt", assignment.getAssignedAt());
+                    assignmentMap.put("status", assignment.getStatus());
+                    return assignmentMap;
+                })
+                .collect(Collectors.toList());
+
+        return RsData.success("팀 담당자 기록 조회 성공", response);
+    }
+
+    // ===== 담당자 권한 확인 메서드들 =====
+
+    // 특정 할일의 담당자인지 확인
+    public boolean isTodoAssignee(int teamId, int todoId, int userId) {
+        // 팀 멤버인지 확인
+        if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, userId)) {
+            return false;
+        }
+
+        // 활성 담당자인지 확인 (여러 담당자 지원)
+        List<TodoAssignment> activeAssignments = todoAssignmentRepository.findByTodo_IdOrderByAssignedAtDesc(todoId);
+        return activeAssignments.stream()
+                .filter(assignment -> assignment.getStatus() == TodoAssignment.AssignmentStatus.ACTIVE)
+                .anyMatch(assignment -> assignment.getAssignedUser().getId() == userId);
+    }
+
+    // 특정 할일의 담당자 목록 조회 (여러 담당자 지원)
+    public RsData<List<Map<String, Object>>> getTodoAssignees(int teamId, int todoId, int userId) {
+        // 권한 확인
+        if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, userId)) {
+            throw new ServiceException("403-FORBIDDEN", "팀 멤버만 접근할 수 있습니다.");
+        }
+
+        Todo todo = todoRepository.findById(todoId)
+                .orElseThrow(() -> new ServiceException("404-TODO_NOT_FOUND", "할일을 찾을 수 없습니다."));
+
+        // Todo가 해당 팀의 TodoList에 속하는지 확인
+        TodoList todoList = todoListRepository.findById(todo.getTodoList().getId())
+                .orElseThrow(() -> new ServiceException("404-TODO_LIST_NOT_FOUND", "할일 목록을 찾을 수 없습니다."));
+
+        if (todoList.getTeam().getId() != teamId) {
+            throw new ServiceException("403-FORBIDDEN", "해당 팀의 할일이 아닙니다.");
+        }
+
+        // 활성 담당자들 조회
+        List<TodoAssignment> assignments = todoAssignmentRepository.findByTodo_IdOrderByAssignedAtDesc(todoId);
+        List<TodoAssignment> activeAssignments = assignments.stream()
+                .filter(assignment -> assignment.getStatus() == TodoAssignment.AssignmentStatus.ACTIVE)
+                .collect(Collectors.toList());
+
+        List<Map<String, Object>> response = activeAssignments.stream()
+                .map(assignment -> {
+                    Map<String, Object> assigneeMap = new HashMap<>();
+                    assigneeMap.put("assignedUserId", assignment.getAssignedUser().getId());
+                    assigneeMap.put("assignedUserNickname", assignment.getAssignedUser().getNickName());
+                    assigneeMap.put("assignedUserEmail", assignment.getAssignedUser().getUserEmail());
+                    assigneeMap.put("assignedAt", assignment.getAssignedAt());
+                    return assigneeMap;
+                })
+                .collect(Collectors.toList());
+
+        return RsData.success("담당자 목록 조회 성공", response);
+    }
+
+    // 여러 담당자 지정 (기존 담당자 중 유지할 것은 그대로 두고, 제거할 것만 비활성화, 새로 추가할 것만 생성)
+    @Transactional
+    public RsData<Map<String, Object>> assignMultipleTodoAssignees(int teamId, int todoId, List<Integer> assignedUserIds, int assignerUserId) {
+        // 권한 확인
+        if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, assignerUserId)) {
+            throw new ServiceException("403-FORBIDDEN", "팀 멤버만 접근할 수 있습니다.");
+        }
+
+        // 모든 담당자가 팀 멤버인지 확인
+        for (Integer assignedUserId : assignedUserIds) {
+            if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, assignedUserId)) {
+                throw new ServiceException("403-FORBIDDEN", "담당자는 팀 멤버여야 합니다.");
+            }
+        }
+
+        Todo todo = todoRepository.findById(todoId)
+                .orElseThrow(() -> new ServiceException("404-TODO_NOT_FOUND", "할일을 찾을 수 없습니다."));
+
+        // Todo가 해당 팀의 TodoList에 속하는지 확인
+        TodoList todoList = todoListRepository.findById(todo.getTodoList().getId())
+                .orElseThrow(() -> new ServiceException("404-TODO_LIST_NOT_FOUND", "할일 목록을 찾을 수 없습니다."));
+
+        if (todoList.getTeam().getId() != teamId) {
+            throw new ServiceException("403-FORBIDDEN", "해당 팀의 할일이 아닙니다.");
+        }
+
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new ServiceException("404-TEAM_NOT_FOUND", "팀을 찾을 수 없습니다."));
+
+        // 기존 활성 담당자들 조회
+        List<TodoAssignment> existingAssignments = todoAssignmentRepository.findByTodo_IdOrderByAssignedAtDesc(todoId);
+        List<TodoAssignment> activeAssignments = existingAssignments.stream()
+                .filter(assignment -> assignment.getStatus() == TodoAssignment.AssignmentStatus.ACTIVE)
+                .collect(Collectors.toList());
+
+        // 기존 담당자 ID 목록
+        Set<Integer> existingAssigneeIds = activeAssignments.stream()
+                .map(assignment -> assignment.getAssignedUser().getId())
+                .collect(Collectors.toSet());
+
+        // 새로 지정할 담당자 ID 목록
+        Set<Integer> newAssigneeIds = new HashSet<>(assignedUserIds);
+
+        // 제거할 담당자들 (기존에 있지만 새 목록에 없는 것들)
+        Set<Integer> toRemoveIds = existingAssigneeIds.stream()
+                .filter(id -> !newAssigneeIds.contains(id))
+                .collect(Collectors.toSet());
+
+        // 새로 추가할 담당자들 (새 목록에 있지만 기존에 없는 것들)
+        Set<Integer> toAddIds = newAssigneeIds.stream()
+                .filter(id -> !existingAssigneeIds.contains(id))
+                .collect(Collectors.toSet());
+
+        // 디버깅 로그 추가
+        System.out.println("=== 담당자 지정 디버깅 ===");
+        System.out.println("요청된 담당자 IDs: " + assignedUserIds);
+        System.out.println("기존 활성 담당자 IDs: " + existingAssigneeIds);
+        System.out.println("제거할 담당자 IDs: " + toRemoveIds);
+        System.out.println("추가할 담당자 IDs: " + toAddIds);
+
+        // 제거할 담당자들 비활성화
+        for (TodoAssignment assignment : activeAssignments) {
+            if (toRemoveIds.contains(assignment.getAssignedUser().getId())) {
+                assignment.setStatus(TodoAssignment.AssignmentStatus.INACTIVE);
+                todoAssignmentRepository.save(assignment);
+            }
+        }
+
+        // 새로 추가할 담당자들 처리 (기존 INACTIVE 레코드 재활용 또는 새로 생성)
+        List<TodoAssignment> newAssignments = new ArrayList<>();
+        for (Integer assignedUserId : toAddIds) {
+            User assignedUser = userRepository.findById(assignedUserId)
+                    .orElseThrow(() -> new ServiceException("404-USER_NOT_FOUND", "담당자로 지정할 사용자를 찾을 수 없습니다."));
+
+            // 기존 INACTIVE 레코드가 있는지 확인
+            Optional<TodoAssignment> existingInactive = existingAssignments.stream()
+                    .filter(assignment -> assignment.getAssignedUser().getId() == assignedUserId 
+                            && assignment.getStatus() == TodoAssignment.AssignmentStatus.INACTIVE)
+                    .findFirst();
+
+            if (existingInactive.isPresent()) {
+                // 기존 INACTIVE 레코드를 ACTIVE로 변경
+                TodoAssignment reactivated = existingInactive.get();
+                reactivated.setStatus(TodoAssignment.AssignmentStatus.ACTIVE);
+                reactivated.setAssignedAt(LocalDateTime.now());
+                newAssignments.add(todoAssignmentRepository.save(reactivated));
+                System.out.println("기존 INACTIVE 레코드 재활용: User ID " + assignedUserId);
+            } else {
+                // 새로운 레코드 생성
+                TodoAssignment newAssignment = TodoAssignment.builder()
+                        .todo(todo)
+                        .assignedUser(assignedUser)
+                        .team(team)
+                        .build();
+
+                newAssignments.add(todoAssignmentRepository.save(newAssignment));
+                System.out.println("새로운 레코드 생성: User ID " + assignedUserId);
+            }
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("todoId", todoId);
+        response.put("assignedUserIds", assignedUserIds);
+        response.put("assignedCount", assignedUserIds.size());
+        response.put("removedCount", toRemoveIds.size());
+        response.put("addedCount", toAddIds.size());
+        response.put("assignedAt", LocalDateTime.now());
+
+        return RsData.success("담당자들이 성공적으로 지정되었습니다.", response);
+    }
+
+    // 팀 할일 통계 조회
+    public RsData<Map<String, Object>> getTeamStats(int teamId, int userId) {
+        // 권한 확인
+        if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, userId)) {
+            throw new ServiceException("403-FORBIDDEN", "팀 멤버만 접근할 수 있습니다.");
+        }
+
+        // 팀 존재 확인
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new ServiceException("404-TEAM_NOT_FOUND", "팀을 찾을 수 없습니다."));
+
+        // 팀의 모든 TodoList 조회 (팀 ID로 조회하는 메서드가 없으므로 모든 TodoList를 가져와서 필터링)
+        List<TodoList> allTodoLists = todoListRepository.findAll();
+        List<TodoList> teamTodoLists = allTodoLists.stream()
+                .filter(todoList -> todoList.getTeam() != null && todoList.getTeam().getId() == teamId)
+                .collect(Collectors.toList());
+        
+        int totalTodos = 0;
+        int completedTodos = 0;
+        int overdueTodos = 0;
+
+        // 각 TodoList의 할일들 조회하여 통계 계산
+        for (TodoList todoList : teamTodoLists) {
+            List<Todo> todos = todoRepository.findByTodoListId(todoList.getId());
+            
+            for (Todo todo : todos) {
+                totalTodos++;
+                
+                if (todo.isCompleted()) {
+                    completedTodos++;
+                }
+                
+                // 마감기한이 지난 미완료 할일 체크
+                if (!todo.isCompleted() && todo.getDueDate() != null) {
+                    LocalDateTime now = LocalDateTime.now();
+                    if (todo.getDueDate().isBefore(now)) {
+                        overdueTodos++;
+                    }
+                }
+            }
+        }
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("total", totalTodos);
+        stats.put("completed", completedTodos);
+        stats.put("overdue", overdueTodos);
+        stats.put("inProgress", totalTodos - completedTodos - overdueTodos);
+        stats.put("completionRate", totalTodos > 0 ? Math.round((double) completedTodos / totalTodos * 100) : 0);
+
+        return RsData.success("팀 통계 조회 성공", stats);
     }
 }

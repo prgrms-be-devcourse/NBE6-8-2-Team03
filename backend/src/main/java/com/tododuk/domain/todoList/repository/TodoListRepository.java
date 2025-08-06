@@ -14,4 +14,7 @@ public interface TodoListRepository extends JpaRepository<TodoList, Integer> {
     
     // 팀이 null인 개인 할일 목록 조회
     List<TodoList> findByTeamIdIsNullAndUserId(Integer userId);
+    
+    // 팀의 모든 할일 목록 조회
+    List<TodoList> findByTeamId(Integer teamId);
 }

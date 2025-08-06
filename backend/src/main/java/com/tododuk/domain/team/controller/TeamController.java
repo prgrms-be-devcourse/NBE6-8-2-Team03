@@ -17,6 +17,7 @@ import java.util.List;
 import com.tododuk.domain.team.entity.Team;
 import com.tododuk.domain.user.repository.UserRepository;
 import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/v1/teams")
@@ -111,11 +112,7 @@ public class TeamController {
     @GetMapping("/my")
     public RsData<List<TeamResponseDto>> getMyTeams() {
         User authenticatedUser = getAuthenticatedUser();
-        List<Team> myTeams = teamService.getTeamsByUserId(authenticatedUser.getId());
-        List<TeamResponseDto> teamResponseDtos = myTeams.stream()
-                .map(TeamResponseDto::from)
-                .toList();
-        return new RsData<>("200-OK", "내 팀 목록 조회 성공", teamResponseDtos);
+        return teamService.getMyTeams(authenticatedUser.getId());
     }
 
     // 3. 특정 팀 상세 조회
@@ -278,5 +275,115 @@ public class TeamController {
     ) {
         User authenticatedUser = getAuthenticatedUser();
         return teamService.toggleTeamTodoComplete(teamId, todoId, authenticatedUser.getId());
+    }
+
+    // ===== 담당자 관리 API 엔드포인트들 =====
+
+    @PostMapping("/{teamId}/todos/{todoId}/assign")
+    @Operation(summary = "할일 담당자 지정",
+            description = "지정된 팀의 할일에 담당자를 지정합니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> assignTodoToMember(
+            @PathVariable int teamId,
+            @PathVariable int todoId,
+            @RequestBody Map<String, Object> assignmentRequest
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        Integer assignedUserId = (Integer) assignmentRequest.get("assignedUserId");
+        
+        if (assignedUserId == null) {
+            throw new ServiceException("400-BAD_REQUEST", "담당자 ID는 필수입니다.");
+        }
+        
+        return teamService.assignTodoToMember(teamId, todoId, assignedUserId, authenticatedUser.getId());
+    }
+
+    @DeleteMapping("/{teamId}/todos/{todoId}/assign")
+    @Operation(summary = "할일 담당자 해제",
+            description = "지정된 팀의 할일에서 담당자를 해제합니다. (팀 멤버만 가능)")
+    public RsData<Void> unassignTodo(
+            @PathVariable int teamId,
+            @PathVariable int todoId
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.unassignTodo(teamId, todoId, authenticatedUser.getId());
+    }
+
+    @GetMapping("/{teamId}/todos/{todoId}/assign")
+    @Operation(summary = "할일 담당자 조회",
+            description = "지정된 팀의 할일 담당자 정보를 조회합니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> getTodoAssignment(
+            @PathVariable int teamId,
+            @PathVariable int todoId
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.getTodoAssignment(teamId, todoId, authenticatedUser.getId());
+    }
+
+    @GetMapping("/{teamId}/assignments")
+    @Operation(summary = "팀 담당자 기록 조회",
+            description = "지정된 팀의 모든 담당자 기록을 조회합니다. (팀 멤버만 가능)")
+    public RsData<List<Map<String, Object>>> getTeamAssignments(@PathVariable int teamId) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.getTeamAssignments(teamId, authenticatedUser.getId());
+    }
+
+    // ===== 담당자 권한 확인 API 엔드포인트들 =====
+
+    @GetMapping("/{teamId}/todos/{todoId}/assignees")
+    @Operation(summary = "할일 담당자 목록 조회",
+            description = "지정된 팀의 할일 담당자 목록을 조회합니다. (팀 멤버만 가능)")
+    public RsData<List<Map<String, Object>>> getTodoAssignees(
+            @PathVariable int teamId,
+            @PathVariable int todoId
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.getTodoAssignees(teamId, todoId, authenticatedUser.getId());
+    }
+
+    @PostMapping("/{teamId}/todos/{todoId}/assignees")
+    @Operation(summary = "할일에 여러 담당자 지정",
+            description = "지정된 팀의 할일에 여러 담당자를 지정합니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> assignMultipleTodoAssignees(
+            @PathVariable int teamId,
+            @PathVariable int todoId,
+            @RequestBody Map<String, Object> assignmentRequest
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        @SuppressWarnings("unchecked")
+        List<Integer> assignedUserIds = (List<Integer>) assignmentRequest.get("assignedUserIds");
+        
+        if (assignedUserIds == null || assignedUserIds.isEmpty()) {
+            throw new ServiceException("400-BAD_REQUEST", "담당자 ID 목록은 필수입니다.");
+        }
+        
+        return teamService.assignMultipleTodoAssignees(teamId, todoId, assignedUserIds, authenticatedUser.getId());
+    }
+
+    @GetMapping("/{teamId}/todos/{todoId}/is-assignee")
+    @Operation(summary = "할일 담당자 여부 확인",
+            description = "현재 사용자가 지정된 팀의 할일 담당자인지 확인합니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> isTodoAssignee(
+            @PathVariable int teamId,
+            @PathVariable int todoId
+    ) {
+        User authenticatedUser = getAuthenticatedUser();
+        boolean isAssignee = teamService.isTodoAssignee(teamId, todoId, authenticatedUser.getId());
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("isAssignee", isAssignee);
+        response.put("userId", authenticatedUser.getId());
+        response.put("todoId", todoId);
+        
+        return RsData.success("담당자 여부 확인 완료", response);
+    }
+
+    // ===== 팀 통계 API 엔드포인트 =====
+
+    @GetMapping("/{teamId}/stats")
+    @Operation(summary = "팀 할일 통계 조회",
+            description = "지정된 팀의 할일 통계를 조회합니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> getTeamStats(@PathVariable int teamId) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.getTeamStats(teamId, authenticatedUser.getId());
     }
 }

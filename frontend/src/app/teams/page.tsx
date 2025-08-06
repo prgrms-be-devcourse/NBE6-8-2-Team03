@@ -50,6 +50,7 @@ interface Team {
     total: number;
     completed: number;
     overdue: number;
+    completionRate: number;
   };
   lastActivity: string;
 }
@@ -98,6 +99,10 @@ const TeamsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
+  // 팀 정보 수정 관련 상태
+  const [showTeamEditModal, setShowTeamEditModal] = useState<boolean>(false);
+  const [editingTeam, setEditingTeam] = useState<{ id: number; teamName: string; description: string } | null>(null);
+  
   // 검색 및 필터링 상태
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterBy, setFilterBy] = useState<FilterType>('all');
@@ -110,6 +115,34 @@ const TeamsPage: React.FC = () => {
     description: ''
   });
   const [createLoading, setCreateLoading] = useState<boolean>(false);
+
+  // 팀 통계 가져오기
+  const fetchTeamStats = useCallback(async (teamId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/stats`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.resultCode === '200-OK') {
+          return result.data;
+        }
+      }
+    } catch (error) {
+      console.error('팀 통계 가져오기 실패:', error);
+    }
+    
+    // 기본값 반환
+    return {
+      total: 0,
+      completed: 0,
+      overdue: 0,
+      inProgress: 0,
+      completionRate: 0
+    };
+  }, []);
 
   // 팀 목록 가져오기
   const fetchTeams = useCallback(async () => {
@@ -132,16 +165,45 @@ const TeamsPage: React.FC = () => {
       const result = await response.json();
       
       if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS') {
-        const teamsData = result.data.map((team: TeamResponseDto) => ({
-          ...team,
-          isStarred: false, // 기본값
-          todoStats: {
-            total: 0,
-            completed: 0,
-            overdue: 0
-          },
-          lastActivity: team.modifyDate
-        }));
+        // 각 팀의 통계와 상세 정보를 가져와서 설정
+        const teamsData = await Promise.all(
+          result.data.map(async (team: TeamResponseDto) => {
+            const stats = await fetchTeamStats(team.id);
+            
+            // 항상 개별 팀 정보를 가져와서 정확한 멤버 정보를 확보
+            let members = team.members;
+            try {
+              const teamDetailResponse = await fetch(`http://localhost:8080/api/v1/teams/${team.id}`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+              });
+              
+              if (teamDetailResponse.ok) {
+                const teamDetailResult = await teamDetailResponse.json();
+                if (teamDetailResult.resultCode === '200-OK') {
+                  members = teamDetailResult.data.members || [];
+                }
+              }
+            } catch (error) {
+              console.error(`팀 ${team.id} 멤버 정보 가져오기 실패:`, error);
+              members = team.members || []; // 실패 시 원본 데이터 사용
+            }
+            
+            return {
+              ...team,
+              members: members,
+              isStarred: false, // 기본값
+              todoStats: {
+                total: stats.total || 0,
+                completed: stats.completed || 0,
+                overdue: stats.overdue || 0,
+                completionRate: stats.completionRate || 0
+              },
+              lastActivity: team.modifyDate
+            };
+          })
+        );
         setTeams(teamsData);
       } else {
         throw new Error(result.msg || 'Failed to fetch teams');
@@ -152,6 +214,60 @@ const TeamsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  }, [fetchTeamStats]);
+
+  // 팀 정보 수정
+  const handleUpdateTeamInfo = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingTeam || !editingTeam.teamName.trim()) {
+      showToast('팀 이름을 입력해주세요.', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${editingTeam.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          teamName: editingTeam.teamName,
+          description: editingTeam.description
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.resultCode === '200-OK') {
+          showToast('팀 정보가 성공적으로 수정되었습니다.', 'success');
+          setShowTeamEditModal(false);
+          setEditingTeam(null);
+          await fetchTeams();
+          
+          // 사이드바 새로고침을 위한 이벤트 발생
+          window.dispatchEvent(new CustomEvent('teamUpdated'));
+        } else {
+          showToast(result.msg || '팀 정보 수정에 실패했습니다.', 'error');
+        }
+      } else {
+        showToast('팀 정보 수정에 실패했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('팀 정보 수정 실패:', error);
+      showToast('팀 정보 수정에 실패했습니다.', 'error');
+    }
+  }, [editingTeam, showToast, fetchTeams]);
+
+  // 팀 정보 수정 모달 열기
+  const openTeamEditModal = useCallback((team: Team) => {
+    setEditingTeam({
+      id: team.id,
+      teamName: team.teamName,
+      description: team.description
+    });
+    setShowTeamEditModal(true);
   }, []);
 
   // 팀 생성
@@ -188,7 +304,10 @@ const TeamsPage: React.FC = () => {
         showToast('팀이 성공적으로 생성되었습니다.', 'success');
         setNewTeam({ teamName: '', description: '' });
         setShowCreateModal(false);
-        fetchTeams(); // 팀 목록 새로고침
+        fetchTeams();
+        
+        // 사이드바 새로고침을 위한 이벤트 발생
+        window.dispatchEvent(new CustomEvent('teamUpdated')); // 팀 목록 새로고침
       } else {
         throw new Error(result.msg || 'Failed to create team');
       }
@@ -781,109 +900,157 @@ const TeamsPage: React.FC = () => {
                             }
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                <h3 style={{
-                                  fontWeight: '600',
-                                  fontSize: '1rem',
-                                  color: 'var(--text-primary)',
-                                  lineHeight: '1.4',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                  maxWidth: '70%'
-                                }}>
-                                  {team.teamName}
-                                </h3>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  {userRole === 'LEADER' && (
-                                    <span style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '0.25rem',
-                                      padding: '0.25rem 0.5rem',
-                                      background: '#fef3c7',
-                                      color: '#d97706',
-                                      borderRadius: '12px',
-                                      fontSize: '0.75rem',
-                                      fontWeight: '600'
-                                    }}>
-                                      <Crown style={{ width: '0.75rem', height: '0.75rem' }} />
-                                      리더
-                                    </span>
-                                  )}
+                          <div style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            height: '100%',
+                            justifyContent: 'space-between'
+                          }}>
+                            {/* 상단: 팀명과 역할 */}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                              <h3 style={{
+                                fontWeight: '600',
+                                fontSize: '1rem',
+                                color: 'var(--text-primary)',
+                                lineHeight: '1.4',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '70%'
+                              }}>
+                                {team.teamName}
+                              </h3>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                {userRole === 'LEADER' && (
+                                  <span style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    padding: '0.25rem 0.5rem',
+                                    background: '#fef3c7',
+                                    color: '#d97706',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600'
+                                  }}>
+                                    <Crown style={{ width: '0.75rem', height: '0.75rem' }} />
+                                    리더
+                                  </span>
+                                )}
+                                {userRole === 'LEADER' && (
                                   <button
-                                    onClick={(e: React.MouseEvent) => handleToggleStar(team.id, e)}
+                                    onClick={(e: React.MouseEvent) => {
+                                      e.stopPropagation();
+                                      openTeamEditModal(team);
+                                    }}
                                     style={{
                                       background: 'none',
                                       border: 'none',
                                       cursor: 'pointer',
-                                      padding: '0.25rem'
+                                      padding: '0.25rem',
+                                      color: 'var(--text-secondary)'
                                     }}
+                                    title="팀 정보 수정"
                                   >
-                                    <Star style={{
-                                      width: '1rem',
-                                      height: '1rem',
-                                      color: team.isStarred ? '#fbbf24' : 'var(--text-light)',
-                                      fill: team.isStarred ? '#fbbf24' : 'none'
-                                    }} />
+                                    <Settings style={{ width: '0.75rem', height: '0.75rem' }} />
                                   </button>
-                                </div>
+                                )}
+                                <button
+                                  onClick={(e: React.MouseEvent) => handleToggleStar(team.id, e)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '0.25rem'
+                                  }}
+                                >
+                                  <Star style={{
+                                    width: '1rem',
+                                    height: '1rem',
+                                    color: team.isStarred ? '#fbbf24' : 'var(--text-light)',
+                                    fill: team.isStarred ? '#fbbf24' : 'none'
+                                  }} />
+                                </button>
                               </div>
+                            </div>
 
-                              <p style={{
-                                color: 'var(--text-secondary)',
-                                fontSize: '0.875rem',
-                                marginBottom: '0.75rem',
-                                lineHeight: '1.4',
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                height: '2.4em',
-                                maxHeight: '2.4em'
-                              }}>
-                                {team.description || '팀 설명이 없습니다.'}
-                              </p>
+                            {/* 중간: 팀 설명 */}
+                            <p style={{
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.875rem',
+                              lineHeight: '1.4',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              height: '2.4em',
+                              maxHeight: '2.4em',
+                              marginBottom: '0.75rem'
+                            }}>
+                              {team.description || '팀 설명이 없습니다.'}
+                            </p>
 
+                            {/* 하단: 멤버수와 할일 통계 */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              marginTop: 'auto'
+                            }}>
+                              {/* 좌측: 멤버수 */}
                               <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: '0.5rem'
+                                gap: '0.25rem'
                               }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  <Users style={{ width: '0.875rem', height: '0.875rem', color: 'var(--primary-color)' }} />
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                    {team.members.length}명
-                                  </span>
-                                  {team.todoStats.total > 0 && (
-                                    <>
-                                      <span style={{ fontSize: '0.75rem', color: 'var(--text-light)' }}>•</span>
-                                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                        {team.todoStats.completed}/{team.todoStats.total}
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-                                <button
-                                  onClick={() => handleGoToTeamDetail(team.id)}
-                                  style={{
-                                    padding: '0.25rem 0.5rem',
-                                    background: 'var(--primary-light)',
-                                    color: 'var(--primary-color)',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: '600',
-                                    cursor: 'pointer'
-                                  }}
-                                >
-                                  상세보기
-                                </button>
+                                <Users style={{ width: '0.75rem', height: '0.75rem', color: 'var(--primary-color)' }} />
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                  {team.members && team.members.length > 0 ? team.members.length : '?'}명
+                                </span>
                               </div>
+                              
+                              {/* 우측: 할일 통계 */}
+                              {team.todoStats.total > 0 && (
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.75rem'
+                                }}>
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    padding: '0.2rem 0.4rem',
+                                    background: '#f0fdf4',
+                                    borderRadius: '4px',
+                                    border: '1px solid #16a34a'
+                                  }}>
+                                    <span style={{ fontSize: '0.65rem', color: '#15803d', fontWeight: '500' }}>
+                                      총 할일
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: '600' }}>
+                                      {team.todoStats.total}
+                                    </span>
+                                  </div>
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    padding: '0.2rem 0.4rem',
+                                    background: '#fefce8',
+                                    borderRadius: '4px',
+                                    border: '1px solid #fbbf24'
+                                  }}>
+                                    <span style={{ fontSize: '0.65rem', color: '#d97706', fontWeight: '500' }}>
+                                      남음
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', color: '#eab308', fontWeight: '600' }}>
+                                      {team.todoStats.total - team.todoStats.completed}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -995,7 +1162,7 @@ const TeamsPage: React.FC = () => {
                   </label>
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
+                    gridTemplateColumns: '1fr 1fr 1fr',
                     gap: '1rem'
                   }}>
                     <div style={{
@@ -1019,11 +1186,67 @@ const TeamsPage: React.FC = () => {
                       border: '1px solid var(--border-light)',
                       textAlign: 'center'
                     }}>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#8b5cf6', marginBottom: '0.25rem' }}>
+                        {selectedTeam.todoStats.total}
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                        총 할일
+                      </div>
+                    </div>
+                    <div style={{
+                      background: 'var(--bg-main)',
+                      padding: '1rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)',
+                      textAlign: 'center'
+                    }}>
                       <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#16a34a', marginBottom: '0.25rem' }}>
                         {selectedTeam.todoStats.completed}
                       </div>
                       <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                         완료된 할일
+                      </div>
+                    </div>
+                    <div style={{
+                      background: 'var(--bg-main)',
+                      padding: '1rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#eab308', marginBottom: '0.25rem' }}>
+                        {selectedTeam.todoStats.total - selectedTeam.todoStats.completed}
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                        남은 할일
+                      </div>
+                    </div>
+                    <div style={{
+                      background: 'var(--bg-main)',
+                      padding: '1rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#dc2626', marginBottom: '0.25rem' }}>
+                        {selectedTeam.todoStats.overdue}
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                        지연된 할일
+                      </div>
+                    </div>
+                    <div style={{
+                      background: 'var(--bg-main)',
+                      padding: '1rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-light)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#3b82f6', marginBottom: '0.25rem' }}>
+                        {selectedTeam.todoStats.completionRate}%
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                        완료율
                       </div>
                     </div>
                   </div>
@@ -1374,6 +1597,160 @@ const TeamsPage: React.FC = () => {
                       팀 생성
                     </>
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 팀 정보 수정 모달 */}
+      {showTeamEditModal && editingTeam && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--bg-white)',
+            borderRadius: '12px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            width: '100%',
+            maxWidth: '500px',
+            margin: '0 1rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.5rem',
+              borderBottom: '1px solid var(--border-light)'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                color: 'var(--text-primary)'
+              }}>
+                ✏️ 팀 정보 수정
+              </h3>
+              <button
+                onClick={() => {
+                  setShowTeamEditModal(false);
+                  setEditingTeam(null);
+                }}
+                style={{
+                  padding: '0.5rem',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-light)',
+                  cursor: 'pointer',
+                  borderRadius: '6px'
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateTeamInfo}>
+              <div style={{ padding: '1.5rem' }}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    팀 이름 *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingTeam.teamName}
+                    onChange={(e) => setEditingTeam({ ...editingTeam, teamName: e.target.value })}
+                    placeholder="팀 이름을 입력하세요"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem'
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    팀 설명
+                  </label>
+                  <textarea
+                    value={editingTeam.description}
+                    onChange={(e) => setEditingTeam({ ...editingTeam, description: e.target.value })}
+                    placeholder="팀에 대한 설명을 입력하세요"
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+                padding: '1.5rem',
+                borderTop: '1px solid var(--border-light)',
+                background: 'var(--bg-main)',
+                borderRadius: '0 0 12px 12px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTeamEditModal(false);
+                    setEditingTeam(null);
+                  }}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    border: '1px solid var(--border-light)',
+                    background: 'var(--bg-white)',
+                    color: 'var(--text-secondary)',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  취소
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    border: 'none',
+                    background: 'var(--primary-color)',
+                    color: 'white',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  수정하기
                 </button>
               </div>
             </form>

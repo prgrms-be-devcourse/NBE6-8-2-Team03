@@ -174,8 +174,7 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
     try {
       setTeamsLoading(true);
       console.log('팀 목록 API 호출 시작...');
-
-
+      
       const response = await fetch('http://localhost:8080/api/v1/teams/my', {
         method: 'GET',
         credentials: 'include',
@@ -308,7 +307,18 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
       updateUnreadCount();
     }, 1000);
 
-    return () => clearTimeout(timer);
+    // 팀 업데이트 이벤트 리스너 추가
+    const handleTeamUpdated = () => {
+      console.log('팀 업데이트 이벤트 감지 - 사이드바 새로고침');
+      fetchTeams();
+    };
+
+    window.addEventListener('teamUpdated', handleTeamUpdated);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('teamUpdated', handleTeamUpdated);
+    };
   }, []);
 
   // 팀 데이터 디버깅용 useEffect
@@ -628,16 +638,13 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
               </Link>
             </div>
             <div className="sidebar-nav">
-              {console.log('렌더링 시점 - teams:', teams, 'teamsLoading:', teamsLoading)}
               {teamsLoading ? (
                 <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
                   팀 목록 로딩 중...
                 </div>
               ) : teams && teams.length > 0 ? (
                 <>
-                  {console.log('팀 목록 렌더링:', teams)}
                   {teams.slice(0, 5).map((team) => {
-                    console.log('개별 팀 렌더링:', team);
                     return (
                       <Link 
                         key={team.id}
@@ -650,7 +657,7 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
                           <span className="project-icon">{getTeamIcon(team.teamName)}</span>
                           <span className="project-name">{team.teamName}</span>
                         </div>
-                        <span className="project-count">{team.members ? team.members.length : 0}</span>
+
                       </Link>
                     );
                   })}
@@ -676,14 +683,6 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
               ) : (
                 <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
                   소속된 팀이 없습니다
-                  <br />
-                  <small style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                    (디버그: teams = {JSON.stringify(teams)})
-                  </small>
-                  <br />
-                  <small style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                    (디버그: teamsLoading = {String(teamsLoading)})
-                  </small>
                 </div>
               )}
             </div>
