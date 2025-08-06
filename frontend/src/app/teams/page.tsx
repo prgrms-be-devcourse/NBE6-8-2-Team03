@@ -99,6 +99,10 @@ const TeamsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
+  // 팀 정보 수정 관련 상태
+  const [showTeamEditModal, setShowTeamEditModal] = useState<boolean>(false);
+  const [editingTeam, setEditingTeam] = useState<{ id: number; teamName: string; description: string } | null>(null);
+  
   // 검색 및 필터링 상태
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterBy, setFilterBy] = useState<FilterType>('all');
@@ -211,6 +215,60 @@ const TeamsPage: React.FC = () => {
       setIsLoading(false);
     }
   }, [fetchTeamStats]);
+
+  // 팀 정보 수정
+  const handleUpdateTeamInfo = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingTeam || !editingTeam.teamName.trim()) {
+      showToast('팀 이름을 입력해주세요.', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${editingTeam.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          teamName: editingTeam.teamName,
+          description: editingTeam.description
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.resultCode === '200-OK') {
+          showToast('팀 정보가 성공적으로 수정되었습니다.', 'success');
+          setShowTeamEditModal(false);
+          setEditingTeam(null);
+          await fetchTeams();
+          
+          // 사이드바 새로고침을 위한 이벤트 발생
+          window.dispatchEvent(new CustomEvent('teamUpdated'));
+        } else {
+          showToast(result.msg || '팀 정보 수정에 실패했습니다.', 'error');
+        }
+      } else {
+        showToast('팀 정보 수정에 실패했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('팀 정보 수정 실패:', error);
+      showToast('팀 정보 수정에 실패했습니다.', 'error');
+    }
+  }, [editingTeam, showToast, fetchTeams]);
+
+  // 팀 정보 수정 모달 열기
+  const openTeamEditModal = useCallback((team: Team) => {
+    setEditingTeam({
+      id: team.id,
+      teamName: team.teamName,
+      description: team.description
+    });
+    setShowTeamEditModal(true);
+  }, []);
 
   // 팀 생성
   const handleCreateTeam = useCallback(async (e: React.FormEvent) => {
@@ -879,6 +937,24 @@ const TeamsPage: React.FC = () => {
                                     리더
                                   </span>
                                 )}
+                                {userRole === 'LEADER' && (
+                                  <button
+                                    onClick={(e: React.MouseEvent) => {
+                                      e.stopPropagation();
+                                      openTeamEditModal(team);
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      padding: '0.25rem',
+                                      color: 'var(--text-secondary)'
+                                    }}
+                                    title="팀 정보 수정"
+                                  >
+                                    <Settings style={{ width: '0.75rem', height: '0.75rem' }} />
+                                  </button>
+                                )}
                                 <button
                                   onClick={(e: React.MouseEvent) => handleToggleStar(team.id, e)}
                                   style={{
@@ -1521,6 +1597,160 @@ const TeamsPage: React.FC = () => {
                       팀 생성
                     </>
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 팀 정보 수정 모달 */}
+      {showTeamEditModal && editingTeam && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--bg-white)',
+            borderRadius: '12px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            width: '100%',
+            maxWidth: '500px',
+            margin: '0 1rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.5rem',
+              borderBottom: '1px solid var(--border-light)'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                color: 'var(--text-primary)'
+              }}>
+                ✏️ 팀 정보 수정
+              </h3>
+              <button
+                onClick={() => {
+                  setShowTeamEditModal(false);
+                  setEditingTeam(null);
+                }}
+                style={{
+                  padding: '0.5rem',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-light)',
+                  cursor: 'pointer',
+                  borderRadius: '6px'
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateTeamInfo}>
+              <div style={{ padding: '1.5rem' }}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    팀 이름 *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingTeam.teamName}
+                    onChange={(e) => setEditingTeam({ ...editingTeam, teamName: e.target.value })}
+                    placeholder="팀 이름을 입력하세요"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem'
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    팀 설명
+                  </label>
+                  <textarea
+                    value={editingTeam.description}
+                    onChange={(e) => setEditingTeam({ ...editingTeam, description: e.target.value })}
+                    placeholder="팀에 대한 설명을 입력하세요"
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+                padding: '1.5rem',
+                borderTop: '1px solid var(--border-light)',
+                background: 'var(--bg-main)',
+                borderRadius: '0 0 12px 12px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTeamEditModal(false);
+                    setEditingTeam(null);
+                  }}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    border: '1px solid var(--border-light)',
+                    background: 'var(--bg-white)',
+                    color: 'var(--text-secondary)',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  취소
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    border: 'none',
+                    background: 'var(--primary-color)',
+                    color: 'white',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  수정하기
                 </button>
               </div>
             </form>

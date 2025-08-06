@@ -32,8 +32,9 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -151,7 +152,24 @@ public class TeamService {
             throw new ServiceException("403-NO_PERMISSION", "팀을 삭제할 권한이 없습니다.");
         }
 
+        // 팀과 관련된 모든 TodoAssignment 레코드 삭제
+        todoAssignmentRepository.deleteByTeam_Id(teamId);
+        
+        // 팀과 관련된 모든 TodoList 삭제 (Todo는 cascade로 자동 삭제됨)
+        List<TodoList> teamTodoLists = todoListRepository.findByTeamId(teamId);
+        for (TodoList todoList : teamTodoLists) {
+            // 각 TodoList의 Todo들에 대한 TodoAssignment 레코드들 삭제
+            List<Todo> todos = todoRepository.findByTodoListId(todoList.getId());
+            for (Todo todo : todos) {
+                todoAssignmentRepository.deleteByTodo_Id(todo.getId());
+            }
+            // TodoList 삭제 (Todo는 cascade로 자동 삭제됨)
+            todoListRepository.delete(todoList);
+        }
+        
+        // 팀 삭제 (TeamMember는 cascade로 자동 삭제됨)
         teamRepository.delete(team);
+        
         return RsData.success("팀이 성공적으로 삭제되었습니다.", null);
     }
 
@@ -369,6 +387,12 @@ public class TeamService {
         // 할일 목록이 해당 팀에 속하는지 확인
         if (todoList.getTeam() == null || todoList.getTeam().getId() != teamId) {
             throw new ServiceException("403-FORBIDDEN", "해당 팀의 할일 목록이 아닙니다.");
+        }
+
+        // TodoList 삭제 전에 관련된 모든 Todo의 TodoAssignment 레코드들 삭제
+        List<Todo> todos = todoRepository.findByTodoListId(todoListId);
+        for (Todo todo : todos) {
+            todoAssignmentRepository.deleteByTodo_Id(todo.getId());
         }
 
         todoListRepository.delete(todoList);
@@ -800,7 +824,7 @@ public class TeamService {
         return RsData.success("담당자 목록 조회 성공", response);
     }
 
-    // 여러 담당자 지정 (기존 담당자들은 비활성화)
+    // 여러 담당자 지정 (기존 담당자 중 유지할 것은 그대로 두고, 제거할 것만 비활성화, 새로 추가할 것만 생성)
     @Transactional
     public RsData<Map<String, Object>> assignMultipleTodoAssignees(int teamId, int todoId, List<Integer> assignedUserIds, int assignerUserId) {
         // 권한 확인
@@ -829,34 +853,83 @@ public class TeamService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ServiceException("404-TEAM_NOT_FOUND", "팀을 찾을 수 없습니다."));
 
-        // 기존 활성 담당자들 비활성화
+        // 기존 활성 담당자들 조회
         List<TodoAssignment> existingAssignments = todoAssignmentRepository.findByTodo_IdOrderByAssignedAtDesc(todoId);
-        existingAssignments.stream()
+        List<TodoAssignment> activeAssignments = existingAssignments.stream()
                 .filter(assignment -> assignment.getStatus() == TodoAssignment.AssignmentStatus.ACTIVE)
-                .forEach(existingAssignment -> {
-                    existingAssignment.setStatus(TodoAssignment.AssignmentStatus.INACTIVE);
-                    todoAssignmentRepository.save(existingAssignment);
-                });
+                .collect(Collectors.toList());
 
-        // 새로운 담당자들 지정
+        // 기존 담당자 ID 목록
+        Set<Integer> existingAssigneeIds = activeAssignments.stream()
+                .map(assignment -> assignment.getAssignedUser().getId())
+                .collect(Collectors.toSet());
+
+        // 새로 지정할 담당자 ID 목록
+        Set<Integer> newAssigneeIds = new HashSet<>(assignedUserIds);
+
+        // 제거할 담당자들 (기존에 있지만 새 목록에 없는 것들)
+        Set<Integer> toRemoveIds = existingAssigneeIds.stream()
+                .filter(id -> !newAssigneeIds.contains(id))
+                .collect(Collectors.toSet());
+
+        // 새로 추가할 담당자들 (새 목록에 있지만 기존에 없는 것들)
+        Set<Integer> toAddIds = newAssigneeIds.stream()
+                .filter(id -> !existingAssigneeIds.contains(id))
+                .collect(Collectors.toSet());
+
+        // 디버깅 로그 추가
+        System.out.println("=== 담당자 지정 디버깅 ===");
+        System.out.println("요청된 담당자 IDs: " + assignedUserIds);
+        System.out.println("기존 활성 담당자 IDs: " + existingAssigneeIds);
+        System.out.println("제거할 담당자 IDs: " + toRemoveIds);
+        System.out.println("추가할 담당자 IDs: " + toAddIds);
+
+        // 제거할 담당자들 비활성화
+        for (TodoAssignment assignment : activeAssignments) {
+            if (toRemoveIds.contains(assignment.getAssignedUser().getId())) {
+                assignment.setStatus(TodoAssignment.AssignmentStatus.INACTIVE);
+                todoAssignmentRepository.save(assignment);
+            }
+        }
+
+        // 새로 추가할 담당자들 처리 (기존 INACTIVE 레코드 재활용 또는 새로 생성)
         List<TodoAssignment> newAssignments = new ArrayList<>();
-        for (Integer assignedUserId : assignedUserIds) {
+        for (Integer assignedUserId : toAddIds) {
             User assignedUser = userRepository.findById(assignedUserId)
                     .orElseThrow(() -> new ServiceException("404-USER_NOT_FOUND", "담당자로 지정할 사용자를 찾을 수 없습니다."));
 
-            TodoAssignment newAssignment = TodoAssignment.builder()
-                    .todo(todo)
-                    .assignedUser(assignedUser)
-                    .team(team)
-                    .build();
+            // 기존 INACTIVE 레코드가 있는지 확인
+            Optional<TodoAssignment> existingInactive = existingAssignments.stream()
+                    .filter(assignment -> assignment.getAssignedUser().getId() == assignedUserId 
+                            && assignment.getStatus() == TodoAssignment.AssignmentStatus.INACTIVE)
+                    .findFirst();
 
-            newAssignments.add(todoAssignmentRepository.save(newAssignment));
+            if (existingInactive.isPresent()) {
+                // 기존 INACTIVE 레코드를 ACTIVE로 변경
+                TodoAssignment reactivated = existingInactive.get();
+                reactivated.setStatus(TodoAssignment.AssignmentStatus.ACTIVE);
+                reactivated.setAssignedAt(LocalDateTime.now());
+                newAssignments.add(todoAssignmentRepository.save(reactivated));
+                System.out.println("기존 INACTIVE 레코드 재활용: User ID " + assignedUserId);
+            } else {
+                // 새로운 레코드 생성
+                TodoAssignment newAssignment = TodoAssignment.builder()
+                        .todo(todo)
+                        .assignedUser(assignedUser)
+                        .team(team)
+                        .build();
+
+                newAssignments.add(todoAssignmentRepository.save(newAssignment));
+                System.out.println("새로운 레코드 생성: User ID " + assignedUserId);
+            }
         }
 
         Map<String, Object> response = new HashMap<>();
         response.put("todoId", todoId);
         response.put("assignedUserIds", assignedUserIds);
-        response.put("assignedCount", newAssignments.size());
+        response.put("assignedCount", assignedUserIds.size());
+        response.put("removedCount", toRemoveIds.size());
+        response.put("addedCount", toAddIds.size());
         response.put("assignedAt", LocalDateTime.now());
 
         return RsData.success("담당자들이 성공적으로 지정되었습니다.", response);

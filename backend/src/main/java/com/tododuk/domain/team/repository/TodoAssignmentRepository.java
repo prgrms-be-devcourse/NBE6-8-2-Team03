@@ -28,4 +28,10 @@ public interface TodoAssignmentRepository extends JpaRepository<TodoAssignment, 
     
     // 특정 Todo의 모든 담당자 기록 삭제
     void deleteByTodo_Id(int todoId);
+    
+    // 특정 팀에서 특정 사용자의 모든 담당자 기록 삭제
+    void deleteByTeam_IdAndAssignedUser_Id(int teamId, int userId);
+    
+    // 특정 팀의 모든 담당자 기록 삭제
+    void deleteByTeam_Id(int teamId);
 } 

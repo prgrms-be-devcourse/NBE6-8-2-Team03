@@ -105,11 +105,16 @@ const TeamDetailPage: React.FC = () => {
   // 담당자 권한 관련 상태
   const [assigneeMap, setAssigneeMap] = useState<Map<number, boolean>>(new Map());
   const [assigneesMap, setAssigneesMap] = useState<Map<number, any[]>>(new Map());
+  const [assigneeLoadingMap, setAssigneeLoadingMap] = useState<Map<number, boolean>>(new Map());
 
   // 멤버 권한 변경 관련 상태
   const [showMemberRoleModal, setShowMemberRoleModal] = useState<boolean>(false);
   const [editingMember, setEditingMember] = useState<TeamMemberResponseDto | null>(null);
   const [newMemberRoleForEdit, setNewMemberRoleForEdit] = useState<'LEADER' | 'MEMBER'>('MEMBER');
+  
+  // 팀 정보 수정 관련 상태
+  const [showTeamEditModal, setShowTeamEditModal] = useState<boolean>(false);
+  const [editingTeam, setEditingTeam] = useState({ teamName: '', description: '' });
   
 
 
@@ -151,21 +156,46 @@ const TeamDetailPage: React.FC = () => {
   const fetchTodoAssignees = async (todoId: number) => {
     try {
       console.log(`fetchTodoAssignees 시작: todoId=${todoId}`);
+      
+      // 로딩 상태 시작
+      setAssigneeLoadingMap(prev => new Map(prev.set(todoId, true)));
+      
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${todoId}/assignees`, {
         method: 'GET',
         credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
       
       if (response.ok) {
         const result = await response.json();
         console.log(`fetchTodoAssignees 응답:`, result);
         if (result.resultCode === '200-OK') {
-          setAssigneesMap(prev => new Map(prev.set(todoId, result.data)));
-          console.log(`assigneesMap 업데이트: todoId=${todoId}, assignees=`, result.data);
+          // 백엔드에서 이미 ACTIVE 상태만 반환하므로 필터링 불필요
+          const assignees = result.data || [];
+          console.log(`설정할 담당자 정보:`, assignees);
+          
+          setAssigneesMap(prev => {
+            const newMap = new Map(prev);
+            newMap.set(todoId, assignees);
+            console.log(`담당자 맵 업데이트 완료: todoId=${todoId}, assignees=`, assignees);
+            return newMap;
+          });
+          
+          // 강제로 리렌더링을 위한 상태 업데이트
+          setSelectedTodo(prev => prev ? { ...prev } : null);
         }
+      } else {
+        console.error('담당자 정보 가져오기 실패:', response.status);
       }
     } catch (error) {
       console.error('담당자 목록 가져오기 실패:', error);
+    } finally {
+      // 로딩 상태 종료
+      setAssigneeLoadingMap(prev => new Map(prev.set(todoId, false)));
     }
   };
 
@@ -195,9 +225,14 @@ const TeamDetailPage: React.FC = () => {
           setShowAssigneeModal(false);
           setSelectedAssigneeIds([]);
           
-          // 담당자 정보 새로고침
+          // 담당자 정보 즉시 새로고침
           await fetchTodoAssignees(selectedTodo.id);
           await checkAssigneeStatus(selectedTodo.id);
+          
+          // 선택된 할일의 권한 상태도 새로고침
+          if (selectedTodo) {
+            await checkAssigneeStatus(selectedTodo.id);
+          }
         } else {
           showToast(result.msg || '담당자 지정에 실패했습니다.', 'error');
         }
@@ -330,6 +365,136 @@ const TeamDetailPage: React.FC = () => {
     } catch (error) {
       console.error('멤버 권한 변경 실패:', error);
       showToast('멤버 권한 변경에 실패했습니다.', 'error');
+    }
+  };
+
+  // 팀 정보 수정
+  const handleUpdateTeamInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingTeam.teamName.trim()) {
+      showToast('팀 이름을 입력해주세요.', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          teamName: editingTeam.teamName,
+          description: editingTeam.description
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.resultCode === '200-OK') {
+          showToast('팀 정보가 성공적으로 수정되었습니다.', 'success');
+          setShowTeamEditModal(false);
+          setEditingTeam({ teamName: '', description: '' });
+          await fetchTeamInfo();
+          
+          // 사이드바 새로고침을 위한 이벤트 발생
+          window.dispatchEvent(new CustomEvent('teamUpdated'));
+        } else {
+          showToast(result.msg || '팀 정보 수정에 실패했습니다.', 'error');
+        }
+      } else {
+        showToast('팀 정보 수정에 실패했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('팀 정보 수정 실패:', error);
+      showToast('팀 정보 수정에 실패했습니다.', 'error');
+    }
+  };
+
+  // 팀 정보 수정 모달 열기
+  const openTeamEditModal = () => {
+    if (team) {
+      setEditingTeam({
+        teamName: team.teamName,
+        description: team.description
+      });
+      setShowTeamEditModal(true);
+    }
+  };
+
+  // 멤버 삭제
+  const handleDeleteMember = async (memberId: number, memberNickname: string) => {
+    if (!confirm(`정말로 ${memberNickname}을(를) 팀에서 제거하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/members/${memberId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.resultCode === '200-OK') {
+          showToast('멤버가 성공적으로 제거되었습니다.', 'success');
+          await fetchTeamInfo();
+          
+          // 담당자 정보 캐시 초기화
+          setAssigneeMap(new Map());
+          setAssigneesMap(new Map());
+          
+          // 선택된 할일이 있다면 담당자 정보 즉시 새로고침
+          if (selectedTodo) {
+            // 로딩 상태 미리 설정
+            setAssigneeLoadingMap(prev => new Map(prev.set(selectedTodo.id, true)));
+            
+            // 즉시 새로고침 (setTimeout 제거)
+            await checkAssigneeStatus(selectedTodo.id);
+            await fetchTodoAssignees(selectedTodo.id);
+          }
+          
+          // 사이드바 새로고침을 위한 이벤트 발생
+          window.dispatchEvent(new CustomEvent('teamUpdated'));
+        } else {
+          showToast(result.msg || '멤버 제거에 실패했습니다.', 'error');
+        }
+      } else {
+        showToast('멤버 제거에 실패했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('멤버 제거 실패:', error);
+      showToast('멤버 제거에 실패했습니다.', 'error');
+    }
+  };
+
+  // 팀 삭제
+  const handleDeleteTeam = async () => {
+    if (!confirm('정말로 이 팀을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.resultCode === '200-OK') {
+          showToast('팀이 성공적으로 삭제되었습니다.', 'success');
+          router.push('/teams');
+        } else {
+          showToast(result.msg || '팀 삭제에 실패했습니다.', 'error');
+        }
+      } else {
+        showToast('팀 삭제에 실패했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('팀 삭제 실패:', error);
+      showToast('팀 삭제에 실패했습니다.', 'error');
     }
   };
 
@@ -785,6 +950,9 @@ const TeamDetailPage: React.FC = () => {
   const handleSelectTodo = async (todo: Todo) => {
     setSelectedTodo(todo);
     
+    // 로딩 상태 설정
+    setAssigneeLoadingMap(prev => new Map(prev.set(todo.id, true)));
+    
     // 담당자 정보 가져오기
     try {
       await checkAssigneeStatus(todo.id);
@@ -1062,16 +1230,23 @@ const TeamDetailPage: React.FC = () => {
 
             {/* 팀 기본 정보 */}
             <div style={{ marginBottom: '1.5rem' }}>
-              <h1 style={{ 
-                fontSize: '1.5rem', 
-                fontWeight: '700', 
-                color: 'var(--text-primary)', 
-                marginBottom: '0.5rem',
+              <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem'
+                gap: '0.5rem',
+                marginBottom: '0.5rem'
               }}>
-                👥 {team.teamName}
+                <h1 style={{ 
+                  fontSize: '1.5rem', 
+                  fontWeight: '700', 
+                  color: 'var(--text-primary)', 
+                  marginBottom: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  👥 {team.teamName}
+                </h1>
                 {userRole === 'LEADER' && (
                   <span style={{
                     display: 'inline-flex',
@@ -1089,7 +1264,7 @@ const TeamDetailPage: React.FC = () => {
                     리더
                   </span>
                 )}
-              </h1>
+              </div>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.5' }}>
                 {team.description}
               </p>
@@ -1251,24 +1426,47 @@ const TeamDetailPage: React.FC = () => {
 
                       {/* 권한 변경 버튼 (리더만 보임) */}
                       {userRole === 'LEADER' && member.userId !== currentUser?.id && (
-                        <button
-                          onClick={() => openMemberRoleModal(member)}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            background: 'transparent',
-                            border: '1px solid var(--border-medium)',
-                            color: 'var(--text-secondary)',
-                            borderRadius: '6px',
-                            fontSize: '0.7rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.25rem'
-                          }}
-                        >
-                          <Settings className="w-3 h-3" />
-                          권한
-                        </button>
+                        <div style={{
+                          display: 'flex',
+                          gap: '0.25rem'
+                        }}>
+                          <button
+                            onClick={() => openMemberRoleModal(member)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: 'transparent',
+                              border: '1px solid var(--border-medium)',
+                              color: 'var(--text-secondary)',
+                              borderRadius: '6px',
+                              fontSize: '0.7rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem'
+                            }}
+                          >
+                            <Settings className="w-3 h-3" />
+                            권한
+                          </button>
+                          <button
+                            onClick={() => handleDeleteMember(member.userId, member.userNickname)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: 'transparent',
+                              border: '1px solid #dc2626',
+                              color: '#dc2626',
+                              borderRadius: '6px',
+                              fontSize: '0.7rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem'
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            제거
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1287,6 +1485,56 @@ const TeamDetailPage: React.FC = () => {
             }}>
               생성일: {formatDate(team.createDate)}
             </div>
+            
+            {/* 팀 관리 버튼들 */}
+            {userRole === 'LEADER' && (
+              <div style={{
+                marginTop: '1rem',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                <button
+                  onClick={openTeamEditModal}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'transparent',
+                    border: '1px solid var(--border-medium)',
+                    color: 'var(--text-secondary)',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    margin: '0 auto'
+                  }}
+                >
+                  <Edit className="w-4 h-4" />
+                  팀 정보 수정
+                </button>
+                <button
+                  onClick={handleDeleteTeam}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'transparent',
+                    border: '1px solid #dc2626',
+                    color: '#dc2626',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    margin: '0 auto'
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  팀 삭제
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -2042,33 +2290,49 @@ const TeamDetailPage: React.FC = () => {
                       border: '1px solid var(--border-light)',
                       minHeight: '60px'
                     }}>
-                      {getTodoAssignees(selectedTodo.id).length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          {getTodoAssignees(selectedTodo.id).map((assignee: any, index: number) => (
-                            <div key={index} style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '0.5rem',
-                              color: 'var(--text-primary)'
-                            }}>
-                              <div style={{
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                background: '#3b82f6'
-                              }}></div>
-                              {assignee.assignedUserNickname || '담당자'}
+                      {(() => {
+                        const isLoading = assigneeLoadingMap.get(selectedTodo.id);
+                        const assignees = getTodoAssignees(selectedTodo.id);
+                        
+                        // 로딩 중이거나 로딩 상태가 undefined인 경우 아무것도 표시하지 않음
+                        if (isLoading === true || isLoading === undefined) {
+                          return null;
+                        }
+                        
+                        // 담당자가 있으면 표시
+                        if (assignees.length > 0) {
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              {assignees.map((assignee: any, index: number) => (
+                                <div key={index} style={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: '0.5rem',
+                                  color: 'var(--text-primary)'
+                                }}>
+                                  <div style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    background: '#3b82f6'
+                                  }}></div>
+                                  {assignee.assignedUserNickname || '담당자'}
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ 
-                          color: 'var(--text-light)', 
-                          fontStyle: 'italic'
-                        }}>
-                          지정되지 않음
-                        </div>
-                      )}
+                          );
+                        }
+                        
+                        // 담당자가 없으면 "지정되지 않음" 표시
+                        return (
+                          <div style={{ 
+                            color: 'var(--text-light)', 
+                            fontStyle: 'italic'
+                          }}>
+                            지정되지 않음
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -2660,6 +2924,160 @@ const TeamDetailPage: React.FC = () => {
                   }}
                 >
                   변경하기
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 팀 정보 수정 모달 */}
+      {showTeamEditModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--bg-white)',
+            borderRadius: '12px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            width: '100%',
+            maxWidth: '500px',
+            margin: '0 1rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.5rem',
+              borderBottom: '1px solid var(--border-light)'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                color: 'var(--text-primary)'
+              }}>
+                ✏️ 팀 정보 수정
+              </h3>
+              <button
+                onClick={() => {
+                  setShowTeamEditModal(false);
+                  setEditingTeam({ teamName: '', description: '' });
+                }}
+                style={{
+                  padding: '0.5rem',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-light)',
+                  cursor: 'pointer',
+                  borderRadius: '6px'
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateTeamInfo}>
+              <div style={{ padding: '1.5rem' }}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    팀 이름 *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingTeam.teamName}
+                    onChange={(e) => setEditingTeam({ ...editingTeam, teamName: e.target.value })}
+                    placeholder="팀 이름을 입력하세요"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem'
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    팀 설명
+                  </label>
+                  <textarea
+                    value={editingTeam.description}
+                    onChange={(e) => setEditingTeam({ ...editingTeam, description: e.target.value })}
+                    placeholder="팀에 대한 설명을 입력하세요"
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+                padding: '1.5rem',
+                borderTop: '1px solid var(--border-light)',
+                background: 'var(--bg-main)',
+                borderRadius: '0 0 12px 12px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTeamEditModal(false);
+                    setEditingTeam({ teamName: '', description: '' });
+                  }}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    border: '1px solid var(--border-light)',
+                    background: 'var(--bg-white)',
+                    color: 'var(--text-secondary)',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  취소
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    border: 'none',
+                    background: 'var(--primary-color)',
+                    color: 'white',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  수정하기
                 </button>
               </div>
             </form>
