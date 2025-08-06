@@ -572,7 +572,7 @@ const TeamDetailPage: React.FC = () => {
     }
   };
 
-  // 할일 목록별 할일 가져오기
+    // 할일 목록별 할일 가져오기
   const fetchTodosByList = async (todoListId: number) => {
     try {
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todo-lists/${todoListId}/todos`, {
@@ -585,7 +585,7 @@ const TeamDetailPage: React.FC = () => {
       }
 
       const result = await response.json();
-      
+
       if (result.resultCode === '200-OK') {
         setTodos(result.data);
         setSelectedTodo(null); // 할일 목록 변경 시 선택된 할일 초기화
@@ -714,7 +714,7 @@ const TeamDetailPage: React.FC = () => {
     }
   };
 
-  // 할일 추가
+    // 할일 추가
   const handleAddTodo = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -771,7 +771,7 @@ const TeamDetailPage: React.FC = () => {
         } else {
           showToast('할일이 성공적으로 추가되었습니다.', 'success');
         }
-        
+
         setNewTodo({ title: '', description: '', priority: 2, assignedMemberId: null, dueDate: '' });
         setNewTodoAssignees([]);
         setShowTodoModal(false);
@@ -818,27 +818,27 @@ const TeamDetailPage: React.FC = () => {
 
       if (result.resultCode === '200-OK') {
         // 담당자 정보 업데이트
-        try {
+          try {
           const assignResponse = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${editingTodo.id}/assignees`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              },
             body: JSON.stringify({ assignedUserIds: editingTodoAssignees })
-          });
+            });
 
-          if (assignResponse.ok) {
-            const assignResult = await assignResponse.json();
-            if (assignResult.resultCode === '200-OK') {
+            if (assignResponse.ok) {
+              const assignResult = await assignResponse.json();
+              if (assignResult.resultCode === '200-OK') {
               showToast('할일이 성공적으로 수정되었습니다.', 'success');
+              }
             }
-          }
-        } catch (assignError) {
+          } catch (assignError) {
           console.error('담당자 업데이트 실패:', assignError);
           showToast('할일은 수정되었지만 담당자 업데이트에 실패했습니다.', 'error');
         }
-        
+
         setEditingTodo(null);
         setEditingTodoAssignees([]);
         setShowTodoModal(false);
@@ -867,7 +867,7 @@ const TeamDetailPage: React.FC = () => {
     }
 
     console.log('삭제 요청 시작:', todoId);
-    
+
     try {
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${todoId}`, {
         method: 'DELETE',
@@ -1236,16 +1236,16 @@ const TeamDetailPage: React.FC = () => {
                 gap: '0.5rem',
                 marginBottom: '0.5rem'
               }}>
-                <h1 style={{ 
-                  fontSize: '1.5rem', 
-                  fontWeight: '700', 
-                  color: 'var(--text-primary)', 
-                  marginBottom: '0.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
-                  👥 {team.teamName}
+              <h1 style={{ 
+                fontSize: '1.5rem', 
+                fontWeight: '700', 
+                color: 'var(--text-primary)', 
+                marginBottom: '0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                👥 {team.teamName}
                 </h1>
                 {userRole === 'LEADER' && (
                   <span style={{
@@ -1310,16 +1310,16 @@ const TeamDetailPage: React.FC = () => {
                 justifyContent: 'space-between',
                 marginBottom: '0.75rem'
               }}>
-                <h3 style={{
-                  fontSize: '1rem',
-                  fontWeight: '600',
-                  color: 'var(--text-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
-                  👥 팀 멤버
-                </h3>
+              <h3 style={{
+                fontSize: '1rem',
+                fontWeight: '600',
+                color: 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                👥 팀 멤버
+              </h3>
                 {userRole === 'LEADER' && (
                   <button
                     onClick={() => setShowMemberAddModal(true)}
@@ -1369,21 +1369,21 @@ const TeamDetailPage: React.FC = () => {
                       alignItems: 'center',
                       justifyContent: 'space-between'
                     }}>
-                      <div>
-                        <div style={{
-                          fontSize: '0.875rem',
-                          fontWeight: '600',
-                          color: 'var(--text-primary)'
-                        }}>
-                          {member.userNickname}
-                        </div>
-                        <div style={{
-                          fontSize: '0.75rem',
-                          color: 'var(--text-secondary)'
-                        }}>
-                          {member.userEmail}
-                        </div>
+                    <div>
+                      <div style={{
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        color: 'var(--text-primary)'
+                      }}>
+                        {member.userNickname}
                       </div>
+                      <div style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)'
+                      }}>
+                        {member.userEmail}
+                      </div>
+                    </div>
                     </div>
 
                     {/* 역할과 권한 버튼 */}
@@ -1400,16 +1400,16 @@ const TeamDetailPage: React.FC = () => {
                         gap: '0.5rem'
                       }}>
                         {member.role === 'LEADER' ? (
-                          <span style={{
-                            padding: '0.25rem 0.5rem',
-                            background: '#fef3c7',
-                            color: '#d97706',
-                            borderRadius: '12px',
-                            fontSize: '0.7rem',
-                            fontWeight: '600'
-                          }}>
-                            리더
-                          </span>
+                      <span style={{
+                        padding: '0.25rem 0.5rem',
+                        background: '#fef3c7',
+                        color: '#d97706',
+                        borderRadius: '12px',
+                        fontSize: '0.7rem',
+                        fontWeight: '600'
+                      }}>
+                        리더
+                      </span>
                         ) : (
                           <span style={{
                             padding: '0.25rem 0.5rem',
@@ -1906,20 +1906,20 @@ const TeamDetailPage: React.FC = () => {
                             console.log(`목록 권한 체크 - 할일 ${todo.id}:`, { assignees, isAssignee, hasPermission });
                             return hasPermission;
                           })() && (
-                            <input
-                              type="checkbox"
-                              checked={todo.completed}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                handleToggleTodoComplete(todo.id);
-                              }}
-                              style={{ 
-                                width: '20px', 
-                                height: '20px', 
-                                marginTop: '0.125rem',
-                                accentColor: 'var(--primary-color)'
-                              }}
-                            />
+                          <input
+                            type="checkbox"
+                            checked={todo.completed}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleToggleTodoComplete(todo.id);
+                            }}
+                            style={{ 
+                              width: '20px', 
+                              height: '20px', 
+                              marginTop: '0.125rem',
+                              accentColor: 'var(--primary-color)'
+                            }}
+                          />
                           )}
                           <div style={{ flex: 1 }}>
                             <h3 style={{
@@ -2082,18 +2082,18 @@ const TeamDetailPage: React.FC = () => {
                     console.log(`권한 체크 - 할일 ${selectedTodo.id}:`, { assignees, isAssignee, hasPermission });
                     return hasPermission;
                   })() && (
-                    <input
-                      type="checkbox"
-                      checked={selectedTodo.completed}
-                      onChange={() => handleToggleTodoComplete(selectedTodo.id)}
-                      style={{ 
-                        width: '28px', 
-                        height: '28px', 
-                        marginTop: '0.25rem',
-                        accentColor: 'var(--primary-color)',
-                        transform: 'scale(1.3)'
-                      }}
-                    />
+                  <input
+                    type="checkbox"
+                    checked={selectedTodo.completed}
+                    onChange={() => handleToggleTodoComplete(selectedTodo.id)}
+                    style={{ 
+                      width: '28px', 
+                      height: '28px', 
+                      marginTop: '0.25rem',
+                      accentColor: 'var(--primary-color)',
+                      transform: 'scale(1.3)'
+                    }}
+                  />
                   )}
                   <div style={{ flex: 1 }}>
                     <h2 style={{
@@ -2317,9 +2317,9 @@ const TeamDetailPage: React.FC = () => {
                                     background: '#3b82f6'
                                   }}></div>
                                   {assignee.assignedUserNickname || '담당자'}
-                                </div>
+                    </div>
                               ))}
-                            </div>
+                  </div>
                           );
                         }
                         
@@ -2330,11 +2330,11 @@ const TeamDetailPage: React.FC = () => {
                             fontStyle: 'italic'
                           }}>
                             지정되지 않음
-                          </div>
+                </div>
                         );
                       })()}
-                    </div>
-                  </div>
+              </div>
+            </div>
                 </div>
 
                 {/* 권한 경고 메시지 */}
@@ -3443,11 +3443,11 @@ const TeamDetailPage: React.FC = () => {
                         <input
                           type="checkbox"
                           checked={(editingTodo ? editingTodoAssignees : newTodoAssignees).includes(member.userId)}
-                                                      onChange={(e) => {
+                    onChange={(e) => {
                               if (e.target.checked) {
-                                if (editingTodo) {
+                      if (editingTodo) {
                                   setEditingTodoAssignees(prev => [...prev, member.userId]);
-                                } else {
+                      } else {
                                   setNewTodoAssignees(prev => [...prev, member.userId]);
                                 }
                               } else {
@@ -3456,9 +3456,9 @@ const TeamDetailPage: React.FC = () => {
                                 } else {
                                   setNewTodoAssignees(prev => prev.filter(id => id !== member.userId));
                                 }
-                              }
-                            }}
-                          style={{
+                      }
+                    }}
+                    style={{
                             width: '16px',
                             height: '16px',
                             accentColor: 'var(--primary-color)'

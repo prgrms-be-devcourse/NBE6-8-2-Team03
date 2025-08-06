@@ -51,6 +51,7 @@ interface TodoList {
   id: number;
   name: string;
   todos: Todo[];
+  teamId?: number;
 }
 
 // API 응답 타입
@@ -260,6 +261,7 @@ export default function MainPage() {
               todoListsWithTodos.push({
                 id: todoListId,
                 name: todoListInfo.name,
+                teamId: todoListInfo.teamId,
                 todos: todosForThisList
               });
             });
@@ -548,8 +550,8 @@ export default function MainPage() {
 
     todosForDate.forEach(list => {
       list.todos.forEach(todo => {
-        // teamId가 1이 아닌 경우 팀 할일로 분류 (기존 로직 참고)
-        if (list.name.includes('팀') || list.name.includes('Team')) {
+        // teamId가 1보다 큰 경우 팀 할일로 분류, 1이거나 null인 경우 개인 할일로 분류
+        if (list.teamId && list.teamId > 1) {
           teamTodos.push({ ...todo, todoListName: list.name });
         } else {
           personalTodos.push({ ...todo, todoListName: list.name });
