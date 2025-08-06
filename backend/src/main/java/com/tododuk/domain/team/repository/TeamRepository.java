@@ -13,10 +13,10 @@ import java.util.Optional;
 @Repository
 public interface TeamRepository extends JpaRepository<Team, Integer> {
 
-    @Query("SELECT t FROM Team t JOIN FETCH t.members tm WHERE tm.user.id = :userId")
+    @Query("SELECT DISTINCT t FROM Team t JOIN FETCH t.members tm JOIN FETCH tm.user WHERE tm.user.id = :userId")
     List<Team> findTeamsByUserId(@Param("userId") int userId);
 
-    @Query("SELECT t FROM Team t JOIN FETCH t.members WHERE t.id = :teamId")
+    @Query("SELECT t FROM Team t JOIN FETCH t.members tm JOIN FETCH tm.user WHERE t.id = :teamId")
     Optional<Team> findByIdWithMembers(@Param("teamId") int teamId);
 
     boolean existsByIdAndMembers_UserId(int teamId, int userId);

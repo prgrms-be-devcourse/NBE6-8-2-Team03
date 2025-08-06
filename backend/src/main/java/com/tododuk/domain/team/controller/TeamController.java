@@ -112,11 +112,7 @@ public class TeamController {
     @GetMapping("/my")
     public RsData<List<TeamResponseDto>> getMyTeams() {
         User authenticatedUser = getAuthenticatedUser();
-        List<Team> myTeams = teamService.getTeamsByUserId(authenticatedUser.getId());
-        List<TeamResponseDto> teamResponseDtos = myTeams.stream()
-                .map(TeamResponseDto::from)
-                .toList();
-        return new RsData<>("200-OK", "내 팀 목록 조회 성공", teamResponseDtos);
+        return teamService.getMyTeams(authenticatedUser.getId());
     }
 
     // 3. 특정 팀 상세 조회
@@ -379,5 +375,15 @@ public class TeamController {
         response.put("todoId", todoId);
         
         return RsData.success("담당자 여부 확인 완료", response);
+    }
+
+    // ===== 팀 통계 API 엔드포인트 =====
+
+    @GetMapping("/{teamId}/stats")
+    @Operation(summary = "팀 할일 통계 조회",
+            description = "지정된 팀의 할일 통계를 조회합니다. (팀 멤버만 가능)")
+    public RsData<Map<String, Object>> getTeamStats(@PathVariable int teamId) {
+        User authenticatedUser = getAuthenticatedUser();
+        return teamService.getTeamStats(teamId, authenticatedUser.getId());
     }
 }

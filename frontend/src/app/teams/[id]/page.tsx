@@ -51,11 +51,6 @@ interface Todo {
   updatedAt: string;
   assignedMemberId?: number | null;
   dueDate?: string | null;
-  assignedUser?: {
-    id: number;
-    nickname: string;
-    email: string;
-  } | null;
 }
 
 // API 응답 타입
@@ -68,51 +63,7 @@ interface ApiResponse<T> {
 const TeamDetailPage: React.FC = () => {
   const router = useRouter();
   const params = useParams();
-<<<<<<< HEAD
   const teamId = parseInt(params.id as string);
-=======
-  const teamId = Number(params.id);
-
-  const [team, setTeam] = useState<TeamResponseDto | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [todos, setTodos] = useState<any[]>([]);
-
-  // 모달 상태
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showMemberModal, setShowMemberModal] = useState(false);
-  const [showTodoModal, setShowTodoModal] = useState(false);
-  const [showTodoListModal, setShowTodoListModal] = useState(false);
-
-  // 할일 목록 상태
-  const [todoLists, setTodoLists] = useState<any[]>([]);
-  const [selectedTodoList, setSelectedTodoList] = useState<any>(null);
-
-  // 폼 상태
-  const [editForm, setEditForm] = useState({
-    teamName: '',
-    description: ''
-  });
-
-  const [memberForm, setMemberForm] = useState({
-    email: '',
-    role: 'MEMBER' as 'LEADER' | 'MEMBER'
-  });
-
-  const [todoForm, setTodoForm] = useState({
-    title: '',
-    description: '',
-    dueDate: '',
-    assignedMemberId: ''
-  });
-
-  // 로딩 상태
-  const [actionLoading, setActionLoading] = useState({
-    editTeam: false,
-    inviteMember: false,
-    addTodo: false
-  });
->>>>>>> 9b69a65 (backup(fe): 팀 투두 서비스 철폐)
 
   // 임시 Toast 함수
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -141,17 +92,247 @@ const TeamDetailPage: React.FC = () => {
     title: '', 
     description: '', 
     priority: 2,
-<<<<<<< HEAD
     assignedMemberId: null as number | null,
-=======
-    assignedMemberId: null,
->>>>>>> 9b44c88 (feat(fe): 팀 상세페이지 투두 마감기한 설정 기능 추가)
     dueDate: ''
   });
-  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<number[]>([]);
+  const [newTodoAssignees, setNewTodoAssignees] = useState<number[]>([]);
+  const [editingTodoAssignees, setEditingTodoAssignees] = useState<number[]>([]);
   const [newMemberEmail, setNewMemberEmail] = useState<string>('');
+  const [newMemberRole, setNewMemberRole] = useState<'LEADER' | 'MEMBER'>('MEMBER');
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<number[]>([]);
+  const [modalError, setModalError] = useState<string>('');
+
+  // 담당자 권한 관련 상태
+  const [assigneeMap, setAssigneeMap] = useState<Map<number, boolean>>(new Map());
+  const [assigneesMap, setAssigneesMap] = useState<Map<number, any[]>>(new Map());
+
+  // 멤버 권한 변경 관련 상태
+  const [showMemberRoleModal, setShowMemberRoleModal] = useState<boolean>(false);
+  const [editingMember, setEditingMember] = useState<TeamMemberResponseDto | null>(null);
+  const [newMemberRoleForEdit, setNewMemberRoleForEdit] = useState<'LEADER' | 'MEMBER'>('MEMBER');
   
 
+
+  // 담당자 권한 체크 함수들
+  const isTodoAssignee = (todoId: number): boolean => {
+    const result = assigneeMap.get(todoId) || false;
+    console.log(`isTodoAssignee(${todoId}):`, result);
+    return Boolean(result);
+  };
+
+  const getTodoAssignees = (todoId: number): any[] => {
+    const result = assigneesMap.get(todoId) || [];
+    console.log(`getTodoAssignees(${todoId}):`, result);
+    return result;
+  };
+
+  const checkAssigneeStatus = async (todoId: number) => {
+    try {
+      console.log(`checkAssigneeStatus 시작: todoId=${todoId}`);
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${todoId}/is-assignee`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`checkAssigneeStatus 응답:`, result);
+        if (result.resultCode === '200-OK') {
+          const isAssignee = result.data.isAssignee;
+          setAssigneeMap(prev => new Map(prev.set(todoId, isAssignee)));
+          console.log(`assigneeMap 업데이트: todoId=${todoId}, isAssignee=${isAssignee}`);
+        }
+      }
+    } catch (error) {
+      console.error('담당자 상태 확인 실패:', error);
+    }
+  };
+
+  const fetchTodoAssignees = async (todoId: number) => {
+    try {
+      console.log(`fetchTodoAssignees 시작: todoId=${todoId}`);
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${todoId}/assignees`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`fetchTodoAssignees 응답:`, result);
+        if (result.resultCode === '200-OK') {
+          setAssigneesMap(prev => new Map(prev.set(todoId, result.data)));
+          console.log(`assigneesMap 업데이트: todoId=${todoId}, assignees=`, result.data);
+        }
+      }
+    } catch (error) {
+      console.error('담당자 목록 가져오기 실패:', error);
+    }
+  };
+
+  const handleAssignMultipleAssignees = async () => {
+    if (!selectedTodo) return;
+    
+    try {
+      console.log('담당자 지정 요청:', selectedAssigneeIds);
+      
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${selectedTodo.id}/assignees`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ assignedUserIds: selectedAssigneeIds })
+      });
+
+      console.log('담당자 지정 응답 상태:', response.status);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('담당자 지정 응답:', result);
+        
+        if (result.resultCode === '200-OK') {
+          showToast('담당자가 성공적으로 지정되었습니다.', 'success');
+          setShowAssigneeModal(false);
+          setSelectedAssigneeIds([]);
+          
+          // 담당자 정보 새로고침
+          await fetchTodoAssignees(selectedTodo.id);
+          await checkAssigneeStatus(selectedTodo.id);
+        } else {
+          showToast(result.msg || '담당자 지정에 실패했습니다.', 'error');
+        }
+      } else {
+        const errorText = await response.text();
+        console.log('담당자 지정 오류 응답:', errorText);
+        showToast('담당자 지정에 실패했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('담당자 지정 실패:', error);
+      showToast('담당자 지정에 실패했습니다.', 'error');
+    }
+  };
+
+  // 담당자 모달 열 때 현재 담당자들을 미리 선택
+  const openAssigneeModal = async () => {
+    if (!selectedTodo) return;
+    
+    try {
+      // 백엔드에서 최신 담당자 정보 가져오기
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${selectedTodo.id}/assignees`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.resultCode === '200-OK') {
+          const currentAssigneeIds = result.data.map((assignee: any) => assignee.assignedUserId);
+          setSelectedAssigneeIds(currentAssigneeIds);
+          
+          // 담당자 목록도 업데이트
+          setAssigneesMap(prev => new Map(prev.set(selectedTodo.id, result.data)));
+        }
+      }
+      
+      // 권한 상태도 새로고침
+      await checkAssigneeStatus(selectedTodo.id);
+    } catch (error) {
+      console.error('담당자 정보 가져오기 실패:', error);
+    }
+    
+    setShowAssigneeModal(true);
+  };
+
+  const handleAddTeamMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newMemberEmail.trim()) {
+      setModalError('이메일을 입력해주세요.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/members`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: newMemberEmail,
+          role: newMemberRole
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.resultCode === '200-OK') {
+          showToast('팀 멤버가 성공적으로 추가되었습니다.', 'success');
+          setShowMemberAddModal(false);
+          setNewMemberEmail('');
+          setNewMemberRole('MEMBER');
+          setModalError('');
+          // 팀 정보 새로고침
+          await fetchTeamInfo();
+        } else {
+          setModalError(result.msg || '멤버 추가에 실패했습니다.');
+        }
+      } else {
+        setModalError('멤버 추가에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('멤버 추가 실패:', error);
+      setModalError('멤버 추가에 실패했습니다.');
+    }
+  };
+
+  // 멤버 권한 변경
+  const handleUpdateMemberRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingMember) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/members/${editingMember.userId}/role`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          role: newMemberRoleForEdit
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.resultCode === '200-OK') {
+          showToast('멤버 권한이 성공적으로 변경되었습니다.', 'success');
+          setShowMemberRoleModal(false);
+          setEditingMember(null);
+          setNewMemberRoleForEdit('MEMBER');
+          // 팀 정보 새로고침
+          await fetchTeamInfo();
+        } else {
+          showToast(result.msg || '멤버 권한 변경에 실패했습니다.', 'error');
+        }
+      } else {
+        showToast('멤버 권한 변경에 실패했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('멤버 권한 변경 실패:', error);
+      showToast('멤버 권한 변경에 실패했습니다.', 'error');
+    }
+  };
+
+  // 멤버 권한 변경 모달 열기
+  const openMemberRoleModal = (member: TeamMemberResponseDto) => {
+    setEditingMember(member);
+    setNewMemberRoleForEdit(member.role);
+    setShowMemberRoleModal(true);
+  };
 
   // 사용자 정보 가져오기
   const getCurrentUser = async () => {
@@ -220,7 +401,7 @@ const TeamDetailPage: React.FC = () => {
     }
   };
 
-    // 할일 목록별 할일 가져오기
+  // 할일 목록별 할일 가져오기
   const fetchTodosByList = async (todoListId: number) => {
     try {
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todo-lists/${todoListId}/todos`, {
@@ -233,40 +414,9 @@ const TeamDetailPage: React.FC = () => {
       }
 
       const result = await response.json();
-
+      
       if (result.resultCode === '200-OK') {
-        // 각 Todo에 담당자 정보 추가
-        const todosWithAssignments = await Promise.all(
-          result.data.map(async (todo: Todo) => {
-            try {
-              const assignResponse = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${todo.id}/assign`, {
-                method: 'GET',
-                credentials: 'include',
-              });
-
-              if (assignResponse.ok) {
-                const assignResult = await assignResponse.json();
-                if (assignResult.resultCode === '200-OK' && assignResult.data.assignedUserId) {
-                  return {
-                    ...todo,
-                    assignedMemberId: assignResult.data.assignedUserId,
-                    assignedUser: {
-                      id: assignResult.data.assignedUserId,
-                      nickname: assignResult.data.assignedUserNickname,
-                      email: assignResult.data.assignedUserEmail
-                    }
-                  };
-                }
-              }
-              return todo;
-            } catch (error) {
-              console.error(`Todo ${todo.id} 담당자 정보 조회 실패:`, error);
-              return todo;
-            }
-          })
-        );
-
-        setTodos(todosWithAssignments);
+        setTodos(result.data);
         setSelectedTodo(null); // 할일 목록 변경 시 선택된 할일 초기화
       } else {
         throw new Error(result.msg || 'Failed to fetch todos');
@@ -275,69 +425,6 @@ const TeamDetailPage: React.FC = () => {
       console.error('할일 가져오기 실패:', error);
       setError('할일을 가져오는데 실패했습니다.');
     }
-<<<<<<< HEAD
-=======
-  }, [teamId]);
-
-  const fetchTodoLists = useCallback(async () => {
-    try {
-      // 팀 도메인의 할일 목록 API 사용 (임시로 하드코딩된 데이터 사용)
-      const mockTodoLists = [
-        {
-          id: 1,
-          name: "프론트엔드 개발팀 할일 목록",
-          description: "팀원들과 함께 관리하는 할일들",
-          todos: [
-            {
-              id: 1,
-              title: "프론트엔드 컴포넌트 개발",
-              description: "React 컴포넌트 라이브러리 구축",
-              isCompleted: false,
-              priority: 3,
-              dueDate: "2025-08-25T18:00:00",
-              assignedMemberId: 1,
-              type: "team"
-            },
-            {
-              id: 2,
-              title: "UI/UX 디자인 검토",
-              description: "새로운 디자인 시스템 검토 및 피드백",
-              isCompleted: false,
-              priority: 2,
-              dueDate: "2025-08-22T18:00:00",
-              assignedMemberId: 2,
-              type: "team"
-            }
-          ]
-        }
-      ];
-      
-      setTodoLists(mockTodoLists);
-    } catch (err) {
-      console.error('할일 목록 가져오기 실패:', err);
-      setTodoLists([]);
-    }
-  }, [teamId]);
-
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([
-        fetchTeamData(),
-        fetchTodos(),
-        fetchTodoLists()
-      ]);
-      setLoading(false);
-    };
-
-    if (teamId) {
-      loadData();
-    }
-  }, [teamId, fetchTeamData, fetchTodos, fetchTodoLists]);
-
-  const handleGoBack = () => {
-    router.push('/teams');
->>>>>>> 9b69a65 (backup(fe): 팀 투두 서비스 철폐)
   };
 
   // 할일 목록 생성
@@ -421,37 +508,9 @@ const TeamDetailPage: React.FC = () => {
     }
   };
 
-<<<<<<< HEAD
   // 할일 목록 삭제
   const handleDeleteTodoList = async (todoListId: number) => {
     if (!confirm('정말로 이 할일 목록을 삭제하시겠습니까?')) {
-=======
-  const handleSelectTodoList = (todoList: any) => {
-    setSelectedTodoList(todoList);
-  };
-
-  const handleEditTodoList = (todoList: any) => {
-    // TODO: 할일 목록 수정 기능 구현
-    console.log('할일 목록 수정:', todoList);
-  };
-
-  const handleDeleteTodoList = (todoListId: number) => {
-    // TODO: 할일 목록 삭제 기능 구현
-    console.log('할일 목록 삭제:', todoListId);
-  };
-
-  const handleAddTodo = async () => {
-    console.log('할일 추가 시작');
-    console.log('teamId:', teamId);
-    console.log('todoForm:', todoForm);
-    
-    // 모달 내부 경고 메시지 초기화
-    setModalError(null);
-    
-    if (!todoForm.title.trim()) {
-      console.log('제목이 비어있음');
-      setModalError('할일 제목을 입력해주세요.');
->>>>>>> 9b69a65 (backup(fe): 팀 투두 서비스 철폐)
       return;
     }
 
@@ -484,7 +543,7 @@ const TeamDetailPage: React.FC = () => {
     }
   };
 
-    // 할일 추가
+  // 할일 추가
   const handleAddTodo = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -494,21 +553,17 @@ const TeamDetailPage: React.FC = () => {
     }
 
     try {
-      // 할일 추가 (담당자 정보 제외)
-      const todoData = {
-        title: newTodo.title,
-        description: newTodo.description,
-        priority: newTodo.priority,
-        dueDate: newTodo.dueDate ? new Date(newTodo.dueDate).toISOString() : null
-      };
-
+      // 먼저 할일을 생성
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todo-lists/${selectedTodoList.id}/todos`, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(todoData)
+        body: JSON.stringify({
+          ...newTodo,
+          dueDate: newTodo.dueDate ? new Date(newTodo.dueDate).toISOString() : null
+        })
       });
 
       if (!response.ok) {
@@ -518,39 +573,36 @@ const TeamDetailPage: React.FC = () => {
       const result = await response.json();
 
       if (result.resultCode === '200-OK') {
-        // 담당자가 지정된 경우 별도 API로 담당자 지정
-        if (newTodo.assignedMemberId) {
+        const newTodoId = result.data.id;
+        
+        // 담당자가 선택된 경우 담당자 지정
+        if (newTodoAssignees.length > 0) {
           try {
-            const assignResponse = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${result.data.id}/assign`, {
+            const assignResponse = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${newTodoId}/assignees`, {
               method: 'POST',
               credentials: 'include',
               headers: {
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({
-                assignedUserId: newTodo.assignedMemberId
-              })
+              body: JSON.stringify({ assignedUserIds: newTodoAssignees })
             });
 
             if (assignResponse.ok) {
               const assignResult = await assignResponse.json();
               if (assignResult.resultCode === '200-OK') {
-                showToast('할일과 담당자가 성공적으로 추가되었습니다.', 'success');
-              } else {
-                showToast('할일은 추가되었지만 담당자 지정에 실패했습니다.', 'info');
+                showToast('할일이 성공적으로 추가되었습니다.', 'success');
               }
-            } else {
-              showToast('할일은 추가되었지만 담당자 지정에 실패했습니다.', 'info');
             }
           } catch (assignError) {
             console.error('담당자 지정 실패:', assignError);
-            showToast('할일은 추가되었지만 담당자 지정에 실패했습니다.', 'info');
+            showToast('할일은 추가되었지만 담당자 지정에 실패했습니다.', 'error');
           }
         } else {
           showToast('할일이 성공적으로 추가되었습니다.', 'success');
         }
-
+        
         setNewTodo({ title: '', description: '', priority: 2, assignedMemberId: null, dueDate: '' });
+        setNewTodoAssignees([]);
         setShowTodoModal(false);
         fetchTodosByList(selectedTodoList.id);
       } else {
@@ -572,21 +624,19 @@ const TeamDetailPage: React.FC = () => {
     }
 
     try {
-      // 할일 기본 정보 수정
-      const todoData = {
-        title: editingTodo.title,
-        description: editingTodo.description,
-        priority: editingTodo.priority,
-        dueDate: editingTodo.dueDate ? new Date(editingTodo.dueDate).toISOString() : null
-      };
-
+      // 먼저 할일 정보 수정
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${editingTodo.id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(todoData)
+        body: JSON.stringify({
+          title: editingTodo.title,
+          description: editingTodo.description,
+          priority: editingTodo.priority,
+          dueDate: editingTodo.dueDate ? new Date(editingTodo.dueDate).toISOString() : null
+        })
       });
 
       if (!response.ok) {
@@ -596,57 +646,39 @@ const TeamDetailPage: React.FC = () => {
       const result = await response.json();
 
       if (result.resultCode === '200-OK') {
-        // 담당자가 변경된 경우 별도 API로 담당자 처리
-        if (editingTodo.assignedMemberId !== null) {
-          try {
-            const assignResponse = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${editingTodo.id}/assign`, {
-              method: 'POST',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                assignedUserId: editingTodo.assignedMemberId
-              })
-            });
+        // 담당자 정보 업데이트
+        try {
+          const assignResponse = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${editingTodo.id}/assignees`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ assignedUserIds: editingTodoAssignees })
+          });
 
-            if (assignResponse.ok) {
-              const assignResult = await assignResponse.json();
-              if (assignResult.resultCode === '200-OK') {
-                showToast('할일과 담당자가 성공적으로 수정되었습니다.', 'success');
-              } else {
-                showToast('할일은 수정되었지만 담당자 지정에 실패했습니다.', 'info');
-              }
-            } else {
-              showToast('할일은 수정되었지만 담당자 지정에 실패했습니다.', 'info');
+          if (assignResponse.ok) {
+            const assignResult = await assignResponse.json();
+            if (assignResult.resultCode === '200-OK') {
+              showToast('할일이 성공적으로 수정되었습니다.', 'success');
             }
-          } catch (assignError) {
-            console.error('담당자 지정 실패:', assignError);
-            showToast('할일은 수정되었지만 담당자 지정에 실패했습니다.', 'info');
           }
-        } else {
-          // 담당자가 null인 경우 기존 담당자 해제
-          try {
-            const unassignResponse = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${editingTodo.id}/assign`, {
-              method: 'DELETE',
-              credentials: 'include',
-            });
-
-            if (unassignResponse.ok) {
-              showToast('할일과 담당자가 성공적으로 수정되었습니다.', 'success');
-            } else {
-              showToast('할일은 수정되었지만 담당자 해제에 실패했습니다.', 'info');
-            }
-          } catch (unassignError) {
-            console.error('담당자 해제 실패:', unassignError);
-            showToast('할일은 수정되었지만 담당자 해제에 실패했습니다.', 'info');
-          }
+        } catch (assignError) {
+          console.error('담당자 업데이트 실패:', assignError);
+          showToast('할일은 수정되었지만 담당자 업데이트에 실패했습니다.', 'error');
         }
-
+        
         setEditingTodo(null);
+        setEditingTodoAssignees([]);
         setShowTodoModal(false);
         if (selectedTodoList) {
           fetchTodosByList(selectedTodoList.id);
+        }
+        
+        // 선택된 할일이 있다면 권한 상태 새로고침
+        if (selectedTodo) {
+          await checkAssigneeStatus(selectedTodo.id);
+          await fetchTodoAssignees(selectedTodo.id);
         }
       } else {
         throw new Error(result.msg || 'Failed to update todo');
@@ -663,29 +695,24 @@ const TeamDetailPage: React.FC = () => {
       return;
     }
 
+    console.log('삭제 요청 시작:', todoId);
+    
     try {
-      console.log('삭제 요청 시작:', { teamId, todoId });
-      console.log('현재 사용자:', currentUser);
-      console.log('선택된 할일:', selectedTodo);
-      
       const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${todoId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
 
       console.log('삭제 응답 상태:', response.status);
-      console.log('삭제 응답 헤더:', response.headers);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('삭제 응답 에러:', errorText);
-        console.error('삭제 요청 URL:', `http://localhost:8080/api/v1/teams/${teamId}/todos/${todoId}`);
-        console.error('삭제 요청 메서드:', 'DELETE');
+        console.log('삭제 오류 응답:', errorText);
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
       const result = await response.json();
-      console.log('삭제 응답 결과:', result);
+      console.log('삭제 성공 응답:', result);
 
       if (result.resultCode === '200-OK') {
         showToast('할일이 성공적으로 삭제되었습니다.', 'success');
@@ -700,8 +727,7 @@ const TeamDetailPage: React.FC = () => {
       }
     } catch (error) {
       console.error('할일 삭제 실패:', error);
-      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
-      showToast(`할일 삭제에 실패했습니다: ${errorMessage}`, 'error');
+      showToast('할일 삭제에 실패했습니다.', 'error');
     }
   };
 
@@ -750,11 +776,26 @@ const TeamDetailPage: React.FC = () => {
   };
 
   // 할일 선택
-  const handleSelectTodo = (todo: Todo) => {
+  const handleSelectTodo = async (todo: Todo) => {
     setSelectedTodo(todo);
-    // 담당자 권한 확인
-    checkAssigneeStatus(todo.id);
-    fetchTodoAssignees(todo.id);
+    
+    // 담당자 정보 가져오기
+    try {
+      await checkAssigneeStatus(todo.id);
+      await fetchTodoAssignees(todo.id);
+      
+      // 권한 정보가 로드될 때까지 잠시 대기
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      console.log(`할일 ${todo.id} 권한 상태:`, {
+        isAssignee: isTodoAssignee(todo.id),
+        assignees: getTodoAssignees(todo.id),
+        assigneeMap: assigneeMap,
+        assigneesMap: assigneesMap
+      });
+    } catch (error) {
+      console.error('권한 정보 로드 실패:', error);
+    }
   };
 
   // 할일 목록 편집 모드
@@ -764,8 +805,28 @@ const TeamDetailPage: React.FC = () => {
   };
 
   // 할일 편집 모드
-  const handleEditTodo = (todo: Todo) => {
+  const handleEditTodo = async (todo: Todo) => {
     setEditingTodo(todo);
+    
+    // 현재 담당자 정보 가져오기
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${todo.id}/assignees`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.resultCode === '200-OK') {
+          const currentAssigneeIds = result.data.map((assignee: any) => assignee.assignedUserId);
+          setEditingTodoAssignees(currentAssigneeIds);
+        }
+      }
+    } catch (error) {
+      console.error('담당자 정보 가져오기 실패:', error);
+      setEditingTodoAssignees([]);
+    }
+    
     setShowTodoModal(true);
   };
 
@@ -804,146 +865,6 @@ const TeamDetailPage: React.FC = () => {
     if (!team || !currentUser) return null;
     const member = team.members.find(m => m.userId === currentUser.id);
     return member ? member.role : null;
-  };
-
-  // 담당자 권한 확인
-  const [assigneeMap, setAssigneeMap] = useState<Map<number, boolean>>(new Map());
-  const [assigneesMap, setAssigneesMap] = useState<Map<number, any[]>>(new Map());
-
-  // 특정 할일의 담당자인지 확인
-  const checkAssigneeStatus = async (todoId: number) => {
-    if (!currentUser || !selectedTodoList) return;
-    
-    try {
-      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${todoId}/is-assignee`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.resultCode === '200-OK') {
-          setAssigneeMap(prev => new Map(prev).set(todoId, result.data.isAssignee));
-        }
-      }
-    } catch (error) {
-      console.error('담당자 상태 확인 실패:', error);
-    }
-  };
-
-  // 특정 할일의 담당자 목록 조회
-  const fetchTodoAssignees = async (todoId: number) => {
-    if (!selectedTodoList) return;
-    
-    try {
-      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${todoId}/assignees`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.resultCode === '200-OK') {
-          setAssigneesMap(prev => new Map(prev).set(todoId, result.data));
-        }
-      }
-    } catch (error) {
-      console.error('담당자 목록 조회 실패:', error);
-    }
-  };
-
-  // 특정 할일의 담당자인지 확인하는 헬퍼 함수
-  const isTodoAssignee = (todoId: number): boolean => {
-    return assigneeMap.get(todoId) || false;
-  };
-
-  // 특정 할일의 담당자 목록을 가져오는 헬퍼 함수
-  const getTodoAssignees = (todoId: number): any[] => {
-    return assigneesMap.get(todoId) || [];
-  };
-
-  // 여러 담당자 지정
-  const handleAssignMultipleAssignees = async (todoId: number) => {
-    if (!selectedAssigneeIds.length) {
-      showToast('담당자를 선택해주세요.', 'error');
-      return;
-    }
-
-    try {
-      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/todos/${todoId}/assignees`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          assignedUserIds: selectedAssigneeIds
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.resultCode === '200-OK') {
-        showToast(`${selectedAssigneeIds.length}명의 담당자가 성공적으로 지정되었습니다.`, 'success');
-        setSelectedAssigneeIds([]);
-        setShowAssigneeModal(false);
-        // 담당자 정보 새로고침
-        fetchTodoAssignees(todoId);
-        checkAssigneeStatus(todoId);
-      } else {
-        throw new Error(result.msg || 'Failed to assign assignees');
-      }
-    } catch (error) {
-      console.error('담당자 지정 실패:', error);
-      showToast('담당자 지정에 실패했습니다.', 'error');
-    }
-  };
-
-  // 팀 멤버 추가
-  const handleAddTeamMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newMemberEmail.trim()) {
-      showToast('이메일을 입력해주세요.', 'error');
-      return;
-    }
-
-    try {
-      const response = await fetch(`http://localhost:8080/api/v1/teams/${teamId}/members`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: newMemberEmail,
-          role: 'MEMBER'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.resultCode === '200-OK') {
-        showToast('팀 멤버가 성공적으로 추가되었습니다.', 'success');
-        setNewMemberEmail('');
-        setShowMemberAddModal(false);
-        // 팀 정보 새로고침
-        fetchTeamInfo();
-      } else {
-        throw new Error(result.msg || 'Failed to add team member');
-      }
-    } catch (error) {
-      console.error('팀 멤버 추가 실패:', error);
-      showToast('팀 멤버 추가에 실패했습니다.', 'error');
-    }
   };
 
   // 초기 데이터 로드
@@ -1086,7 +1007,6 @@ const TeamDetailPage: React.FC = () => {
 
   return (
     <TodoListTemplate>
-<<<<<<< HEAD
       <div style={{ 
         display: 'flex', 
         width: '100%', 
@@ -1221,16 +1141,13 @@ const TeamDetailPage: React.FC = () => {
                 </h3>
                 {userRole === 'LEADER' && (
                   <button
-                    onClick={() => {
-                      setNewMemberEmail('');
-                      setShowMemberAddModal(true);
-                    }}
+                    onClick={() => setShowMemberAddModal(true)}
                     style={{
                       padding: '0.25rem 0.5rem',
                       background: 'var(--primary-color)',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '4px',
+                      borderRadius: '6px',
                       fontSize: '0.75rem',
                       fontWeight: '600',
                       cursor: 'pointer',
@@ -1255,93 +1172,99 @@ const TeamDetailPage: React.FC = () => {
                   <div
                     key={member.id}
                     style={{
-                      padding: '0.75rem',
+                      padding: '1rem',
                       background: 'var(--bg-main)',
                       borderRadius: '8px',
                       border: '1px solid var(--border-light)',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
+                      flexDirection: 'column',
+                      gap: '0.75rem',
+                      minHeight: '100px'
                     }}
                   >
-                    <div>
-                      <div style={{
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
-                        color: 'var(--text-primary)'
-                      }}>
-                        {member.userNickname}
+                    {/* 멤버 정보 */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div>
+                        <div style={{
+                          fontSize: '0.875rem',
+                          fontWeight: '600',
+                          color: 'var(--text-primary)'
+                        }}>
+                          {member.userNickname}
+                        </div>
+                        <div style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          {member.userEmail}
+                        </div>
                       </div>
-                      <div style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--text-secondary)'
-                      }}>
-                        {member.userEmail}
-=======
-      <div className="flex h-full">
-        {/* 왼쪽 패널 - 팀 정보 및 멤버 */}
-        <div className="w-1/3 p-8 border-r border-gray-200 overflow-y-auto">
-          {/* 팀 헤더 */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{team.teamName}</h1>
-                <p className="text-lg text-gray-600">{team.description}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setEditForm({ teamName: team.teamName, description: team.description });
-                    setShowEditModal(true);
-                  }}
-                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                >
-                  팀 수정
-                </button>
-                <button
-                  onClick={() => setShowMemberModal(true)}
-                  className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-                >
-                  멤버 초대
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4 text-sm text-gray-500">
-              <span>생성일: {formatDate(team.createDate)}</span>
-              <span>멤버: {team.members.length}명</span>
-            </div>
-          </div>
+                    </div>
 
-          {/* 멤버 목록 */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">팀 멤버</h2>
-            <div className="space-y-3">
-              {team.members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                      {member.userNickname.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-sm">{member.userNickname}</div>
-                      <div className="text-xs text-gray-500">
-                        {member.role === 'LEADER' ? '리더' : '멤버'} • {formatDate(member.joinedAt)} 가입
->>>>>>> 9b69a65 (backup(fe): 팀 투두 서비스 철폐)
-                      </div>
-                    </div>
-                    {member.role === 'LEADER' && (
-                      <span style={{
-                        padding: '0.25rem 0.5rem',
-                        background: '#fef3c7',
-                        color: '#d97706',
-                        borderRadius: '12px',
-                        fontSize: '0.7rem',
-                        fontWeight: '600'
+                    {/* 역할과 권한 버튼 */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.5rem'
+                    }}>
+                      {/* 역할 표시 */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
                       }}>
-                        리더
-                      </span>
-                    )}
+                        {member.role === 'LEADER' ? (
+                          <span style={{
+                            padding: '0.25rem 0.5rem',
+                            background: '#fef3c7',
+                            color: '#d97706',
+                            borderRadius: '12px',
+                            fontSize: '0.7rem',
+                            fontWeight: '600'
+                          }}>
+                            리더
+                          </span>
+                        ) : (
+                          <span style={{
+                            padding: '0.25rem 0.5rem',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            borderRadius: '12px',
+                            fontSize: '0.7rem',
+                            fontWeight: '600'
+                          }}>
+                            멤버
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 권한 변경 버튼 (리더만 보임) */}
+                      {userRole === 'LEADER' && member.userId !== currentUser?.id && (
+                        <button
+                          onClick={() => openMemberRoleModal(member)}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            background: 'transparent',
+                            border: '1px solid var(--border-medium)',
+                            color: 'var(--text-secondary)',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem'
+                          }}
+                        >
+                          <Settings className="w-3 h-3" />
+                          권한
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1361,7 +1284,6 @@ const TeamDetailPage: React.FC = () => {
           </div>
         </div>
 
-<<<<<<< HEAD
         {/* 중간: TodoList 목록들 */}
         <div style={{ 
           width: '37.5%',
@@ -1723,22 +1645,28 @@ const TeamDetailPage: React.FC = () => {
                         onClick={() => handleSelectTodo(todo)}
                       >
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                          <input
-                            type="checkbox"
-                            checked={todo.completed}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              handleToggleTodoComplete(todo.id);
-                            }}
-                            disabled={getTodoAssignees(todo.id).length > 0 && !isTodoAssignee(todo.id)}
-                            style={{ 
-                              width: '20px', 
-                              height: '20px', 
-                              marginTop: '0.125rem',
-                              accentColor: 'var(--primary-color)',
-                              opacity: (getTodoAssignees(todo.id).length > 0 && !isTodoAssignee(todo.id)) ? 0.5 : 1
-                            }}
-                          />
+                          {(() => {
+                            const assignees = getTodoAssignees(todo.id);
+                            const isAssignee = isTodoAssignee(todo.id);
+                            const hasPermission = assignees.length === 0 || isAssignee;
+                            console.log(`목록 권한 체크 - 할일 ${todo.id}:`, { assignees, isAssignee, hasPermission });
+                            return hasPermission;
+                          })() && (
+                            <input
+                              type="checkbox"
+                              checked={todo.completed}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleToggleTodoComplete(todo.id);
+                              }}
+                              style={{ 
+                                width: '20px', 
+                                height: '20px', 
+                                marginTop: '0.125rem',
+                                accentColor: 'var(--primary-color)'
+                              }}
+                            />
+                          )}
                           <div style={{ flex: 1 }}>
                             <h3 style={{
                               fontWeight: '600',
@@ -1787,29 +1715,13 @@ const TeamDetailPage: React.FC = () => {
                               }}>
                                 {getPriorityString(todo.priority)}
                               </span>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                {todo.assignedMemberId && (
-                                  <span style={{
-                                    fontSize: '0.75rem',
-                                    padding: '0.25rem 0.5rem',
-                                    borderRadius: '12px',
-                                    fontWeight: '600',
-                                    background: '#e0f2fe',
-                                    color: '#0284c7'
-                                  }}>
-                                    👤 {team?.members.find(m => m.userId === todo.assignedMemberId)?.userNickname || '담당자'}
-                                  </span>
-                                )}
-                                {todo.dueDate && (
-                                  <span style={{
-                                    fontSize: '0.75rem',
-                                    color: 'var(--text-light)',
-                                    fontWeight: '500'
-                                  }}>
-                                    📅 {formatDate(todo.dueDate)}
-                                  </span>
-                                )}
-                              </div>
+                              <span style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--text-light)',
+                                fontWeight: '500'
+                              }}>
+                                📅 {formatDate(todo.createdAt)}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -1909,20 +1821,26 @@ const TeamDetailPage: React.FC = () => {
                 borderBottom: '2px solid var(--border-light)'
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', flex: 1 }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedTodo.completed}
-                    onChange={() => handleToggleTodoComplete(selectedTodo.id)}
-                    disabled={!isTodoAssignee(selectedTodo.id) && getTodoAssignees(selectedTodo.id).length > 0}
-                    style={{ 
-                      width: '28px', 
-                      height: '28px', 
-                      marginTop: '0.25rem',
-                      accentColor: 'var(--primary-color)',
-                      transform: 'scale(1.3)',
-                      opacity: (!isTodoAssignee(selectedTodo.id) && getTodoAssignees(selectedTodo.id).length > 0) ? 0.5 : 1
-                    }}
-                  />
+                  {(() => {
+                    const assignees = getTodoAssignees(selectedTodo.id);
+                    const isAssignee = isTodoAssignee(selectedTodo.id);
+                    const hasPermission = assignees.length === 0 || isAssignee;
+                    console.log(`권한 체크 - 할일 ${selectedTodo.id}:`, { assignees, isAssignee, hasPermission });
+                    return hasPermission;
+                  })() && (
+                    <input
+                      type="checkbox"
+                      checked={selectedTodo.completed}
+                      onChange={() => handleToggleTodoComplete(selectedTodo.id)}
+                      style={{ 
+                        width: '28px', 
+                        height: '28px', 
+                        marginTop: '0.25rem',
+                        accentColor: 'var(--primary-color)',
+                        transform: 'scale(1.3)'
+                      }}
+                    />
+                  )}
                   <div style={{ flex: 1 }}>
                     <h2 style={{
                       fontSize: '1.5rem',
@@ -2020,150 +1938,6 @@ const TeamDetailPage: React.FC = () => {
                       color: selectedTodo.completed ? '#16a34a' : '#eab308'
                     }}>
                       {selectedTodo.completed ? '✅ 완료' : '⏳ 진행중'}
-=======
-        {/* 중앙 패널 - 할일 목록 관리 */}
-        <div className="w-1/3 p-8 border-r border-gray-200 overflow-y-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900">
-                할일 목록 관리
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                팀의 할일 목록들을 관리합니다.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowTodoListModal(true)}
-              className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              목록 추가
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {todoLists.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-gray-500 text-sm mb-2">아직 할일 목록이 없습니다.</div>
-                <p className="text-gray-400 text-xs">목록 추가 버튼을 눌러서 첫 번째 할일 목록을 만들어보세요!</p>
-              </div>
-            ) : (
-              todoLists.map((todoList) => (
-                <div key={todoList.id} className="p-4 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-gray-900">{todoList.name}</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">
-                        {todoList.todos?.length || 0}개 할일
-                      </span>
-                      <button
-                        onClick={() => handleSelectTodoList(todoList)}
-                        className="px-2 py-1 bg-blue-100 text-blue-600 rounded text-xs hover:bg-blue-200"
-                      >
-                        선택
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-3">{todoList.description}</p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleEditTodoList(todoList)}
-                      className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"
-                    >
-                      수정
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTodoList(todoList.id)}
-                      className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs hover:bg-red-200"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* 오른쪽 패널 - 선택된 할일 목록의 할일들 */}
-        <div className="w-1/3 p-8 overflow-y-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900">
-                {selectedTodoList ? selectedTodoList.name : '할일 목록 선택'}
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {selectedTodoList ? `${selectedTodoList.todos?.length || 0}개의 할일이 있습니다.` : '왼쪽에서 할일 목록을 선택해주세요.'}
-              </p>
-            </div>
-            {selectedTodoList && (
-              <button
-                onClick={() => setShowTodoModal(true)}
-                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                할일 추가
-              </button>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            {!selectedTodoList ? (
-              <div className="text-center py-8">
-                <div className="text-gray-500 text-sm mb-2">할일 목록을 선택해주세요</div>
-                <p className="text-gray-400 text-xs">중앙 패널에서 할일 목록을 선택하면 할일들을 볼 수 있습니다.</p>
-              </div>
-            ) : selectedTodoList.todos?.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-gray-500 text-sm mb-2">아직 할일이 없습니다.</div>
-                <p className="text-gray-400 text-xs">할일 추가 버튼을 눌러서 첫 번째 할일을 만들어보세요!</p>
-              </div>
-            ) : (
-                             selectedTodoList.todos?.map((todo: any) => (
-                <div key={todo.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={todo.isCompleted}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                      readOnly
-                    />
-                    <div>
-                      <div className={`font-semibold text-sm ${todo.isCompleted ? 'line-through text-gray-500' : ''}`}>
-                        {todo.title}
-                      </div>
-                      {todo.description && (
-                        <div className="text-xs text-gray-500 mt-1">{todo.description}</div>
-                      )}
-                      {todo.dueDate && (
-                        <div className="text-xs text-gray-400 mt-1">
-                          마감일: {formatDate(todo.dueDate)}
-                        </div>
-                      )}
-                      {todo.assignedMemberId && (
-                        <div className="text-xs text-blue-600 mt-1">
-                          담당: {team?.members.find(m => m.userId === todo.assignedMemberId)?.userNickname || '알 수 없음'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className={`px-1 py-0.5 text-xs rounded-full ${
-                      todo.priority === 1 ? 'bg-red-100 text-red-800' :
-                      todo.priority === 2 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
-                      {todo.priority === 1 ? '높음' : todo.priority === 2 ? '보통' : '낮음'}
-                    </span>
-                    <span className={`px-1 py-0.5 text-xs rounded-full ${
-                      todo.type === 'personal' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {todo.type === 'personal' ? '개인' : '팀'}
->>>>>>> 9b69a65 (backup(fe): 팀 투두 서비스 철폐)
                     </span>
                   </div>
                 </div>
@@ -2255,125 +2029,132 @@ const TeamDetailPage: React.FC = () => {
                       👤 담당자
                     </label>
                     <div style={{ 
-                      color: getTodoAssignees(selectedTodo.id).length > 0 ? 'var(--text-primary)' : 'var(--text-light)', 
                       fontSize: '0.9rem',
                       background: 'var(--bg-main)',
                       padding: '0.75rem',
                       borderRadius: '8px',
                       border: '1px solid var(--border-light)',
-                      fontStyle: getTodoAssignees(selectedTodo.id).length > 0 ? 'normal' : 'italic',
-                      minHeight: '60px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.25rem'
+                      minHeight: '60px'
                     }}>
-                      {getTodoAssignees(selectedTodo.id).length > 0 ? 
-                        getTodoAssignees(selectedTodo.id).map((assignee: any, index: number) => (
-                          <div key={assignee.assignedUserId} style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            padding: '0.25rem 0'
-                          }}>
-                            <span style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              background: 'var(--primary-color)',
-                              flexShrink: 0
-                            }}></span>
-                            <span>{assignee.assignedUserNickname}</span>
-                          </div>
-                        )) : 
-                        '지정되지 않음'}
+                      {getTodoAssignees(selectedTodo.id).length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {getTodoAssignees(selectedTodo.id).map((assignee: any, index: number) => (
+                            <div key={index} style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '0.5rem',
+                              color: 'var(--text-primary)'
+                            }}>
+                              <div style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: '#3b82f6'
+                              }}></div>
+                              {assignee.assignedUserNickname || '담당자'}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ 
+                          color: 'var(--text-light)', 
+                          fontStyle: 'italic'
+                        }}>
+                          지정되지 않음
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* 액션 버튼들 */}
-                <div style={{
-                  display: 'flex',
-                  gap: '0.75rem',
-                  justifyContent: 'center',
-                  marginTop: '1rem',
-                  paddingTop: '1.5rem',
-                  borderTop: '1px solid var(--border-light)'
-                }}>
-                  {/* 담당자 권한 확인 메시지 */}
-                  {!isTodoAssignee(selectedTodo.id) && getTodoAssignees(selectedTodo.id).length > 0 && (
-                    <div style={{
-                      background: '#fef3c7',
-                      color: '#d97706',
-                      padding: '0.75rem',
-                      borderRadius: '8px',
-                      fontSize: '0.875rem',
-                      textAlign: 'center',
-                      marginBottom: '1rem',
-                      width: '100%'
-                    }}>
-                      ⚠️ 이 할일의 담당자만 수정/삭제할 수 있습니다.
-                    </div>
-                  )}
+                {/* 권한 경고 메시지 */}
+                {!isTodoAssignee(selectedTodo.id) && getTodoAssignees(selectedTodo.id).length > 0 && (
+                  <div style={{
+                    background: '#fef3c7',
+                    color: '#d97706',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    marginBottom: '1rem',
+                    border: '1px solid #fbbf24'
+                  }}>
+                    ⚠️ 이 할일의 담당자만 수정/삭제할 수 있습니다.
+                  </div>
+                )}
 
-                  {/* 담당자 지정 버튼 */}
+                {/* 담당자 지정 버튼 */}
+                <div style={{ marginBottom: '1rem' }}>
                   <button
-                    onClick={() => {
-                      setSelectedAssigneeIds([]);
-                      setShowAssigneeModal(true);
-                    }}
+                    onClick={() => openAssigneeModal()}
                     style={{
-                      padding: '0.5rem 1rem',
-                      background: '#16a34a',
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: 'var(--primary-color)',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '0.85rem',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
                       fontWeight: '600',
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease'
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem'
                     }}
                   >
                     👥 담당자 지정
                   </button>
-
-                  {/* 담당자이거나 담당자가 없는 경우에만 버튼 표시 */}
-                  {(isTodoAssignee(selectedTodo.id) || getTodoAssignees(selectedTodo.id).length === 0) && (
-                    <>
-                      <button
-                        onClick={() => handleEditTodo(selectedTodo)}
-                        style={{
-                          padding: '0.5rem 1rem',
-                          background: 'var(--primary-color)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '0.85rem',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        ✏️ 수정
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTodo(selectedTodo.id)}
-                        style={{
-                          padding: '0.5rem 1rem',
-                          background: '#dc2626',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '0.85rem',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        🗑️ 삭제
-                      </button>
-                    </>
-                  )}
                 </div>
+
+                {/* 수정/삭제 버튼들 */}
+                {(() => {
+                  const assignees = getTodoAssignees(selectedTodo.id);
+                  const isAssignee = isTodoAssignee(selectedTodo.id);
+                  const hasPermission = assignees.length === 0 || isAssignee;
+                  console.log(`버튼 권한 체크 - 할일 ${selectedTodo.id}:`, { assignees, isAssignee, hasPermission });
+                  return hasPermission;
+                })() && (
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '0.75rem',
+                    marginBottom: '1rem'
+                  }}>
+                    <button
+                      onClick={() => handleEditTodo(selectedTodo)}
+                      style={{
+                        flex: 1,
+                        padding: '0.6rem 1rem',
+                        background: 'var(--primary-color)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '0.85rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      ✏️ 수정
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTodo(selectedTodo.id)}
+                      style={{
+                        flex: 1,
+                        padding: '0.6rem 1rem',
+                        background: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '0.85rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      🗑️ 삭제
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2446,7 +2227,6 @@ const TeamDetailPage: React.FC = () => {
                   }}>
                     목록 이름 *
                   </label>
-<<<<<<< HEAD
                   <input
                     type="text"
                     value={editingTodoList ? editingTodoList.name : newTodoList.name}
@@ -2467,20 +2247,6 @@ const TeamDetailPage: React.FC = () => {
                       fontSize: '0.95rem'
                     }}
                   />
-=======
-                  <select
-                    value={todoForm.assignedMemberId}
-                    onChange={(e) => setTodoForm(prev => ({ ...prev, assignedMemberId: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">담당자 선택 (필수)</option>
-                    {team?.members.map((member) => (
-                      <option key={member.id} value={member.userId.toString()}>
-                        {member.userNickname} ({member.role === 'LEADER' ? '리더' : '멤버'})
-                      </option>
-                    ))}
-                  </select>
->>>>>>> d0cddd5 (팀 투두리스트, 팀 투두 엔티티 및 관련 서비스 만들어서 백업)
                 </div>
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{
@@ -2563,6 +2329,509 @@ const TeamDetailPage: React.FC = () => {
         </div>
       )}
 
+      {/* 담당자 지정 모달 */}
+      {showAssigneeModal && selectedTodo && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--bg-white)',
+            borderRadius: '12px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            width: '100%',
+            maxWidth: '500px',
+            margin: '0 1rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.5rem',
+              borderBottom: '1px solid var(--border-light)'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                color: 'var(--text-primary)'
+              }}>
+                👥 담당자 지정
+              </h3>
+              <button
+                onClick={async () => {
+                  setShowAssigneeModal(false);
+                  setSelectedAssigneeIds([]);
+                  
+                  // 담당자 변경 후 권한 상태 새로고침
+                  if (selectedTodo) {
+                    await checkAssigneeStatus(selectedTodo.id);
+                    await fetchTodoAssignees(selectedTodo.id);
+                  }
+                }}
+                style={{
+                  padding: '0.5rem',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-light)',
+                  cursor: 'pointer',
+                  borderRadius: '6px'
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div style={{ padding: '1.5rem' }}>
+              <p style={{
+                color: 'var(--text-secondary)',
+                fontSize: '0.9rem',
+                marginBottom: '1rem'
+              }}>
+                "{selectedTodo.title}" 할일의 담당자를 선택해주세요.
+              </p>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                maxHeight: '300px',
+                overflowY: 'auto'
+              }}>
+                {team?.members.map((member) => (
+                                     <label key={member.id} style={{
+                     display: 'flex',
+                     alignItems: 'center',
+                     gap: '0.75rem',
+                     padding: '0.75rem',
+                     border: selectedAssigneeIds.includes(member.userId) ? '2px solid var(--primary-color)' : '1px solid var(--border-light)',
+                     borderRadius: '8px',
+                     cursor: 'pointer',
+                     background: selectedAssigneeIds.includes(member.userId) ? 'var(--primary-light)' : 'transparent',
+                     transition: 'all 0.2s ease'
+                   }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedAssigneeIds.includes(member.userId)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedAssigneeIds(prev => [...prev, member.userId]);
+                        } else {
+                          setSelectedAssigneeIds(prev => prev.filter(id => id !== member.userId));
+                        }
+                      }}
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        accentColor: 'var(--primary-color)'
+                      }}
+                    />
+                    <div>
+                      <div style={{
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        color: 'var(--text-primary)'
+                      }}>
+                        {member.userNickname}
+                      </div>
+                      <div style={{
+                        fontSize: '0.8rem',
+                        color: 'var(--text-secondary)'
+                      }}>
+                        {member.userEmail}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '0.75rem',
+              padding: '1.5rem',
+              borderTop: '1px solid var(--border-light)',
+              background: 'var(--bg-main)',
+              borderRadius: '0 0 12px 12px'
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAssigneeModal(false);
+                  setSelectedAssigneeIds([]);
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: '1px solid var(--border-light)',
+                  background: 'var(--bg-white)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                취소
+              </button>
+              <button 
+                onClick={handleAssignMultipleAssignees}
+                style={{
+                  padding: '0.5rem 1.5rem',
+                  border: 'none',
+                  background: 'var(--primary-color)',
+                  color: 'white',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                지정하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 멤버 권한 변경 모달 */}
+      {showMemberRoleModal && editingMember && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--bg-white)',
+            borderRadius: '12px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            width: '100%',
+            maxWidth: '500px',
+            margin: '0 1rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.5rem',
+              borderBottom: '1px solid var(--border-light)'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                color: 'var(--text-primary)'
+              }}>
+                👤 멤버 권한 변경
+              </h3>
+              <button
+                onClick={() => {
+                  setShowMemberRoleModal(false);
+                  setEditingMember(null);
+                  setNewMemberRoleForEdit('MEMBER');
+                }}
+                style={{
+                  padding: '0.5rem',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-light)',
+                  cursor: 'pointer',
+                  borderRadius: '6px'
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateMemberRole}>
+              <div style={{ padding: '1.5rem' }}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    멤버 정보
+                  </label>
+                  <div style={{
+                    background: 'var(--bg-main)',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-light)'
+                  }}>
+                    <div style={{
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.25rem'
+                    }}>
+                      {editingMember.userNickname}
+                    </div>
+                    <div style={{
+                      fontSize: '0.8rem',
+                      color: 'var(--text-secondary)'
+                    }}>
+                      {editingMember.userEmail}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    역할 *
+                  </label>
+                  <select
+                    value={newMemberRoleForEdit}
+                    onChange={(e) => setNewMemberRoleForEdit(e.target.value as 'LEADER' | 'MEMBER')}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      background: 'white'
+                    }}
+                  >
+                    <option value="MEMBER">멤버</option>
+                    <option value="LEADER">리더</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+                padding: '1.5rem',
+                borderTop: '1px solid var(--border-light)',
+                background: 'var(--bg-main)',
+                borderRadius: '0 0 12px 12px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMemberRoleModal(false);
+                    setEditingMember(null);
+                    setNewMemberRoleForEdit('MEMBER');
+                  }}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    border: '1px solid var(--border-light)',
+                    background: 'var(--bg-white)',
+                    color: 'var(--text-secondary)',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  취소
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    border: 'none',
+                    background: 'var(--primary-color)',
+                    color: 'white',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  변경하기
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 멤버 추가 모달 */}
+      {showMemberAddModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--bg-white)',
+            borderRadius: '12px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            width: '100%',
+            maxWidth: '500px',
+            margin: '0 1rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.5rem',
+              borderBottom: '1px solid var(--border-light)'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                color: 'var(--text-primary)'
+              }}>
+                👥 팀 멤버 추가
+              </h3>
+              <button
+                onClick={() => {
+                  setShowMemberAddModal(false);
+                  setNewMemberEmail('');
+                  setModalError('');
+                }}
+                style={{
+                  padding: '0.5rem',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-light)',
+                  cursor: 'pointer',
+                  borderRadius: '6px'
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleAddTeamMember}>
+              <div style={{ padding: '1.5rem' }}>
+                {modalError && (
+                  <div style={{
+                    background: '#fef2f2',
+                    color: '#dc2626',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    marginBottom: '1rem',
+                    border: '1px solid #fecaca'
+                  }}>
+                    {modalError}
+                  </div>
+                )}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem'
+                  }}>
+                    이메일 주소 *
+                  </label>
+                                     <input
+                     type="email"
+                     value={newMemberEmail}
+                     onChange={(e) => setNewMemberEmail(e.target.value)}
+                     placeholder="초대할 멤버의 이메일을 입력하세요"
+                     required
+                     style={{
+                       width: '100%',
+                       padding: '0.75rem',
+                       border: '1px solid var(--border-light)',
+                       borderRadius: '8px',
+                       fontSize: '0.95rem'
+                     }}
+                   />
+                 </div>
+                 <div style={{ marginBottom: '1rem' }}>
+                   <label style={{
+                     display: 'block',
+                     fontSize: '0.875rem',
+                     fontWeight: '500',
+                     color: 'var(--text-secondary)',
+                     marginBottom: '0.5rem'
+                   }}>
+                     역할 *
+                   </label>
+                   <select
+                     value={newMemberRole}
+                     onChange={(e) => setNewMemberRole(e.target.value as 'LEADER' | 'MEMBER')}
+                     style={{
+                       width: '100%',
+                       padding: '0.75rem',
+                       border: '1px solid var(--border-light)',
+                       borderRadius: '8px',
+                       fontSize: '0.95rem',
+                       background: 'white'
+                     }}
+                   >
+                     <option value="MEMBER">멤버</option>
+                     <option value="LEADER">리더</option>
+                   </select>
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+                padding: '1.5rem',
+                borderTop: '1px solid var(--border-light)',
+                background: 'var(--bg-main)',
+                borderRadius: '0 0 12px 12px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMemberAddModal(false);
+                    setNewMemberEmail('');
+                    setNewMemberRole('MEMBER');
+                    setModalError('');
+                  }}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    border: '1px solid var(--border-light)',
+                    background: 'var(--bg-white)',
+                    color: 'var(--text-secondary)',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  취소
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    border: 'none',
+                    background: 'var(--primary-color)',
+                    color: 'white',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  초대하기
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* 할일 생성/수정 모달 */}
       {showTodoModal && (
         <div style={{
@@ -2604,6 +2873,8 @@ const TeamDetailPage: React.FC = () => {
                   setShowTodoModal(false);
                   setEditingTodo(null);
                   setNewTodo({ title: '', description: '', priority: 2, assignedMemberId: null, dueDate: '' });
+                  setNewTodoAssignees([]);
+                  setEditingTodoAssignees([]);
                 }}
                 style={{
                   padding: '0.5rem',
@@ -2725,34 +2996,68 @@ const TeamDetailPage: React.FC = () => {
                     color: 'var(--text-secondary)',
                     marginBottom: '0.5rem'
                   }}>
-                    담당멤버
+                    담당멤버 (여러 명 선택 가능)
                   </label>
-                  <select
-                    value={editingTodo ? editingTodo.assignedMemberId || '' : newTodo.assignedMemberId || ''}
-                    onChange={(e) => {
-                      const assignedMemberId = e.target.value ? parseInt(e.target.value) : null;
-                      if (editingTodo) {
-                        setEditingTodo({ ...editingTodo, assignedMemberId: assignedMemberId as number | null });
-                      } else {
-                        setNewTodo({ ...newTodo, assignedMemberId: assignedMemberId as number | null });
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      background: 'white'
-                    }}
-                  >
-                    <option value="">담당자 선택</option>
+                  <div style={{
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: '8px',
+                    padding: '0.5rem',
+                    background: 'white'
+                  }}>
                     {team?.members.map((member) => (
-                      <option key={member.id} value={member.userId}>
-                        {member.userNickname} ({member.userEmail})
-                      </option>
+                      <label key={member.id} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.5rem',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        background: (editingTodo ? editingTodoAssignees : newTodoAssignees).includes(member.userId) ? 'var(--primary-light)' : 'transparent'
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={(editingTodo ? editingTodoAssignees : newTodoAssignees).includes(member.userId)}
+                                                      onChange={(e) => {
+                              if (e.target.checked) {
+                                if (editingTodo) {
+                                  setEditingTodoAssignees(prev => [...prev, member.userId]);
+                                } else {
+                                  setNewTodoAssignees(prev => [...prev, member.userId]);
+                                }
+                              } else {
+                                if (editingTodo) {
+                                  setEditingTodoAssignees(prev => prev.filter(id => id !== member.userId));
+                                } else {
+                                  setNewTodoAssignees(prev => prev.filter(id => id !== member.userId));
+                                }
+                              }
+                            }}
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            accentColor: 'var(--primary-color)'
+                          }}
+                        />
+                        <div>
+                          <div style={{
+                            fontSize: '0.9rem',
+                            fontWeight: '600',
+                            color: 'var(--text-primary)'
+                          }}>
+                            {member.userNickname}
+                          </div>
+                          <div style={{
+                            fontSize: '0.8rem',
+                            color: 'var(--text-secondary)'
+                          }}>
+                            {member.userEmail}
+                          </div>
+                        </div>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 </div>
                 
                 {/* 마감기한 선택 */}
@@ -2801,6 +3106,8 @@ const TeamDetailPage: React.FC = () => {
                     setShowTodoModal(false);
                     setEditingTodo(null);
                     setNewTodo({ title: '', description: '', priority: 2, assignedMemberId: null, dueDate: '' });
+                    setNewTodoAssignees([]);
+                    setEditingTodoAssignees([]);
                   }}
                   style={{
                     padding: '0.5rem 1rem',
@@ -2828,316 +3135,6 @@ const TeamDetailPage: React.FC = () => {
                   }}
                 >
                   {editingTodo ? '수정' : '생성'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 담당자 지정 모달 */}
-      {showAssigneeModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'var(--bg-white)',
-            borderRadius: '12px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            width: '100%',
-            maxWidth: '500px',
-            margin: '0 1rem'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '1.5rem',
-              borderBottom: '1px solid var(--border-light)'
-            }}>
-              <h3 style={{
-                fontSize: '1.25rem',
-                fontWeight: '600',
-                color: 'var(--text-primary)'
-              }}>
-                담당자 지정
-              </h3>
-              <button
-                onClick={() => {
-                  setShowAssigneeModal(false);
-                  setSelectedAssigneeIds([]);
-                }}
-                style={{
-                  padding: '0.5rem',
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--text-light)',
-                  cursor: 'pointer',
-                  borderRadius: '6px'
-                }}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div style={{ padding: '1.5rem' }}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.875rem',
-                  fontWeight: '500',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '0.5rem'
-                }}>
-                  담당자 선택 (여러 명 선택 가능)
-                </label>
-                <div style={{
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: '8px',
-                  padding: '0.5rem'
-                }}>
-                  {team?.members.map((member) => (
-                    <label
-                      key={member.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '0.5rem',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        marginBottom: '0.25rem'
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedAssigneeIds.includes(member.userId)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedAssigneeIds(prev => [...prev, member.userId]);
-                          } else {
-                            setSelectedAssigneeIds(prev => prev.filter(id => id !== member.userId));
-                          }
-                        }}
-                        style={{
-                          marginRight: '0.5rem',
-                          accentColor: 'var(--primary-color)'
-                        }}
-                      />
-                      <span style={{
-                        fontSize: '0.875rem',
-                        color: 'var(--text-primary)'
-                      }}>
-                        {member.userNickname} ({member.userEmail})
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '0.75rem',
-              padding: '1.5rem',
-              borderTop: '1px solid var(--border-light)',
-              background: 'var(--bg-main)',
-              borderRadius: '0 0 12px 12px'
-            }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAssigneeModal(false);
-                  setSelectedAssigneeIds([]);
-                }}
-                style={{
-                  padding: '0.5rem 1rem',
-                  border: '1px solid var(--border-light)',
-                  background: 'var(--bg-white)',
-                  color: 'var(--text-secondary)',
-                  borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  cursor: 'pointer'
-                }}
-              >
-                취소
-              </button>
-              <button 
-                onClick={() => selectedTodo && handleAssignMultipleAssignees(selectedTodo.id)}
-                style={{
-                  padding: '0.5rem 1.5rem',
-                  border: 'none',
-                  background: 'var(--primary-color)',
-                  color: 'white',
-                  borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                지정
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 멤버 추가 모달 */}
-      {showMemberAddModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'var(--bg-white)',
-            borderRadius: '12px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            width: '100%',
-            maxWidth: '400px',
-            margin: '0 1rem'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '1.5rem',
-              borderBottom: '1px solid var(--border-light)'
-            }}>
-              <h3 style={{
-                fontSize: '1.25rem',
-                fontWeight: '600',
-                color: 'var(--text-primary)'
-              }}>
-                팀 멤버 추가
-              </h3>
-              <button
-                onClick={() => {
-                  setShowMemberAddModal(false);
-                  setNewMemberEmail('');
-                }}
-                style={{
-                  padding: '0.5rem',
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--text-light)',
-                  cursor: 'pointer',
-                  borderRadius: '6px'
-                }}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleAddTeamMember}>
-              <div style={{ padding: '1.5rem' }}>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    color: 'var(--text-secondary)',
-                    marginBottom: '0.5rem'
-                  }}>
-                    이메일 *
-                  </label>
-                  <input
-                    type="email"
-                    value={newMemberEmail}
-                    onChange={(e) => setNewMemberEmail(e.target.value)}
-                    placeholder="초대할 멤버의 이메일을 입력하세요"
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem'
-                    }}
-                  />
-                </div>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    color: 'var(--text-secondary)',
-                    marginBottom: '0.5rem'
-                  }}>
-                    역할
-                  </label>
-                  <select
-                    defaultValue="MEMBER"
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      background: 'white'
-                    }}
-                  >
-                    <option value="MEMBER">멤버</option>
-                    <option value="LEADER">리더</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '0.75rem',
-                padding: '1.5rem',
-                borderTop: '1px solid var(--border-light)',
-                background: 'var(--bg-main)',
-                borderRadius: '0 0 12px 12px'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMemberAddModal(false);
-                    setNewMemberEmail('');
-                  }}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    border: '1px solid var(--border-light)',
-                    background: 'var(--bg-white)',
-                    color: 'var(--text-secondary)',
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  취소
-                </button>
-                <button 
-                  type="submit" 
-                  style={{
-                    padding: '0.5rem 1.5rem',
-                    border: 'none',
-                    background: 'var(--primary-color)',
-                    color: 'white',
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  추가
                 </button>
               </div>
             </form>

@@ -78,12 +78,20 @@ public class TeamService {
     // 2. 사용자가 속한 팀 목록 조회
     public RsData<List<TeamResponseDto>> getMyTeams(int userId) {
         List<Team> teams = teamRepository.findTeamsByUserId(userId);
+        
         if (teams.isEmpty()) {
             return RsData.success("속한 팀이 없습니다.", List.of());
         }
+        
+        // 각 팀의 멤버 정보를 명시적으로 로드
         List<TeamResponseDto> teamResponseDtos = teams.stream()
-                .map(TeamResponseDto::from)
+                .map(team -> {
+                    // 팀의 멤버 정보를 명시적으로 로드
+                    Team teamWithMembers = teamRepository.findByIdWithMembers(team.getId()).orElse(team);
+                    return TeamResponseDto.from(teamWithMembers);
+                })
                 .collect(Collectors.toList());
+        
         return RsData.success("팀 목록 조회 성공", teamResponseDtos);
     }
 
@@ -747,9 +755,11 @@ public class TeamService {
             return false;
         }
 
-        // 활성 담당자인지 확인
-        Optional<TodoAssignment> assignment = todoAssignmentRepository.findByTodo_IdAndStatus(todoId, TodoAssignment.AssignmentStatus.ACTIVE);
-        return assignment.isPresent() && assignment.get().getAssignedUser().getId() == userId;
+        // 활성 담당자인지 확인 (여러 담당자 지원)
+        List<TodoAssignment> activeAssignments = todoAssignmentRepository.findByTodo_IdOrderByAssignedAtDesc(todoId);
+        return activeAssignments.stream()
+                .filter(assignment -> assignment.getStatus() == TodoAssignment.AssignmentStatus.ACTIVE)
+                .anyMatch(assignment -> assignment.getAssignedUser().getId() == userId);
     }
 
     // 특정 할일의 담당자 목록 조회 (여러 담당자 지원)
@@ -850,5 +860,57 @@ public class TeamService {
         response.put("assignedAt", LocalDateTime.now());
 
         return RsData.success("담당자들이 성공적으로 지정되었습니다.", response);
+    }
+
+    // 팀 할일 통계 조회
+    public RsData<Map<String, Object>> getTeamStats(int teamId, int userId) {
+        // 권한 확인
+        if (!teamMemberRepository.existsByTeam_IdAndUser_Id(teamId, userId)) {
+            throw new ServiceException("403-FORBIDDEN", "팀 멤버만 접근할 수 있습니다.");
+        }
+
+        // 팀 존재 확인
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new ServiceException("404-TEAM_NOT_FOUND", "팀을 찾을 수 없습니다."));
+
+        // 팀의 모든 TodoList 조회 (팀 ID로 조회하는 메서드가 없으므로 모든 TodoList를 가져와서 필터링)
+        List<TodoList> allTodoLists = todoListRepository.findAll();
+        List<TodoList> teamTodoLists = allTodoLists.stream()
+                .filter(todoList -> todoList.getTeam() != null && todoList.getTeam().getId() == teamId)
+                .collect(Collectors.toList());
+        
+        int totalTodos = 0;
+        int completedTodos = 0;
+        int overdueTodos = 0;
+
+        // 각 TodoList의 할일들 조회하여 통계 계산
+        for (TodoList todoList : teamTodoLists) {
+            List<Todo> todos = todoRepository.findByTodoListId(todoList.getId());
+            
+            for (Todo todo : todos) {
+                totalTodos++;
+                
+                if (todo.isCompleted()) {
+                    completedTodos++;
+                }
+                
+                // 마감기한이 지난 미완료 할일 체크
+                if (!todo.isCompleted() && todo.getDueDate() != null) {
+                    LocalDateTime now = LocalDateTime.now();
+                    if (todo.getDueDate().isBefore(now)) {
+                        overdueTodos++;
+                    }
+                }
+            }
+        }
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("total", totalTodos);
+        stats.put("completed", completedTodos);
+        stats.put("overdue", overdueTodos);
+        stats.put("inProgress", totalTodos - completedTodos - overdueTodos);
+        stats.put("completionRate", totalTodos > 0 ? Math.round((double) completedTodos / totalTodos * 100) : 0);
+
+        return RsData.success("팀 통계 조회 성공", stats);
     }
 }
