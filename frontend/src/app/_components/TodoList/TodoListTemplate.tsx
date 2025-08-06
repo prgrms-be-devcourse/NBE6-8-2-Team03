@@ -640,7 +640,7 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
                     return (
                       <Link 
                         key={team.id}
-                        href={`/team/${team.id}`}
+                        href={`/teams/${team.id}`}
                         className={`project-item ${isTeamPage(team.id) ? 'active-project' : ''}`}
                         style={{ textDecoration: 'none', color: 'inherit' }}
                         title={`${team.teamName} - ${team.description || '설명 없음'}`}
