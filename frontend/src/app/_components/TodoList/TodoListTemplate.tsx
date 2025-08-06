@@ -174,7 +174,8 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
     try {
       setTeamsLoading(true);
       console.log('팀 목록 API 호출 시작...');
-      
+
+
       const response = await fetch('http://localhost:8080/api/v1/teams/my', {
         method: 'GET',
         credentials: 'include',
