@@ -71,7 +71,8 @@ export default function TodoListPage() {
     setError(null);
     
     try {
-      const response = await fetch(`http://localhost:8080/api/todo/list/${todoListId}`, {
+      const response = await fetch(`http://localhost:8080/api/todo-lists/${todoListId}`, {
+
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -86,17 +87,21 @@ export default function TodoListPage() {
       const result = await response.json();
       
       if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS' || response.ok) {
-        if (result.data && result.data.length > 0) {
-          const firstTodo = result.data[0];
+        // TodoList 정보 설정
+        if (result.data) {
           setTodoListInfo({
-            id: firstTodo.todoList,
-            name: `TodoList ${firstTodo.todoList}`,
-            description: `TodoList ID ${firstTodo.todoList}의 할일 목록`,
-            userId: 0,
-            teamId: 0,
-            createDate: firstTodo.createdAt,
-            modifyDate: firstTodo.updatedAt
+            id: result.data.id,
+            name: result.data.name,
+            description: result.data.description,
+            userId: result.data.userId,
+            teamId: result.data.teamId,
+            createDate: result.data.createDate,
+            modifyDate: result.data.modifyDate
           });
+          
+          // Todos 배열 설정
+          setTodos(result.data.todo || []);
+
         }
         
         setTodos(result.data || []);
@@ -367,7 +372,8 @@ export default function TodoListPage() {
     if (!todoListId) return;
     
     try {
-      const response = await fetch(`http://localhost:8080/api/todo/list/${todoListId}`, {
+      const response = await fetch(`http://localhost:8080/api/todo-lists/${todoListId}`, {
+
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -382,23 +388,26 @@ export default function TodoListPage() {
       const result = await response.json();
       
       if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS' || response.ok) {
-        if (result.data && result.data.length > 0) {
-          const firstTodo = result.data[0];
+
+        // TodoList 정보 설정
+        if (result.data) {
           setTodoListInfo({
-            id: firstTodo.todoList,
-            name: `TodoList ${firstTodo.todoList}`,
-            description: `TodoList ID ${firstTodo.todoList}의 할일 목록`,
-            userId: 0,
-            teamId: 0,
-            createDate: firstTodo.createdAt,
-            modifyDate: firstTodo.updatedAt
+            id: result.data.id,
+            name: result.data.name,
+            description: result.data.description,
+            userId: result.data.userId,
+            teamId: result.data.teamId,
+            createDate: result.data.createDate,
+            modifyDate: result.data.modifyDate
           });
+          
+          // Todos 배열 설정
+          setTodos(result.data.todo || []);
         }
-        
-        setTodos(result.data || []);
       }
     } catch (err) {
       console.error('Failed to refresh todo list:', err);
+      // 새로고침 실패는 조용히 처리 (기존 데이터 유지)
     }
   };
 
