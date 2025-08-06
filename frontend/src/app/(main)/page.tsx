@@ -10,16 +10,16 @@ import {
 } from 'lucide-react';
 import TodoListTemplate from "../_components/TodoList/TodoListTemplate";
 
-// API 응답 타입 정의 (캘린더 페이지와 동일)
+// API 응답 타입 정의
 interface TodoResponseDto {
   id: number;
   title: string;
   description: string;
   completed: boolean;
   isCompleted?: boolean;
-  priority: number; // 1: 높음, 2: 보통, 3: 낮음
-  startDate: string; // ISO 날짜 문자열
-  dueDate: string | null; // ISO 날짜 문자열 또는 null
+  priority: number;
+  startDate: string;
+  dueDate: string | null;
   todoList: number;
   createdAt: string;
   updatedAt: string;
@@ -35,7 +35,20 @@ interface TodoListResponseDto {
   modifyDate: string;
 }
 
-// 내부 사용 타입 (캘린더 페이지와 동일)
+// 팀 할일 API 응답 타입
+interface TeamTodoResponse {
+  id: number;
+  title: string;
+  description: string;
+  isCompleted: boolean;
+  priority: number;
+  dueDate: string | null;
+  assignedMemberId: number | null;
+  type: string;
+  createdAt: string;
+}
+
+// 내부 사용 타입
 interface Todo {
   id: number;
   title: string;
@@ -45,6 +58,8 @@ interface Todo {
   todoListName: string;
   startDate: Date;
   dueDate: Date | null;
+  isTeamTodo?: boolean;
+  teamId?: number;
 }
 
 interface TodoList {
@@ -62,7 +77,7 @@ interface ApiResponse<T> {
 }
 
 export default function MainPage() {
-  // 오늘 날짜를 정확하게 설정하는 함수 (캘린더 페이지와 동일)
+  // 오늘 날짜를 정확하게 설정하는 함수
   const getTodayDate = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -77,7 +92,7 @@ export default function MainPage() {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
 
-  // 사용자 정보 가져오기 (캘린더 페이지와 동일)
+  // 사용자 정보 가져오기
   const fetchUserInfo = async (): Promise<{ userId: number } | null> => {
     try {
       const response = await fetch('http://localhost:8080/api/v1/user/me', {
@@ -106,7 +121,7 @@ export default function MainPage() {
     }
   };
 
-  // 우선순위 관련 함수들 (캘린더 페이지와 동일)
+  // 우선순위 관련 함수들
   const getPriorityString = (priority: number): 'high' | 'medium' | 'low' => {
     switch (priority) {
       case 1: return 'low';
@@ -118,9 +133,9 @@ export default function MainPage() {
 
   const getPriorityColor = (priority: 'high' | 'medium' | 'low'): string => {
     switch (priority) {
-      case 'high': return '#dc2626'; // 빨간색
-      case 'medium': return '#f59e0b'; // 연한 주황색
-      case 'low': return '#16a34a'; // 밝은 초록색
+      case 'high': return '#dc2626';
+      case 'medium': return '#f59e0b';
+      case 'low': return '#16a34a';
       default: return '#6b7280';
     }
   };
@@ -134,10 +149,101 @@ export default function MainPage() {
     }
   };
 
-  // API 호출 함수들 (캘린더 페이지와 동일)
-  const fetchTodoLists = async (userId: number): Promise<TodoListResponseDto[]> => {
+  // 개인 할일 조회 (userId와 일치하고 teamId = 1인 TodoList의 Todo들)
+  const fetchPersonalTodos = async (userId: number): Promise<Todo[]> => {
     try {
-      const response = await fetch(`http://localhost:8080/api/todo-lists/user/${userId}`, {
+      console.log('🔍 개인 할일 조회 시작, userId:', userId);
+      
+      // 1. 먼저 개인 TodoList 조회 (teamId = 1)
+      const todoListResponse = await fetch(`http://localhost:8080/api/todo-lists/user/${userId}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!todoListResponse.ok) {
+        throw new Error(`개인 TodoList 조회 실패: ${todoListResponse.status}`);
+      }
+      
+      const todoListResult: ApiResponse<TodoListResponseDto[]> = await todoListResponse.json();
+      console.log('📋 TodoList 응답:', todoListResult);
+      
+      // teamId가 1인 TodoList만 필터링
+      const personalTodoLists = todoListResult.data.filter(list => 
+        list.userId === userId && list.teamId === 1
+      );
+      
+      console.log('🏠 개인 TodoList 필터링 결과:', personalTodoLists);
+      
+      if (personalTodoLists.length === 0) {
+        console.log('개인 TodoList가 없습니다.');
+        return [];
+      }
+      
+      // 2. 각 TodoList의 할일들 조회
+      const allPersonalTodos: Todo[] = [];
+      
+      for (const todoList of personalTodoLists) {
+        try {
+          const todosResponse = await fetch(`http://localhost:8080/api/todo/user/${userId}`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (!todosResponse.ok) {
+            console.warn(`Todo 조회 실패 (TodoList ${todoList.id}):`, todosResponse.status);
+            continue;
+          }
+          
+          const todosResult: ApiResponse<TodoResponseDto[]> = await todosResponse.json();
+          
+          // 해당 TodoList에 속한 할일들만 필터링
+          const todosForThisList = todosResult.data.filter(todo => 
+            todo.todoList === todoList.id
+          );
+          
+          console.log(`📝 TodoList ${todoList.id}의 할일들:`, todosForThisList);
+          
+          // Todo 객체 변환
+          const transformedTodos: Todo[] = todosForThisList.map(todo => ({
+            id: todo.id,
+            title: todo.title,
+            completed: todo.completed !== undefined ? todo.completed : todo.isCompleted || false,
+            priority: getPriorityString(todo.priority),
+            todoListId: todo.todoList,
+            todoListName: todoList.name,
+            startDate: new Date(todo.startDate),
+            dueDate: todo.dueDate ? new Date(todo.dueDate) : null,
+            isTeamTodo: false
+          }));
+          
+          allPersonalTodos.push(...transformedTodos);
+        } catch (error) {
+          console.error(`TodoList ${todoList.id} 할일 조회 중 오류:`, error);
+        }
+      }
+      
+      console.log('✅ 최종 개인 할일 목록:', allPersonalTodos);
+      return allPersonalTodos;
+      
+    } catch (error) {
+      console.error('❌ 개인 할일 조회 오류:', error);
+      throw error;
+    }
+  };
+
+  // 팀 할일 조회 (현재 사용자에게 할당된 팀 할일들)
+  const fetchTeamTodos = async (userId: number): Promise<Todo[]> => {
+    try {
+      console.log('🔍 팀 할일 조회 시작, userId:', userId);
+      
+      // 내가 할당받은 모든 팀 할일 조회
+      const response = await fetch('http://localhost:8080/api/v1/teams/my-assigned-todos', {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -146,42 +252,41 @@ export default function MainPage() {
       });
       
       if (!response.ok) {
-        throw new Error(`TodoList 조회 실패: ${response.status}`);
+        throw new Error(`팀 할일 조회 실패: ${response.status}`);
       }
       
-      const result: ApiResponse<TodoListResponseDto[]> = await response.json();
-      console.log('✅ TodoList API 성공:', result);
-      return result.data;
+      const result: ApiResponse<any[]> = await response.json();
+      console.log('👥 팀 할일 API 응답:', result);
+      
+      if (!result.data || result.data.length === 0) {
+        console.log('할당된 팀 할일이 없습니다.');
+        return [];
+      }
+      
+      // 팀 할일 변환
+      const teamTodos: Todo[] = result.data.map(assignedTodo => ({
+        id: assignedTodo.todoId,
+        title: assignedTodo.title,
+        completed: assignedTodo.completed || false,
+        priority: getPriorityString(assignedTodo.priority),
+        todoListId: assignedTodo.todoListId,
+        todoListName: assignedTodo.todoListName || assignedTodo.teamName,
+        startDate: assignedTodo.startDate ? new Date(assignedTodo.startDate) : new Date(assignedTodo.createdAt),
+        dueDate: assignedTodo.dueDate ? new Date(assignedTodo.dueDate) : null,
+        isTeamTodo: true,
+        teamId: assignedTodo.teamId
+      }));
+      
+      console.log('✅ 최종 팀 할일 목록:', teamTodos);
+      return teamTodos;
+      
     } catch (error) {
-      console.error('❌ TodoList 조회 오류:', error);
+      console.error('❌ 팀 할일 조회 오류:', error);
       throw error;
     }
   };
 
-  const fetchTodos = async (userId: number): Promise<TodoResponseDto[]> => {
-    try {
-      const response = await fetch(`http://localhost:8080/api/todo/user/${userId}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Todo 조회 실패: ${response.status}`);
-      }
-      
-      const result: ApiResponse<TodoResponseDto[]> = await response.json();
-      console.log('✅ Todo API 성공:', result);
-      return result.data;
-    } catch (error) {
-      console.error('❌ Todo 조회 오류:', error);
-      throw error;
-    }
-  };
-
-  // 초기 사용자 정보 확인 (캘린더 페이지와 동일)
+  // 초기 사용자 정보 확인
   useEffect(() => {
     const initializeUser = async () => {
       const userInfo = await fetchUserInfo();
@@ -198,7 +303,7 @@ export default function MainPage() {
     initializeUser();
   }, []);
 
-  // 데이터 로드 (캘린더 페이지와 동일)
+  // 데이터 로드
   useEffect(() => {
     if (!userId) return;
 
@@ -207,91 +312,75 @@ export default function MainPage() {
         setLoading(true);
         setError(null);
 
-        console.log('=== API 응답 디버깅 ===');
+        console.log('=== 할일 데이터 로드 시작 ===');
         console.log('현재 userId:', userId);
 
-        const [todoListsData, todosData] = await Promise.allSettled([
-          fetchTodoLists(userId),
-          fetchTodos(userId)
+        // 개인 할일과 팀 할일을 병렬로 조회
+        const [personalTodosResult, teamTodosResult] = await Promise.allSettled([
+          fetchPersonalTodos(userId),
+          fetchTeamTodos(userId)
         ]);
 
-        let todoListsMap = new Map<number, TodoListResponseDto>();
-        if (todoListsData.status === 'fulfilled') {
-          console.log('TodoLists 응답:', todoListsData.value);
-          todoListsData.value.forEach(todoList => {
-            todoListsMap.set(todoList.id, todoList);
-          });
+        let personalTodos: Todo[] = [];
+        let teamTodos: Todo[] = [];
+
+        if (personalTodosResult.status === 'fulfilled') {
+          personalTodos = personalTodosResult.value;
+          console.log('✅ 개인 할일 로드 성공:', personalTodos.length, '개');
         } else {
-          console.error('TodoList 조회 실패:', todoListsData.reason);
+          console.error('❌ 개인 할일 로드 실패:', personalTodosResult.reason);
         }
 
-        if (todosData.status === 'fulfilled') {
-          console.log('Todos 응답:', todosData.value);
-
-          const transformedTodos: Todo[] = todosData.value.map(todo => {
-            const todoListInfo = todoListsMap.get(todo.todoList);
-            const todoListName = todoListInfo ? todoListInfo.name : `TodoList ${todo.todoList}`;
-            
-            const completedValue = todo.completed !== undefined ? todo.completed : 
-                                 todo.isCompleted !== undefined ? todo.isCompleted : false;
-            
-            console.log(`Todo ${todo.id}: completed=${todo.completed}, isCompleted=${todo.isCompleted}, final=${completedValue}`);
-            
-            return {
-              id: todo.id,
-              title: todo.title,
-              completed: completedValue,
-              priority: getPriorityString(todo.priority),
-              todoListId: todo.todoList,
-              todoListName: todoListName,
-              startDate: new Date(todo.startDate),
-              dueDate: todo.dueDate ? new Date(todo.dueDate) : null
-            };
-          });
-
-          console.log('변환된 Todos:', transformedTodos);
-          setAllTodos(transformedTodos);
-
-          const todoListsWithTodos: TodoList[] = [];
-          
-          if (todoListsMap.size > 0) {
-            todoListsMap.forEach((todoListInfo, todoListId) => {
-              const todosForThisList = transformedTodos.filter(todo => todo.todoListId === todoListId);
-              
-              todoListsWithTodos.push({
-                id: todoListId,
-                name: todoListInfo.name,
-                teamId: todoListInfo.teamId,
-                todos: todosForThisList
-              });
-            });
-          }
-
-          const unmappedTodos = transformedTodos.filter(todo => !todoListsMap.has(todo.todoListId));
-          if (unmappedTodos.length > 0) {
-            const unmappedTodoListIds = new Set(unmappedTodos.map(todo => todo.todoListId));
-            unmappedTodoListIds.forEach(todoListId => {
-              const todosForThisList = unmappedTodos.filter(todo => todo.todoListId === todoListId);
-              if (todosForThisList.length > 0) {
-                todoListsWithTodos.push({
-                  id: todoListId,
-                  name: `TodoList ${todoListId}`,
-                  todos: todosForThisList
-                });
-              }
-            });
-          }
-
-          console.log('최종 TodoLists:', todoListsWithTodos);
-          setTodoLists(todoListsWithTodos);
+        if (teamTodosResult.status === 'fulfilled') {
+          teamTodos = teamTodosResult.value;
+          console.log('✅ 팀 할일 로드 성공:', teamTodos.length, '개');
         } else {
-          console.error('Todo 조회 실패:', todosData.reason);
-          setAllTodos([]);
-          setTodoLists([]);
+          console.error('❌ 팀 할일 로드 실패:', teamTodosResult.reason);
         }
+
+        // 모든 할일 합치기
+        const allTodos = [...personalTodos, ...teamTodos];
+        setAllTodos(allTodos);
+
+        // TodoList 구조 생성
+        const todoListsMap = new Map<number, TodoList>();
+        
+        // 개인 할일을 TodoList로 그룹화
+        personalTodos.forEach(todo => {
+          if (!todoListsMap.has(todo.todoListId)) {
+            todoListsMap.set(todo.todoListId, {
+              id: todo.todoListId,
+              name: todo.todoListName,
+              teamId: 1, // 개인 할일은 teamId = 1
+              todos: []
+            });
+          }
+          todoListsMap.get(todo.todoListId)!.todos.push(todo);
+        });
+
+        // 팀 할일을 TodoList로 그룹화
+        teamTodos.forEach(todo => {
+          if (!todoListsMap.has(todo.todoListId)) {
+            todoListsMap.set(todo.todoListId, {
+              id: todo.todoListId,
+              name: todo.todoListName,
+              teamId: todo.teamId,
+              todos: []
+            });
+          }
+          todoListsMap.get(todo.todoListId)!.todos.push(todo);
+        });
+
+        const finalTodoLists = Array.from(todoListsMap.values());
+        setTodoLists(finalTodoLists);
+
+        console.log('✅ 데이터 로드 완료');
+        console.log(`📊 통계: 개인 할일 ${personalTodos.length}개, 팀 할일 ${teamTodos.length}개`);
+        console.log('📋 최종 TodoList 구조:', finalTodoLists);
 
       } catch (error) {
-        console.error('데이터 로드 실패:', error);
+        console.error('❌ 데이터 로드 실패:', error);
+        setError('데이터를 불러오는 중 오류가 발생했습니다.');
         setAllTodos([]);
         setTodoLists([]);
       } finally {
@@ -302,7 +391,7 @@ export default function MainPage() {
     loadData();
   }, [userId]);
 
-  // 달력 관련 함수들 (캘린더 페이지와 동일)
+  // 달력 관련 함수들
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   };
@@ -342,7 +431,7 @@ export default function MainPage() {
           // dueDate가 있는 경우: 시작일부터 마감일까지의 기간에 포함되는지 확인
           if (todo.dueDate) {
             const dueDate = new Date(todo.dueDate);
-            dueDate.setHours(23, 59, 59, 999); // 마감일 끝까지 포함
+            dueDate.setHours(23, 59, 59, 999);
             
             return targetDate >= startDate && targetDate <= dueDate;
           } else {
@@ -363,7 +452,7 @@ export default function MainPage() {
     })).filter(list => list.todos.length > 0);
   };
 
-  // 특정 날짜의 우선순위별 할일 개수 및 색상 정보 가져오기 (캘린더 페이지와 동일)
+  // 특정 날짜의 우선순위별 할일 개수 및 색상 정보 가져오기
   const getTodoColorsForDate = (date: Date) => {
     const todosForDate = getTodosForDate(date);
     const priorityColors: { color: string; count: number }[] = [];
@@ -389,14 +478,14 @@ export default function MainPage() {
     return priorityColors;
   };
 
-  // 날짜 클릭 핸들러 (캘린더 페이지와 동일)
+  // 날짜 클릭 핸들러
   const handleDateClick = (day: number) => {
     const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
     newDate.setHours(0, 0, 0, 0);
     setSelectedDate(newDate);
   };
 
-  // 월 이동 (캘린더 페이지와 동일)
+  // 월 이동
   const navigateMonth = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
     if (direction === 'prev') {
@@ -408,17 +497,31 @@ export default function MainPage() {
     setCurrentDate(newDate);
   };
 
-  // 할일 완료 토글 (캘린더 페이지와 동일)
-  const toggleTodoComplete = async (todoId: number) => {
+  // 할일 완료 토글
+  const toggleTodoComplete = async (todoId: number, isTeamTodo: boolean = false) => {
     if (!userId) return;
 
     const previousTodos = [...allTodos];
     const previousTodoLists = [...todoLists];
 
     try {
-      const apiPath = `http://localhost:8080/api/todo/${todoId}/complete`;
+      let apiPath: string;
       
-      console.log(`🔄 Trying todo complete API: PATCH ${apiPath}`);
+      if (isTeamTodo) {
+        // 팀 할일인 경우 - 팀 할일 완료 토글 API 사용
+        // 먼저 해당 할일이 속한 팀을 찾아야 함
+        const targetTodo = allTodos.find(todo => todo.id === todoId);
+        if (!targetTodo || !targetTodo.teamId) {
+          throw new Error('팀 할일 정보를 찾을 수 없습니다.');
+        }
+        
+        apiPath = `http://localhost:8080/api/v1/teams/${targetTodo.teamId}/todos/${todoId}/toggle`;
+      } else {
+        // 개인 할일인 경우 - 기존 API 사용
+        apiPath = `http://localhost:8080/api/todo/${todoId}/complete`;
+      }
+      
+      console.log(`🔄 할일 완료 토글 API: ${isTeamTodo ? 'PATCH' : 'PATCH'} ${apiPath}`);
       
       const response = await fetch(apiPath, {
         method: 'PATCH',
@@ -430,14 +533,15 @@ export default function MainPage() {
       
       if (response.ok) {
         const result = await response.json();
-        console.log(`✅ Todo complete SUCCESS:`, result);
+        console.log(`✅ 할일 완료 토글 성공:`, result);
         
         if (result.data) {
           const updatedTodo = result.data;
-          const newCompletedState = updatedTodo.completed;
+          const newCompletedState = updatedTodo.completed || updatedTodo.isCompleted || false;
           
-          console.log(`🎯 Updating todo ${todoId} to completed: ${newCompletedState}`);
+          console.log(`🎯 할일 ${todoId} 완료 상태 업데이트: ${newCompletedState}`);
           
+          // 상태 업데이트
           setAllTodos(prev => 
             prev.map(todo => 
               todo.id === todoId ? { 
@@ -460,13 +564,14 @@ export default function MainPage() {
           );
         }
       } else {
-        console.log(`❌ Todo complete failed: Status ${response.status}`);
+        console.log(`❌ 할일 완료 토글 실패: Status ${response.status}`);
         throw new Error(`API 호출 실패: ${response.status}`);
       }
       
     } catch (error) {
-      console.error('❌ Todo 상태 변경 실패:', error);
+      console.error('❌ 할일 상태 변경 실패:', error);
       
+      // 롤백
       setAllTodos(previousTodos);
       setTodoLists(previousTodoLists);
       
@@ -479,7 +584,7 @@ export default function MainPage() {
     window.location.href = 'http://localhost:3000/login';
   };
 
-  // 달력 렌더링 (캘린더 페이지와 동일한 로직)
+  // 달력 렌더링
   const renderCalendar = () => {
     const daysInMonth = getDaysInMonth(currentDate);
     const firstDay = getFirstDayOfMonth(currentDate);
@@ -542,7 +647,7 @@ export default function MainPage() {
     return days;
   };
 
-  // 팀과 개인 할일 분리 함수
+  // 팀과 개인 할일 분리 함수 - 수정된 로직
   const getTeamAndPersonalTodos = (date: Date) => {
     const todosForDate = getTodosForDate(date);
     const teamTodos: Todo[] = [];
@@ -550,13 +655,19 @@ export default function MainPage() {
 
     todosForDate.forEach(list => {
       list.todos.forEach(todo => {
-        // teamId가 1보다 큰 경우 팀 할일로 분류, 1이거나 null인 경우 개인 할일로 분류
-        if (list.teamId && list.teamId > 1) {
+        // isTeamTodo 플래그로 구분 또는 teamId로 구분
+        if (todo.isTeamTodo || (list.teamId && list.teamId > 1)) {
           teamTodos.push({ ...todo, todoListName: list.name });
         } else {
+          // teamId가 1이거나 없는 경우 개인 할일
           personalTodos.push({ ...todo, todoListName: list.name });
         }
       });
+    });
+
+    console.log(`📅 ${formatDate(date)} 할일 분리:`, {
+      팀할일: teamTodos.length,
+      개인할일: personalTodos.length
     });
 
     return { teamTodos, personalTodos };
@@ -686,7 +797,7 @@ export default function MainPage() {
                         <input
                           type="checkbox"
                           checked={todo.completed || false}
-                          onChange={() => toggleTodoComplete(todo.id)}
+                          onChange={() => toggleTodoComplete(todo.id, true)} // 팀 할일임을 명시
                         />
                         <span className="checkmark"></span>
                       </label>
@@ -737,7 +848,7 @@ export default function MainPage() {
                         <input
                           type="checkbox"
                           checked={todo.completed || false}
-                          onChange={() => toggleTodoComplete(todo.id)}
+                          onChange={() => toggleTodoComplete(todo.id, false)} // 개인 할일임을 명시
                         />
                         <span className="checkmark"></span>
                       </label>
