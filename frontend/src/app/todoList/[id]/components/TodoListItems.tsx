@@ -1,5 +1,11 @@
 import React from 'react';
 
+interface Label {
+  id: number;
+  name: string;
+  color: string;
+}
+
 interface Todo {
   id: number;
   title: string;
@@ -7,10 +13,11 @@ interface Todo {
   completed: boolean;
   priority: number;
   startDate: string;
-  dueDate: string;
+  dueDate: string | null;
   todoList: number;
   createdAt: string;
   updatedAt: string;
+  labels?: Label[]; // 라벨 정보 추가
 }
 
 interface TodoListItemsProps {
@@ -31,14 +38,22 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
   const getPriorityLabel = (priority: number) => {
     switch (priority) {
       case 3:
-        return { label: '높음', color: '#dc2626', bg: '#fef2f2' };
+        return { label: '높음', color: 'bg-red-100 text-red-600' };
       case 2:
-        return { label: '중간', color: '#eab308', bg: '#fefce8' };
+        return { label: '중간', color: 'bg-yellow-100 text-yellow-600' };
       case 1:
-        return { label: '낮음', color: '#2563eb', bg: '#eff6ff' };
+        return { label: '낮음', color: 'bg-blue-100 text-blue-600' };
       default:
-        return { label: '일반', color: '#6b7280', bg: '#f8fafc' };
+        return { label: '일반', color: 'bg-gray-100 text-gray-600' };
     }
+  };
+
+  // 날짜 표시 함수 - dueDate가 null이면 startDate 사용
+  const getDisplayDate = (todo: Todo) => {
+    const dateToShow = todo.dueDate || todo.startDate;
+    const dateObj = new Date(dateToShow);
+    const label = todo.dueDate ? '📅' : '🗓️'; // 마감일과 시작일 구분
+    return `${label} ${dateObj.toLocaleDateString()}`;
   };
 
   return (
@@ -65,7 +80,7 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
         📝 할 일 목록
       </h2>
       
-      {!todos || todos.length === 0 ? (
+      {todos.length === 0 ? (
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -85,18 +100,18 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
         <div style={{ 
           display: 'flex', 
           flexDirection: 'column', 
-          gap: '0.5rem',
+          gap: '1rem',
           flex: 1,
           overflowY: 'auto',
           paddingRight: '0.75rem'
         }}>
-          {todos && todos.map((todo) => (
+          {todos.map((todo) => (
             <div
               key={todo.id}
               style={{
                 background: selectedTodo?.id === todo.id ? 'var(--primary-light)' : 'var(--bg-main)',
                 borderRadius: '10px',
-                padding: '1rem',
+                padding: '1.5rem',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 borderLeft: `5px solid ${
@@ -107,7 +122,7 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
                 border: selectedTodo?.id === todo.id 
                   ? '2px solid var(--primary-color)' 
                   : '1px solid var(--border-light)',
-                minHeight: '120px'
+                minHeight: todo.labels && todo.labels.length > 0 ? '170px' : '140px' // 라벨이 있으면 높이 증가
               }}
               onClick={() => onTodoClick(todo)}
             >
@@ -142,49 +157,108 @@ const TodoListItems: React.FC<TodoListItemsProps> = ({
                   </h3>
                   <p style={{
                     color: 'var(--text-secondary)',
-                    fontSize: '0.9rem',
-                    marginBottom: '0.5rem',
-                    lineHeight: '1.3',
+                    fontSize: '1rem',
+                    marginBottom: '1rem',
+                    lineHeight: '1.5',
                     display: '-webkit-box',
-                    WebkitLineClamp: 1,
+                    WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    height: '1.3em'
+                    height: '3em'
                   }}>
-                    {todo.description || '설명이 없습니다.'}
+                    {todo.description}
                   </p>
-                  {/* 우선순위와 날짜를 별도 컨테이너로 분리하여 항상 표시되도록 */}
+
+                  {/* 우선순위, 날짜, 라벨을 한 줄에 표시 */}
                   <div style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'space-between',
                     gap: '0.75rem',
-                    minHeight: '28px',
-                    marginTop: 'auto'
+                    flexWrap: 'wrap' // 공간이 부족하면 줄바꿈 허용
                   }}>
-                    <span style={{
-                      fontSize: '0.85rem',
-                      padding: '0.375rem 0.75rem',
-                      borderRadius: '15px',
-                      fontWeight: '600',
-                      background: getPriorityLabel(todo.priority).bg,
-                      color: getPriorityLabel(todo.priority).color,
-                      border: `1px solid ${getPriorityLabel(todo.priority).color}20`,
-                      whiteSpace: 'nowrap',
-                      minWidth: '50px',
-                      textAlign: 'center',
-                      flexShrink: 0
+                    {/* 왼쪽: 우선순위와 라벨들 */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      flexWrap: 'wrap',
+                      flex: 1
                     }}>
-                      {getPriorityLabel(todo.priority).label}
-                    </span>
+                      <span style={{
+                        fontSize: '0.85rem',
+                        padding: '0.375rem 0.75rem',
+                        borderRadius: '15px',
+                        fontWeight: '600',
+                        background: todo.priority === 3 ? '#fef2f2' : 
+                                  todo.priority === 2 ? '#fefce8' : '#eff6ff',
+                        color: todo.priority === 3 ? '#dc2626' : 
+                               todo.priority === 2 ? '#eab308' : '#2563eb'
+                      }}>
+                        {getPriorityLabel(todo.priority).label}
+                      </span>
+
+                      {/* 라벨들을 우선순위 바로 옆에 표시 */}
+                      {todo.labels && todo.labels.length > 0 && (
+                        <>
+                          {todo.labels.slice(0, 2).map(label => (
+                            <span
+                              key={label.id}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                padding: '0.25rem 0.5rem',
+                                backgroundColor: label.color,
+                                color: 'white',
+                                borderRadius: '12px',
+                                fontSize: '0.7rem',
+                                fontWeight: '500',
+                                maxWidth: '70px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: '5px',
+                                  height: '5px',
+                                  borderRadius: '50%',
+                                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                  flexShrink: 0
+                                }}
+                              />
+                              {label.name}
+                            </span>
+                          ))}
+                          {todo.labels.length > 2 && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '0.25rem 0.4rem',
+                              backgroundColor: '#6b7280',
+                              color: 'white',
+                              borderRadius: '12px',
+                              fontSize: '0.7rem',
+                              fontWeight: '500'
+                            }}>
+                              +{todo.labels.length - 2}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {/* 오른쪽: 날짜 */}
                     <span style={{
                       fontSize: '0.85rem',
                       color: 'var(--text-light)',
                       fontWeight: '500',
                       flexShrink: 0
                     }}>
-                      📅 {new Date(todo.dueDate).toLocaleDateString()}
+                      {getDisplayDate(todo)}
                     </span>
                   </div>
                 </div>

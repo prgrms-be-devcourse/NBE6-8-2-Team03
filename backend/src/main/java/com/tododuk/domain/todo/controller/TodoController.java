@@ -4,6 +4,7 @@ import com.tododuk.domain.todo.dto.TodoReqDto;
 import com.tododuk.domain.todo.dto.TodoResponseDto;
 import com.tododuk.domain.todo.entity.Todo;
 import com.tododuk.domain.todo.service.TodoService;
+import com.tododuk.domain.todoLabel.service.TodoLabelService;
 import com.tododuk.domain.todoList.dto.TodoListResponseDto;
 import com.tododuk.domain.todoList.entity.TodoList;
 import com.tododuk.domain.todoList.service.TodoListService;
@@ -33,6 +34,7 @@ public class TodoController {
     private final TodoService todoService;
     private final UserService userService;
   private final TodoListService todoListService;
+    private final TodoLabelService todoLabelService;
 
     @GetMapping // 메인에서 todo버튼 클릭시 이동하는 처음 화면
     @Transactional
