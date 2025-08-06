@@ -72,6 +72,7 @@ export default function TodoListPage() {
     
     try {
       const response = await fetch(`http://localhost:8080/api/todo-lists/${todoListId}`, {
+
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -100,7 +101,10 @@ export default function TodoListPage() {
           
           // Todos 배열 설정
           setTodos(result.data.todo || []);
+
         }
+        
+        setTodos(result.data || []);
       } else {
         throw new Error(result.msg || 'Failed to fetch todo list');
       }
@@ -369,6 +373,7 @@ export default function TodoListPage() {
     
     try {
       const response = await fetch(`http://localhost:8080/api/todo-lists/${todoListId}`, {
+
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -383,6 +388,7 @@ export default function TodoListPage() {
       const result = await response.json();
       
       if (result.resultCode === '200-OK' || result.resultCode === 'SUCCESS' || response.ok) {
+
         // TodoList 정보 설정
         if (result.data) {
           setTodoListInfo({
