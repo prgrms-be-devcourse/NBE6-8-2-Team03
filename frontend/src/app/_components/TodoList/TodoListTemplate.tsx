@@ -307,7 +307,18 @@ const TodoListTemplate: React.FC<PropsWithChildren> = ({
       updateUnreadCount();
     }, 1000);
 
-    return () => clearTimeout(timer);
+    // 팀 업데이트 이벤트 리스너 추가
+    const handleTeamUpdated = () => {
+      console.log('팀 업데이트 이벤트 감지 - 사이드바 새로고침');
+      fetchTeams();
+    };
+
+    window.addEventListener('teamUpdated', handleTeamUpdated);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('teamUpdated', handleTeamUpdated);
+    };
   }, []);
 
   // 팀 데이터 디버깅용 useEffect

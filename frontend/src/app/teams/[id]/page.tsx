@@ -274,6 +274,9 @@ const TeamDetailPage: React.FC = () => {
           setModalError('');
           // 팀 정보 새로고침
           await fetchTeamInfo();
+          
+          // 사이드바 새로고침을 위한 이벤트 발생
+          window.dispatchEvent(new CustomEvent('teamUpdated'));
         } else {
           setModalError(result.msg || '멤버 추가에 실패했습니다.');
         }
@@ -315,6 +318,9 @@ const TeamDetailPage: React.FC = () => {
           setNewMemberRoleForEdit('MEMBER');
           // 팀 정보 새로고침
           await fetchTeamInfo();
+          
+          // 사이드바 새로고침을 위한 이벤트 발생
+          window.dispatchEvent(new CustomEvent('teamUpdated'));
         } else {
           showToast(result.msg || '멤버 권한 변경에 실패했습니다.', 'error');
         }

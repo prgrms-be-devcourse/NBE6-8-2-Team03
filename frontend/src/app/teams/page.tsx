@@ -246,7 +246,10 @@ const TeamsPage: React.FC = () => {
         showToast('팀이 성공적으로 생성되었습니다.', 'success');
         setNewTeam({ teamName: '', description: '' });
         setShowCreateModal(false);
-        fetchTeams(); // 팀 목록 새로고침
+        fetchTeams();
+        
+        // 사이드바 새로고침을 위한 이벤트 발생
+        window.dispatchEvent(new CustomEvent('teamUpdated')); // 팀 목록 새로고침
       } else {
         throw new Error(result.msg || 'Failed to create team');
       }
